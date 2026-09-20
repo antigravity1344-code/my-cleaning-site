@@ -3,9 +3,7 @@ import {
   Users, 
   Star, 
   ShieldCheck, 
-  Award, 
   CalendarCheck, 
-  ThumbsUp, 
   CheckCircle,
   Clock
 } from 'lucide-react';

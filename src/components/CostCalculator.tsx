@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Calculator, Sparkles, Layers, Grid, Maximize, Flame, Shirt, PackageCheck, ArrowLeft, Check, Percent 
+  Calculator, Sparkles, PackageCheck, ArrowLeft, Check, Percent 
 } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS, getServiceCategory, getAddonsForCategory } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';

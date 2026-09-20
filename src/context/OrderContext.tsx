@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { BookingOrder, OrderStatus } from '../types';
+import { BookingOrder } from '../types';
 import { orderService } from '../services/orderService';
 import { CreateOrderDTO, UpdateOrderStatusDTO } from '../services/orderService.types';
 

@@ -3,8 +3,7 @@ import {
   HelpCircle, 
   ChevronDown, 
   Search, 
-  PhoneCall, 
-  MessageCircle 
+  PhoneCall 
 } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 

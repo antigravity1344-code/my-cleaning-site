@@ -5,7 +5,6 @@ export type ServiceType =
   | 'building-staircase'
   | 'furniture-carpet'
   | 'post-construction'
-  | 'disinfection'
   | 'hourly-worker'
   | 'building-painting';
 
