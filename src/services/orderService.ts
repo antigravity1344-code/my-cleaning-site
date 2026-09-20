@@ -4,6 +4,66 @@ import { CreateOrderDTO, IOrderService, UpdateOrderStatusDTO } from './orderServ
 
 const STORAGE_KEY = 'paksho_orders';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+
+class ApiOrderService implements IOrderService {
+  constructor(private readonly baseUrl: string) {}
+
+  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      let message = 'ارتباط با سرور برقرار نشد.';
+
+      try {
+        const errorBody = (await response.json()) as { message?: string };
+        message = errorBody.message || message;
+      } catch {
+        // The API may return an empty or non-JSON error response.
+      }
+
+      throw new Error(message);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  public getOrders(): Promise<BookingOrder[]> {
+    return this.request<BookingOrder[]>('/orders');
+  }
+
+  public getOrderById(id: string): Promise<BookingOrder | null> {
+    return this.request<BookingOrder | null>(`/orders/${encodeURIComponent(id)}`);
+  }
+
+  public getOrderByTrackingCode(trackingCode: string): Promise<BookingOrder | null> {
+    return this.request<BookingOrder | null>(`/orders/tracking/${encodeURIComponent(trackingCode)}`);
+  }
+
+  public createOrder(orderData: CreateOrderDTO): Promise<BookingOrder> {
+    return this.request<BookingOrder>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  public updateOrderStatus(updateData: UpdateOrderStatusDTO): Promise<BookingOrder> {
+    const { orderId, ...payload } = updateData;
+
+    return this.request<BookingOrder>(`/orders/${encodeURIComponent(orderId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+}
+
 /**
  * LocalStorage implementation of Order Service.
  * Implements IOrderService with asynchronous signatures, ready for real API replacement.
@@ -94,5 +154,8 @@ class LocalStorageOrderService implements IOrderService {
   }
 }
 
-// Export singleton instance as current provider
-export const orderService: IOrderService = new LocalStorageOrderService();
+// Local storage keeps the public demo runnable until the production API is deployed.
+// Set VITE_API_BASE_URL to switch every order operation to the backend API.
+export const orderService: IOrderService = API_BASE_URL
+  ? new ApiOrderService(API_BASE_URL)
+  : new LocalStorageOrderService();

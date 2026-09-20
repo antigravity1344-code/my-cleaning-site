@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Calculator, Sparkles, Layers, Grid, Maximize, Flame, Shirt, PackageCheck, ArrowLeft, Check, Percent 
-} from 'lucide-react';
+import { Calculator, Sparkles, PackageCheck, ArrowLeft, Check, Percent } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
 

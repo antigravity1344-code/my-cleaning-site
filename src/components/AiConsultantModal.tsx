@@ -6,8 +6,6 @@ import {
   Send, 
   CheckCircle2, 
   ArrowLeft, 
-  Clock, 
-  Layers, 
   Lightbulb 
 } from 'lucide-react';
 import { ServiceType, CleanerGender } from '../types';
