@@ -75,7 +75,7 @@ export const Footer: React.FC<FooterProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              سامانه جامع و آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی با کادری مجرب و قیمت‌گذاری شفاف و مصوب.
+              سامانه جامع خدمات نظافت، کارگر ساعتی و نقاشی ساختمان با کادری مجرب و قیمت‌گذاری شفاف و مصوب.
             </p>
             <div className="pt-2 text-xs text-slate-400 flex flex-col gap-2">
               <div className="flex items-center gap-2">

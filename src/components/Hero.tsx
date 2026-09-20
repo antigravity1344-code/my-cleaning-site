@@ -188,7 +188,7 @@ export const Hero: React.FC<HeroProps> = ({
                 {/* Service Selection */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    نوع خدمت نظافت
+                    نوع خدمت
                   </label>
                   <select
                     value={selectedService}
@@ -200,7 +200,8 @@ export const Hero: React.FC<HeroProps> = ({
                         setSelectedHours(s.minHours);
                       }
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all truncate"
+                    title={currentServiceObj.title}
                   >
                     {SERVICES_LIST.map(s => (
                       <option key={s.id} value={s.id}>

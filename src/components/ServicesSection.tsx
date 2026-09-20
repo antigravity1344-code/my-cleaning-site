@@ -58,13 +58,13 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         <div className="text-center max-w-3xl mx-auto space-y-3 mb-12 sm:mb-16">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 text-xs font-bold">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>پوشش کامل نیازهای نظافتی شما</span>
+            <span>پوشش کامل نیازهای خدماتی شما</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
             خدمات تخصصی و تضمین‌شده پاک‌شو
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-            از نظافت سریع و دوره‌ای منازل تا شستشوی صنعتی مبلمان و تمیزکاری بعد از بازسازی، تمامی خدمات توسط نیروهای آموزش‌دیده و با تجهیزات درجه‌یک انجام می‌پذیرد.
+            از نظافت منزل و محل کار تا کارگر ساعتی و نقاشی ساختمان؛ تمامی خدمات توسط نیروهای آموزش‌دیده و با تجهیزات درجه‌یک انجام می‌پذیرد.
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
           {SERVICES_LIST.map((service) => (
             <div
               key={service.id}
-              className="group bg-white rounded-3xl overflow-hidden border border-slate-200/80 hover:border-emerald-500/40 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+              className="group bg-white rounded-3xl overflow-hidden border border-slate-200/80 hover:border-emerald-500/40 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full min-h-0"
             >
               {/* Image banner & tag */}
               <div className="relative h-48 overflow-hidden">
@@ -96,7 +96,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                   <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-emerald-300">
                     {getServiceIcon(service.iconName)}
                   </div>
-                  <h3 className="font-bold text-base sm:text-lg text-white">
+                  <h3 className="font-bold text-base sm:text-lg text-white line-clamp-2 leading-snug">
                     {service.title}
                   </h3>
                 </div>
@@ -104,7 +104,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
               {/* Card Body */}
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
+                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed line-clamp-3 min-h-[3.5rem]">
                   {service.shortDesc}
                 </p>
 

@@ -161,13 +161,13 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     key={s.id}
                     type="button"
                     onClick={() => setServiceId(s.id)}
-                    className={`p-3 text-right rounded-2xl border transition-all cursor-pointer ${
+                    className={`p-3 text-right rounded-2xl border transition-all cursor-pointer min-h-[4.5rem] flex flex-col justify-center ${
                       serviceId === s.id
                         ? 'bg-emerald-50 border-emerald-600 shadow-xs'
                         : 'bg-white border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span className={`text-xs font-bold block ${serviceId === s.id ? 'text-emerald-900' : 'text-slate-800'}`}>
+                    <span className={`text-[11px] sm:text-xs font-bold block line-clamp-2 leading-snug ${serviceId === s.id ? 'text-emerald-900' : 'text-slate-800'}`}>
                       {s.title}
                     </span>
                     <span className="text-[11px] text-slate-500 font-mono mt-0.5 block">
