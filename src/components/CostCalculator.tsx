@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Calculator, Sparkles, Layers, Grid, Maximize, Flame, Shirt, PackageCheck, ArrowLeft, Check, Percent 
 } from 'lucide-react';
-import { SERVICES_LIST, ADDON_OPTIONS } from '../data/mockData';
+import { SERVICES_LIST, ADDON_OPTIONS, getServiceCategory, getAddonsForCategory } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
 
 const PRICING_CONFIG = {
@@ -36,6 +36,21 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
+  const serviceCategory = currentService.category ?? getServiceCategory(serviceId);
+  const isCleaning = serviceCategory === 'cleaning';
+  const availableAddons = getAddonsForCategory(serviceCategory).filter(a => a.id !== 'detergents');
+  const genderPrefix =
+    serviceCategory === 'painting' ? 'نقاش' :
+    serviceCategory === 'labor' ? 'کارگر' :
+    'نظافتچی';
+
+  useEffect(() => {
+    const cat = getServiceCategory(serviceId);
+    const allowed = new Set(getAddonsForCategory(cat).map(a => a.id));
+    setSelectedAddons(prev => prev.filter(id => allowed.has(id)));
+    if (cat !== 'cleaning') setHasDetergentPackage(false);
+  }, [serviceId]);
+
   // Calculate recommended hours based on inputs
   const recommendedHours = useMemo(() => {
     let baseH = 4;
@@ -46,13 +61,27 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
     else if (squareMeters <= 220) baseH = 7;
     else baseH = 8;
 
-    if (roomsCount >= 3) baseH += 1;
-    if (bathroomsCount >= 2) baseH += 1;
+    // Labor: lighter estimate — skip bathroom/room inflation so hours stay realistic
+    if (serviceId === 'hourly-worker') {
+      if (squareMeters > 150) baseH = Math.min(baseH, 5);
+      else baseH = Math.min(baseH, 4);
+      return Math.max(currentService.minHours, Math.min(10, baseH));
+    }
+
+    if (isCleaning) {
+      if (roomsCount >= 3) baseH += 1;
+      if (bathroomsCount >= 2) baseH += 1;
+    } else if (serviceCategory === 'painting') {
+      // rooms help a bit for painting area, bathrooms less relevant
+      if (roomsCount >= 3) baseH += 1;
+    }
+
     if (serviceId === 'home-deep') baseH += 2;
     if (serviceId === 'post-construction') baseH += 2;
+    if (serviceId === 'building-painting') baseH += 2;
 
     return Math.max(currentService.minHours, Math.min(12, baseH));
-  }, [squareMeters, roomsCount, bathroomsCount, serviceId, currentService.minHours]);
+  }, [squareMeters, roomsCount, bathroomsCount, serviceId, currentService.minHours, isCleaning, serviceCategory]);
 
   // Calculate total price
   const calculation = useMemo(() => {
@@ -64,7 +93,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
       if (found) addonsTotal += found.price;
     });
 
-    const detergentCost = hasDetergentPackage ? PRICING_CONFIG.detergentPackagePrice : 0;
+    const detergentCost = (isCleaning && hasDetergentPackage) ? PRICING_CONFIG.detergentPackagePrice : 0;
     const subtotal = serviceBase + addonsTotal + detergentCost;
     
     const autoDiscount = Math.round(subtotal * PRICING_CONFIG.onlineDiscountPercent / 1000) * 1000;
@@ -78,7 +107,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
       autoDiscount,
       finalTotal
     };
-  }, [currentService, recommendedHours, selectedAddons, hasDetergentPackage]);
+  }, [currentService, recommendedHours, selectedAddons, hasDetergentPackage, isCleaning]);
 
   const toggleAddon = (id: string) => {
     setSelectedAddons(prev => 
@@ -93,7 +122,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
       squareMeters,
       roomsCount,
       selectedAddons,
-      hasDetergentPackage,
+      hasDetergentPackage: isCleaning && hasDetergentPackage,
       cleanerGender,
       totalPrice: calculation.finalTotal
     });
@@ -124,7 +153,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             {/* Service Type Selection */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2">
-                ۱. نوع خدمت نظافت را انتخاب کنید:
+                ۱. نوع خدمت را انتخاب کنید:
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {SERVICES_LIST.map(s => (
@@ -237,7 +266,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                       : 'bg-white border-slate-200 text-slate-700'
                   }`}
                 >
-                  نظافتچی خانم
+                  {genderPrefix}{' '}خانم
                 </button>
                 <button
                   type="button"
@@ -248,7 +277,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                       : 'bg-white border-slate-200 text-slate-700'
                   }`}
                 >
-                  نظافتچی آقا
+                  {genderPrefix}{' '}آقا
                 </button>
                 <button
                   type="button"
@@ -267,10 +296,10 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             {/* Optional Add-ons */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2">
-                ۴. خدمات جانبی و شوینده (اختیاری):
+                ۴. خدمات جانبی{isCleaning ? ' و شوینده' : ''} (اختیاری):
               </label>
               <div className="space-y-2">
-                {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
+                {availableAddons.map(addon => {
                   const isChecked = selectedAddons.includes(addon.id);
                   return (
                     <div
@@ -304,7 +333,8 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   );
                 })}
 
-                {/* Detergent package toggle */}
+                {/* Detergent package toggle — cleaning only */}
+                {isCleaning && (
                 <div
                   onClick={() => setHasDetergentPackage(!hasDetergentPackage)}
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
@@ -333,6 +363,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     +{PRICING_CONFIG.detergentPackagePrice.toLocaleString('fa-IR')} ت
                   </span>
                 </div>
+                )}
 
               </div>
             </div>
@@ -384,7 +415,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   </div>
                 )}
 
-                {hasDetergentPackage && (
+                {isCleaning && hasDetergentPackage && (
                   <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                     <span>پکیج مواد شوینده و دستمال:</span>
                     <span className="font-mono text-teal-300">+{calculation.detergentCost.toLocaleString('fa-IR')} ت</span>
@@ -427,7 +458,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
               <div className="space-y-1.5 text-[11px] text-slate-400 text-center">
                 <p>✓ امکان تغییر مشخصات تا ۲ ساعت قبل از اعزام</p>
-                <p>✓ پرداخت پس از رضایت از کیفیت نظافت در محل</p>
+                <p>✓ پرداخت پس از رضایت از کیفیت کار در محل</p>
               </div>
 
             </div>

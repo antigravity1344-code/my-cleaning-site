@@ -5,9 +5,13 @@ export type ServiceType =
   | 'building-staircase'
   | 'furniture-carpet'
   | 'post-construction'
-  | 'disinfection';
+  | 'disinfection'
+  | 'hourly-worker'
+  | 'building-painting';
 
 export type CleanerGender = 'female' | 'male' | 'no-pref';
+
+export type ServiceCategory = 'cleaning' | 'labor' | 'painting';
 
 export interface ServiceItem {
   id: ServiceType;
@@ -17,6 +21,7 @@ export interface ServiceItem {
   iconName: string;
   baseHourlyRate: number; // in Tomans
   minHours: number;
+  category: ServiceCategory;
   popular?: boolean;
   included: string[];
   excluded: string[];
@@ -29,6 +34,8 @@ export interface AddonOption {
   price: number; // in Tomans
   description: string;
   icon: string;
+  /** If omitted, addon applies to cleaning services only */
+  forCategories?: ServiceCategory[];
 }
 
 export interface CleanerSpecialist {

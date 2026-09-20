@@ -60,7 +60,17 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
       let addons: string[] = [];
       let detergent = true;
 
-      if (text.includes('نقاشی') || text.includes('بازسازی') || text.includes('بنایی') || text.includes('گچ') || text.includes('نوساز')) {
+      if (text.includes('نقاشی') || text.includes('رنگ‌آمیزی') || text.includes('رنگ امیزی') || text.includes('رنگامیزی')) {
+        sId = 'building-painting';
+        h = 6;
+        detergent = false;
+        addons = ['masking'];
+      } else if (text.includes('کارگر ساعتی') || text.includes('کارگر') || text.includes('اسباب‌کشی') || text.includes('جابجایی') || text.includes('حمل بار') || text.includes('چیدمان')) {
+        sId = 'hourly-worker';
+        h = 4;
+        detergent = false;
+        addons = [];
+      } else if (text.includes('بازسازی') || text.includes('بنایی') || text.includes('گچ') || text.includes('نوساز')) {
         sId = 'post-construction';
         h = 7;
         addons.push('windows', 'walls');
@@ -92,6 +102,18 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
       }
 
       const sObj = SERVICES_LIST.find(s => s.id === sId) || SERVICES_LIST[0];
+      const isNonCleaning = sObj.category === 'labor' || sObj.category === 'painting';
+      if (isNonCleaning) {
+        detergent = false;
+        const allowed = new Set(
+          sObj.category === 'painting' ? ['materials-paint', 'masking'] : ['helper-extra', 'van-assist']
+        );
+        addons = addons.filter(a => allowed.has(a));
+      }
+
+      const analysisTail = isNonCleaning
+        ? 'تا کار با کیفیت مناسب انجام شود.'
+        : 'تا کلیه فضاها با بالاترین کیفیت تمیز و ضدعفونی شوند.';
 
       setResult({
         serviceId: sId,
@@ -100,8 +122,8 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
         cleanersCount: cleaners,
         recommendedAddons: addons,
         hasDetergent: detergent,
-        analysisText: `بر اساس نیازهای مطرح شده شما، مناسب‌ترین خدمت «${sObj.title}» به مدت تقریبی ${h} ساعت با حضور ${cleaners} نیروی متخصص می‌باشد تا کلیه فضاها با بالاترین کیفیت تمیز و ضدعفونی شوند.`
-      });
+        analysisText: `بر اساس نیازهای مطرح شده شما، مناسب‌ترین خدمت «${sObj.title}» به مدت تقریبی ${h} ساعت با حضور ${cleaners} نیروی متخصص می‌باشد ${analysisTail}`
+      })
 
       setIsAnalyzing(false);
     }, 900);
@@ -168,7 +190,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
           {/* User Input Area */}
           <form onSubmit={handleAnalyze} className="space-y-2">
             <label className="block text-xs font-bold text-slate-700">
-              توضیحات فضا و نیازهای نظافتی شما:
+              توضیحات فضا و نیاز خدماتی شما:
             </label>
             <div className="relative">
               <textarea

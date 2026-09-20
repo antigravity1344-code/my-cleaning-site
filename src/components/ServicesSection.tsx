@@ -6,6 +6,8 @@ import {
   Layers, 
   Armchair, 
   HardHat, 
+  Paintbrush,
+  UserCog,
   CheckCircle2, 
   XCircle, 
   Clock, 
@@ -39,6 +41,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         return <Armchair className="w-6 h-6" />;
       case 'HardHat':
         return <HardHat className="w-6 h-6" />;
+      case 'UserCog':
+        return <UserCog className="w-6 h-6" />;
+      case 'Paintbrush':
+        return <Paintbrush className="w-6 h-6" />;
       default:
         return <Sparkles className="w-6 h-6" />;
     }

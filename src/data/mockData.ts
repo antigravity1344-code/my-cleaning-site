@@ -1,4 +1,4 @@
-import { ServiceItem, AddonOption, CleanerSpecialist, CustomerReview, FAQItem, CleaningTip, BookingOrder } from '../types';
+import { ServiceItem, AddonOption, CleanerSpecialist, CustomerReview, FAQItem, CleaningTip, BookingOrder, ServiceType, ServiceCategory } from '../types';
 
 export const CITIES_DATA = [
   {
@@ -49,6 +49,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'Home',
     baseHourlyRate: 160000, // ۱۶۰ هزار تومان هر ساعت
     minHours: 4,
+    category: 'cleaning',
     popular: true,
     included: [
       'گردگیری تمام وسایل، مبلمان و تابلوها',
@@ -73,6 +74,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'Sparkles',
     baseHourlyRate: 190000,
     minHours: 5,
+    category: 'cleaning',
     popular: true,
     included: [
       'دیوارشویی و پاک کردن لکه‌های روی دیوار',
@@ -96,6 +98,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'Building2',
     baseHourlyRate: 175000,
     minHours: 4,
+    category: 'cleaning',
     included: [
       'دستمال‌کشی و ضدعفونی میزهای اداری و تجهیزات',
       'جاروبرقی و شستشوی کف راهروها و اتاق‌های مدیریت',
@@ -118,6 +121,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'Layers',
     baseHourlyRate: 155000,
     minHours: 4,
+    category: 'cleaning',
     included: [
       'جارو و تی‌کشی پله‌ها از طبقه آخر تا همکف',
       'دستمال‌کشی کامل نرده‌ها، دستگیره‌ها و کلیدها',
@@ -140,6 +144,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'Armchair',
     baseHourlyRate: 220000,
     minHours: 3,
+    category: 'cleaning',
     included: [
       'لکه‌گیری تخصصی چربی، جوهر و قهوه با مواد نانو',
       'شستشو با فوم فشرده و دستگاه پولیشر مخصوص پارچه',
@@ -159,6 +164,7 @@ export const SERVICES_LIST: ServiceItem[] = [
     iconName: 'HardHat',
     baseHourlyRate: 200000,
     minHours: 6,
+    category: 'cleaning',
     included: [
       'تراشیدن لکه‌های رنگ و گچ از روی شیشه و سرامیک با ابزار ایمن',
       'جاروکشی غبار غلیظ ساختمانی از گوشه‌ها و داخل داکت‌ها',
@@ -170,6 +176,52 @@ export const SERVICES_LIST: ServiceItem[] = [
       'حمل نخاله‌های سنگین ساختمانی به بیرون ساختمان'
     ],
     bannerImage: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 'hourly-worker',
+    title: 'کارگر ساعتی',
+    shortDesc: 'نیروی کمکی ساعتی برای حمل سبک، چیدمان، اسباب‌کشی جزئی و کارهای عمومی روزمره',
+    fullDesc: 'اعزام کارگر ساعتی آموزش‌دیده برای کمک در جابجایی وسایل سبک، چیدمان منزل، بسته‌بندی، تخلیه و بارگیری جزئی و سایر کارهای عمومی که به تخصص نظافت عمیق نیاز ندارند. مناسب روزهای اسباب‌کشی، آماده‌سازی مهمانی و کارهای متفرقه.',
+    iconName: 'UserCog',
+    baseHourlyRate: 150000,
+    minHours: 3,
+    category: 'labor',
+    included: [
+      'حمل و جابجایی وسایل سبک (تا حدود ۲۰ کیلوگرم)',
+      'کمک در چیدمان و مرتب‌سازی اولیه',
+      'بسته‌بندی و باز کردن کارتن‌های سبک',
+      'تخلیه و بارگیری جزئی در محل',
+      'کمک در کارهای عمومی روزمره طبق توافق'
+    ],
+    excluded: [
+      'کارهای تخصصی برق، لوله‌کشی و تأسیسات',
+      'حمل وسایل فوق‌سنگین بدون تجهیزات',
+      'نظافت عمیق تخصصی (نیاز به سفارش خدمت نظافت جداگانه)'
+    ],
+    bannerImage: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 'building-painting',
+    title: 'نقاشی ساختمان',
+    shortDesc: 'رنگ‌آمیزی داخلی دیوارها و سقف با رنگ ساختمانی استاندارد، زیرسازی و پوشش لکه‌ها',
+    fullDesc: 'خدمات نقاشی و رنگ‌آمیزی فضای داخلی واحدهای مسکونی و اداری شامل زیرسازی، بتونه‌کاری جزئی، پوشش لکه‌ها و اجرای رنگ روغنی یا پلاستیک طبق توافق. مناسب نوسازی سبک و تغییر دکوراسیون.',
+    iconName: 'Paintbrush',
+    baseHourlyRate: 260000,
+    minHours: 5,
+    category: 'painting',
+    included: [
+      'زیرسازی و بتونه‌کاری جزئی سطوح',
+      'پوشش و محافظت از کف و وسایل ثابت',
+      'رنگ‌آمیزی دیوارها و سقف طبق متراژ توافقی',
+      'دو دست رنگ در صورت نیاز سطح',
+      'تمیزکاری جزئی لکه‌های رنگ روی قاب و قرنیز'
+    ],
+    excluded: [
+      'نقاشی نمای بیرونی ساختمان',
+      'کاغذدیواری و دیوارپوش تخصصی',
+      'نظافت پس از بنایی کامل (خدمت جداگانه)'
+    ],
+    bannerImage: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=800&q=80'
   }
 ];
 
@@ -179,35 +231,72 @@ export const ADDON_OPTIONS: AddonOption[] = [
     title: 'دیوارشویی تخصصی اتاق‌ها',
     price: 180000,
     description: 'پاک کردن دوده، رد دست و لکه‌های روی دیوار با دستمال نانو و اسفنج جادویی',
-    icon: 'Grid'
+    icon: 'Grid',
+    forCategories: ['cleaning']
   },
   {
     id: 'windows',
     title: 'شستشوی کامل شیشه‌ها و بالکن',
     price: 130000,
     description: 'شستن شیشه‌های داخلی/بیرونی و کف بالکن به همراه چارچوب‌ها',
-    icon: 'Maximize'
+    icon: 'Maximize',
+    forCategories: ['cleaning']
   },
   {
     id: 'appliances',
     title: 'تمیزکاری عمیق داخل یخچال و فر',
     price: 150000,
     description: 'چربی‌زدایی و یخ‌زدایی اساسی قفسه‌های یخچال و فر با مواد شوینده ارگانیک',
-    icon: 'Flame'
+    icon: 'Flame',
+    forCategories: ['cleaning']
   },
   {
     id: 'ironing',
     title: 'اتوکشی و مرتب‌سازی البسه و پرده',
     price: 110000,
     description: 'اتوکشی تا ۱۰ تکه لباس یا مرتب کردن کمدهای لباس',
-    icon: 'Shirt'
+    icon: 'Shirt',
+    forCategories: ['cleaning']
   },
   {
     id: 'detergents',
     title: 'پکیج کامل مواد شوینده و دستمال نانو',
     price: 140000,
     description: 'تامین تمام مواد لازم (شیشه‌پاک‌کن، وایتکس معطر، جرم‌گیر، مایع چندمنظوره، دستمال‌ها) توسط نیرو',
-    icon: 'PackageCheck'
+    icon: 'PackageCheck',
+    forCategories: ['cleaning']
+  },
+  {
+    id: 'materials-paint',
+    title: 'بسته رنگ و غلطک',
+    price: 280000,
+    description: 'تامین رنگ ساختمانی استاندارد، غلطک، سینی و قلم‌مو برای متراژ معمول واحد',
+    icon: 'Paintbrush',
+    forCategories: ['painting']
+  },
+  {
+    id: 'masking',
+    title: 'کاور و نوارچسب محافظ',
+    price: 120000,
+    description: 'پوشش کف، قرنیز و وسایل ثابت با نایلون و نوارچسب محافظ قبل از رنگ‌آمیزی',
+    icon: 'Layers',
+    forCategories: ['painting']
+  },
+  {
+    id: 'helper-extra',
+    title: 'نیروی کمکی اضافه',
+    price: 150000,
+    description: 'اعزام یک کارگر کمکی اضافه برای سرعت بیشتر در حمل و چیدمان',
+    icon: 'UserCog',
+    forCategories: ['labor']
+  },
+  {
+    id: 'van-assist',
+    title: 'کمک بارگیری با وانت',
+    price: 200000,
+    description: 'هماهنگی کمک بارگیری و تخلیه سبک با وانت در محل (بدون کرایه مسیر طولانی)',
+    icon: 'PackageCheck',
+    forCategories: ['labor']
   }
 ];
 
@@ -301,6 +390,36 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
     verified: true,
     bio: 'دارای سابقه نظافت بیش از ۱۰۰ مجتمع مسکونی و تجاری در تهران و کرج.',
     satisfactionRate: 96
+  },
+  {
+    id: 'cl-7',
+    name: 'حسین نوری',
+    gender: 'male',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    rating: 4.93,
+    reviewCount: 148,
+    completedOrders: 260,
+    experienceYears: 7,
+    specialties: ['نقاشی ساختمان', 'رنگ‌آمیزی', 'زیرسازی و بتونه‌کاری'],
+    badge: 'نقاش حرفه‌ای',
+    verified: true,
+    bio: 'نقاش ساختمان با سابقه رنگ‌آمیزی واحدهای مسکونی و اداری؛ دقیق در زیرسازی و پوشش یکنواخت.',
+    satisfactionRate: 98
+  },
+  {
+    id: 'cl-8',
+    name: 'امیر جعفری',
+    gender: 'male',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
+    rating: 4.89,
+    reviewCount: 112,
+    completedOrders: 195,
+    experienceYears: 4,
+    specialties: ['کارگر ساعتی', 'حمل و چیدمان', 'بسته‌بندی و بارگیری جزئی'],
+    badge: 'کارگر قابل اعتماد',
+    verified: true,
+    bio: 'کارگر ساعتی وقت‌شناس برای حمل سبک، چیدمان و کمک در اسباب‌کشی جزئی روزمره.',
+    satisfactionRate: 97
   }
 ];
 
@@ -354,6 +473,26 @@ export const CUSTOMER_REVIEWS: CustomerReview[] = [
     comment: 'برای یک مجتمع ۱۰ طبقه نیرو گرفتیم. پله‌ها، آسانسورها و پارکینگ بسیار تمیز شسته شد. ساکنین همه تشکر کردند. قیمت هم نسبت به تعرفه بازار بسیار منصفانه بود.',
     cleanerName: 'علیرضا حسینی',
     verifiedBooking: true
+  },
+  {
+    id: 'rev-6',
+    authorName: 'نیما صالحی',
+    serviceType: 'نقاشی ساختمان',
+    rating: 5,
+    date: '۵ روز پیش',
+    comment: 'آقای حسین نوری دیوارهای پذیرایی را با زیرسازی تمیز و دو دست رنگ یکدست رنگ‌آمیزی کردند. کاور کف عالی بود و هیچ لکه‌ای روی پارکت نماند. خیلی راضی‌ام.',
+    cleanerName: 'حسین نوری',
+    verifiedBooking: true
+  },
+  {
+    id: 'rev-7',
+    authorName: 'الهام فرهادی',
+    serviceType: 'کارگر ساعتی',
+    rating: 5,
+    date: '۱ هفته پیش',
+    comment: 'برای اسباب‌کشی جزئی و چیدمان کارتن‌ها کارگر ساعتی گرفتیم. آقای امیر جعفری سر وقت آمدند، با دقت وسایل سبک را جابجا کردند و بدون آسیب کار را تمام کردند.',
+    cleanerName: 'امیر جعفری',
+    verifiedBooking: true
   }
 ];
 
@@ -393,6 +532,18 @@ export const FAQ_LIST: FAQItem[] = [
     category: 'pricing',
     question: 'نحوه پرداخت هزینه به چه صورت است؟',
     answer: 'شما می‌توانید هزینه را در انتهای ثبت سفارش به صورت آنلاین از طریق درگاه بانکی پرداخت کنید، یا گزینه «پرداخت در محل» را انتخاب نموده و پس از اتمام نظافت و بررسی کیفیت کار، مبلغ را به صورت نقدی یا کارت به کارت به متخصص پرداخت نمایید.'
+  },
+  {
+    id: 'faq-7',
+    category: 'services',
+    question: 'خدمات نقاشی ساختمان پاک‌شو شامل چه مواردی است؟',
+    answer: 'نقاشی ساختمان پاک‌شو برای فضای داخلی واحدهای مسکونی و اداری است و شامل زیرسازی و بتونه‌کاری جزئی، پوشش محافظ کف و وسایل، و رنگ‌آمیزی دیوار و سقف طبق متراژ توافقی می‌شود. نقاشی نمای بیرونی و کاغذدیواری جزو این خدمت نیست. در فرم رزرو می‌توانید بسته رنگ و غلطک یا کاور محافظ را هم اضافه کنید.'
+  },
+  {
+    id: 'faq-8',
+    category: 'services',
+    question: 'کارگر ساعتی برای چه کارهایی مناسب است و چه محدودیت‌هایی دارد؟',
+    answer: 'کارگر ساعتی برای حمل و جابجایی وسایل سبک، چیدمان، بسته‌بندی کارتن‌های سبک، تخلیه و بارگیری جزئی و کارهای عمومی روزمره اعزام می‌شود. کارهای تخصصی برق و لوله‌کشی، حمل فوق‌سنگین بدون تجهیزات، و نظافت عمیق تخصصی در این خدمت نیست؛ برای نظافت عمیق لطفاً خدمت نظافت جداگانه ثبت کنید. در صورت نیاز می‌توانید نیروی کمکی اضافه یا کمک بارگیری با وانت را انتخاب کنید.'
   }
 ];
 
@@ -456,6 +607,36 @@ export const INITIAL_ORDERS: BookingOrder[] = [
     discountApplied: 50000,
     paymentMethod: 'cash_on_site',
     status: 'in_progress',
+  },
+  {
+    id: 'ord-102',
+    trackingCode: 'PAK-91734',
+    createdAt: 'دیروز - ۱۶:۱۵',
+    serviceId: 'building-painting',
+    serviceTitle: 'نقاشی ساختمان',
+    cleanerGender: 'male',
+    cleanerId: 'cl-7',
+    cleanerName: 'حسین نوری',
+    cleanerPhone: '۰۹۱۲-۸۷۶-۵۴۳۲',
+    cleanerAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    hours: 6,
+    squareMeters: 95,
+    roomsCount: 2,
+    selectedAddons: ['materials-paint', 'masking'],
+    hasDetergentPackage: false,
+    date: 'فردا ۱۴۰۳/۰۶/۱۱',
+    timeSlot: '۰۹:۰۰ الی ۱۵:۰۰',
+    cityName: 'تهران',
+    district: 'ونک و ملاصدرا',
+    address: 'خیابان گاندی، کوچه پانزدهم، پلاک ۸',
+    unit: 'واحد ۵',
+    customerName: 'نیما صالحی',
+    customerPhone: '۰۹۱۲۱۱۱۲۲۳۳',
+    notes: 'رنگ پلاستیک استخوانی برای پذیرایی؛ لطفاً کف پارکت کامل کاور شود.',
+    totalPrice: 1960000,
+    discountApplied: 0,
+    paymentMethod: 'cash_on_site',
+    status: 'assigned',
   }
 ];
 
@@ -464,3 +645,16 @@ export const DISCOUNT_CODES: Record<string, number> = {
   'NEWCUSTOMER': 150000, // ۱۵۰ هزار تومان تخفیف مشتری جدید
   'OFFER20': 80000 // ۸۰ هزار تومان تخفیف
 };
+
+
+export function getServiceCategory(id: ServiceType): ServiceItem['category'] {
+  const found = SERVICES_LIST.find(s => s.id === id);
+  return found?.category ?? 'cleaning';
+}
+
+export function getAddonsForCategory(category: ServiceCategory): AddonOption[] {
+  return ADDON_OPTIONS.filter(a => {
+    const cats = a.forCategories ?? ['cleaning'];
+    return cats.includes(category);
+  });
+}

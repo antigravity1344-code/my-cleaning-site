@@ -3,7 +3,7 @@ import {
   X, Check, ArrowLeft, ArrowRight, Calendar, Clock, User, 
   ShieldCheck, Sparkles, Tag, Percent, PackageCheck, CheckCircle2, Copy, Receipt 
 } from 'lucide-react';
-import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA, DISCOUNT_CODES } from '../data/mockData';
+import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA, DISCOUNT_CODES, getServiceCategory, getAddonsForCategory } from '../data/mockData';
 import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from '../types';
 import { CreateOrderDTO } from '../services/orderService.types';
 
@@ -126,9 +126,64 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (cityObj && cityObj.districts.length > 0) {
       setDistrict(cityObj.districts[0]);
     }
-  }, [cityName]);if (!isOpen) return null;
+  }, [cityName]);
+
+  // When service (category) changes, drop invalid addons / detergent package
+  useEffect(() => {
+    const cat = getServiceCategory(serviceId);
+    const allowed = new Set(getAddonsForCategory(cat).map(a => a.id));
+    setSelectedAddons(prev => prev.filter(id => allowed.has(id)));
+    if (cat !== 'cleaning') {
+      setHasDetergentPackage(false);
+    }
+  }, [serviceId]);
+
+  if (!isOpen) return null;
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
+  const serviceCategory = currentService.category ?? getServiceCategory(serviceId);
+  const isCleaning = serviceCategory === 'cleaning';
+  const availableAddons = getAddonsForCategory(serviceCategory).filter(a => a.id !== 'detergents');
+  const workforceLabel = isCleaning ? 'نیروی خدماتی' : 'نیروی اعزامی';
+  const specialistLabel =
+    serviceCategory === 'painting' ? 'نقاش' :
+    serviceCategory === 'labor' ? 'کارگر' :
+    'متخصص نظافت';
+  const genderPrefix =
+    serviceCategory === 'painting' ? 'نقاش' :
+    serviceCategory === 'labor' ? 'کارگر' :
+    'نظافتچی';
+
+  const specialtyKeywords: Record<string, string[]> = {
+    'building-painting': ['نقاشی', 'رنگ'],
+    'hourly-worker': ['کارگر', 'حمل', 'چیدمان'],
+    'home-deep': ['خانه‌تکانی', 'دیوارشویی', 'عمیق'],
+    'furniture-carpet': ['مبل', 'فرش'],
+    'building-staircase': ['مشاعات', 'پارکینگ'],
+    'post-construction': ['بنایی', 'پس از'],
+    'office': ['دفتر', 'شرکت', 'اداری'],
+  };
+
+  const cleanerMatchesService = (cl: CleanerSpecialist, sid: ServiceType) => {
+    const keys = specialtyKeywords[sid] || [];
+    if (keys.length === 0) return false;
+    const joined = cl.specialties.join(' ');
+    return keys.some(k => joined.includes(k));
+  };
+
+  const getPreferredCleaners = () => {
+    const byGender = CLEANERS_LIST.filter(c => cleanerGender === 'no-pref' || c.gender === cleanerGender);
+    const specialists = byGender.filter(c => cleanerMatchesService(c, serviceId));
+    if (specialists.length > 0) return specialists;
+    if (byGender.length > 0) return byGender;
+    return CLEANERS_LIST;
+  };
+
+  const listedCleaners = (() => {
+    const preferred = getPreferredCleaners();
+    const rest = CLEANERS_LIST.filter(c => !preferred.some(p => p.id === c.id));
+    return [...preferred, ...rest].slice(0, 4);
+  })();
 
   // Calculations
   const baseServicePrice = currentService.baseHourlyRate * hours;
@@ -137,7 +192,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const addon = ADDON_OPTIONS.find(a => a.id === id);
     if (addon) addonsPrice += addon.price;
   });
-  const detergentPrice = hasDetergentPackage ? PRICING_CONFIG.detergentPackagePrice : 0;
+  const detergentPrice = (isCleaning && hasDetergentPackage) ? PRICING_CONFIG.detergentPackagePrice : 0;
   const subtotalPrice = baseServicePrice + addonsPrice + detergentPrice;
   const totalPrice = Math.max(0, subtotalPrice - appliedDiscountAmount);
 
@@ -185,7 +240,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     let matchedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
     if (!matchedCleaner || selectedCleanerId === 'auto') {
-      const candidates = CLEANERS_LIST.filter(c => cleanerGender === 'no-pref' || c.gender === cleanerGender);
+      const candidates = getPreferredCleaners();
       matchedCleaner = candidates[Math.floor(Math.random() * candidates.length)] || CLEANERS_LIST[0];
     }
 
@@ -194,7 +249,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       cleanerId: matchedCleaner?.id, cleanerName: matchedCleaner?.name,
       cleanerPhone: '۰۹۱۲' + Math.floor(1000000 + Math.random() * 9000000),
       cleanerAvatar: matchedCleaner?.avatar, hours, squareMeters, roomsCount,
-      selectedAddons, hasDetergentPackage, date: selectedDate, timeSlot: selectedTimeSlot,
+      selectedAddons, hasDetergentPackage: isCleaning && hasDetergentPackage, date: selectedDate, timeSlot: selectedTimeSlot,
       cityName, district, address: address.trim(), unit: unit.trim(),
       customerName: customerName.trim(), customerPhone: customerPhone.trim(), notes: notes.trim(),
       totalPrice, discountApplied: appliedDiscountAmount, paymentMethod, status: 'assigned'
@@ -246,7 +301,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="space-y-2">
           <h4 className="text-2xl font-black text-slate-900">سفارش شما با موفقیت ثبت شد!</h4>
           <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-            درخواست دریافت شد و متخصص نظافت اختصاص یافت. جزئیات به شماره شما پیامک شد.
+            درخواست دریافت شد و نیروی اعزامی اختصاص یافت. جزئیات به شماره شما پیامک شد.
           </p>
         </div>
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
@@ -288,7 +343,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const renderStep1 = () => (
     <div className="space-y-6">
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-2">نوع خدمت نظافت مورد نظر:</label>
+        <label className="block text-xs font-bold text-slate-700 mb-2">نوع خدمت مورد نظر:</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {SERVICES_LIST.map((srv) => (
             <div
@@ -326,7 +381,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         />
       </div>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-2">اولویت جنسیت متخصص نظافت:</label>
+        <label className="block text-xs font-bold text-slate-700 mb-2">اولویت جنسیت {specialistLabel}:</label>
         <div className="grid grid-cols-3 gap-2">
           {[{ id: 'female', label: 'خانم' }, { id: 'male', label: 'آقا' }, { id: 'no-pref', label: 'تفاوتی ندارد' }].map(g => (
             <button
@@ -337,7 +392,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 cleanerGender === g.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              نظافتچی {g.label}
+              {genderPrefix} {g.label}
             </button>
           ))}
         </div>
@@ -345,7 +400,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       <div className="space-y-2">
         <label className="block text-xs font-bold text-slate-700 mb-1">خدمات جانبی (اختیاری):</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
+          {availableAddons.map(addon => {
             const checked = selectedAddons.includes(addon.id);
             return (
               <div
@@ -366,6 +421,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             );
           })}
         </div>
+        {isCleaning && (
         <div
           onClick={() => setHasDetergentPackage(!hasDetergentPackage)}
           className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between mt-2 ${
@@ -385,6 +441,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             {hasDetergentPackage && <Check className="w-3 h-3" />}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
@@ -405,7 +462,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return (
       <div className="space-y-6">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">روز مراجعه نیروی خدماتی:</label>
+          <label className="block text-xs font-bold text-slate-700 mb-2">روز مراجعه {workforceLabel}:</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {dates.map((d) => (
               <button
@@ -459,7 +516,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
               {selectedCleanerId === 'auto' && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
             </div>
-            {CLEANERS_LIST.slice(0, 3).map((cl) => (
+            {listedCleaners.map((cl) => (
               <div
                 key={cl.id}
                 onClick={() => setSelectedCleanerId(cl.id)}
@@ -471,7 +528,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <img src={cl.avatar} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
                   <div className="text-right">
                     <span className="text-xs font-bold text-slate-900 block">{cl.name} ({cl.badge})</span>
-                    <span className="text-[11px] text-slate-500">امتیاز {cl.rating} • {cl.completedOrders} سفارش موفق</span>
+                    <span className="text-[11px] text-slate-500">امتیاز {cl.rating} • {cl.completedOrders} سفارش موفق{cleanerMatchesService(cl, serviceId) ? ' • مرتبط با این خدمت' : ''}</span>
                   </div>
                 </div>
                 {selectedCleanerId === cl.id && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
@@ -586,7 +643,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <span className="font-mono">+{addonsPrice.toLocaleString('fa-IR')} ت</span>
             </div>
           )}
-          {hasDetergentPackage && (
+          {isCleaning && hasDetergentPackage && (
             <div className="flex justify-between text-teal-800">
               <span>پکیج مواد شوینده و دستمال نانو:</span>
               <span className="font-mono">+{detergentPrice.toLocaleString('fa-IR')} ت</span>
@@ -637,7 +694,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </span>
               <span className="text-xs font-bold text-slate-900">پرداخت در محل (پیشنهادی)</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 mr-6">پرداخت پس از اتمام کامل نظافت و تایید رضایت شما</p>
+            <p className="text-[11px] text-slate-500 mt-1 mr-6">پرداخت پس از اتمام کامل کار و تایید رضایت شما</p>
           </div>
           <div
             onClick={() => setPaymentMethod('online')}
@@ -674,7 +731,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="p-5 sm:px-8 border-b border-slate-200/80 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div className="text-right">
             <span className="text-xs font-bold text-emerald-600 block">سامانه رزرو آنلاین و هوشمند</span>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900">ثبت درخواست خدمات نظافت</h3>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900">ثبت درخواست خدمات پاک‌شو</h3>
           </div>
           <button
             type="button"

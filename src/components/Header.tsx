@@ -9,6 +9,7 @@ import {
   ShieldCheck, 
   Bot
 } from 'lucide-react';
+import { DISCOUNT_CODES } from '../data/mockData';
 
 interface HeaderProps {
   onOpenBooking: (serviceId?: string) => void;
@@ -24,6 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   ordersCount
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const PROMO_CODE = 'PAK1403';
+  const promoAmountFa = ((DISCOUNT_CODES[PROMO_CODE] ?? 100000) / 1000).toLocaleString('fa-IR');
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
@@ -42,7 +45,11 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="inline-flex items-center justify-center bg-emerald-500/30 px-2 py-0.5 rounded-full text-[11px] font-bold">
               تخفیف ویژه
             </span>
-            <span>با کد تخفیف <strong className="bg-white/20 px-1.5 py-0.5 rounded font-mono text-amber-200">PAK1403</strong> ۱۰۰ هزار تومان تخفیف بگیرید!</span>
+            <span>
+              با کد تخفیف{' '}
+              <strong dir="ltr" className="bg-white/20 px-1.5 py-0.5 rounded font-mono text-amber-200 inline-block">{PROMO_CODE}</strong>
+              {' '}{promoAmountFa} هزار تومان تخفیف بگیرید!
+            </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-emerald-100">
             <span className="hidden md:flex items-center gap-1">
