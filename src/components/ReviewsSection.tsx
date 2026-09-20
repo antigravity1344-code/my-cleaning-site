@@ -3,9 +3,7 @@ import {
   Star, 
   MessageSquareHeart, 
   CheckCircle, 
-  PlusCircle, 
-  ThumbsUp, 
-  UserCheck 
+  PlusCircle
 } from 'lucide-react';
 import { CUSTOMER_REVIEWS, SERVICES_LIST } from '../data/mockData';
 import { CustomerReview } from '../types';

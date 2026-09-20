@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, Check, ArrowLeft, ArrowRight, Calendar, Clock, User, 
-  ShieldCheck, Sparkles, Tag, Percent, PackageCheck, CheckCircle2, Copy, Receipt 
-} from 'lucide-react';
+import { X, Check, ArrowLeft, ArrowRight, Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA, DISCOUNT_CODES } from '../data/mockData';
-import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from '../types';
+import { ServiceType, CleanerGender, BookingOrder } from '../types';
 import { CreateOrderDTO } from '../services/orderService.types';
 
 const PRICING_CONFIG = {

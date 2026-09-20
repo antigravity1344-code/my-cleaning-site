@@ -2,15 +2,10 @@ import React, { useState } from 'react';
 import { 
   Search, 
   X, 
-  Clock, 
   MapPin, 
   Phone, 
-  User, 
-  CheckCircle, 
   AlertCircle, 
-  Calendar, 
   Star, 
-  Sparkles, 
   PhoneCall, 
   RefreshCw,
   Ban
