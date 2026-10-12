@@ -1,4 +1,4 @@
-import { ServiceItem, AddonOption, CleanerSpecialist, CustomerReview, FAQItem, CleaningTip, BookingOrder } from '../types';
+import { ServiceItem, AddonOption, CleanerSpecialist, CustomerReview, FAQItem, CleaningTip } from '../types';
 
 export const CITIES_DATA = [
   {
@@ -214,6 +214,7 @@ export const ADDON_OPTIONS: AddonOption[] = [
 export const CLEANERS_LIST: CleanerSpecialist[] = [
   {
     id: 'cl-1',
+    recordType: 'sample',
     name: 'مریم رضایی',
     gender: 'female',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
@@ -229,6 +230,7 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
   },
   {
     id: 'cl-2',
+    recordType: 'sample',
     name: 'علیرضا حسینی',
     gender: 'male',
     avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80',
@@ -244,6 +246,7 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
   },
   {
     id: 'cl-3',
+    recordType: 'sample',
     name: 'زهرا کاظمی',
     gender: 'female',
     avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&q=80',
@@ -259,6 +262,7 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
   },
   {
     id: 'cl-4',
+    recordType: 'sample',
     name: 'محمدرضا مرادی',
     gender: 'male',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
@@ -274,6 +278,7 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
   },
   {
     id: 'cl-5',
+    recordType: 'sample',
     name: 'فاطمه ابراهیمی',
     gender: 'female',
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
@@ -289,6 +294,7 @@ export const CLEANERS_LIST: CleanerSpecialist[] = [
   },
   {
     id: 'cl-6',
+    recordType: 'sample',
     name: 'سعید احمدی',
     gender: 'male',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
@@ -310,50 +316,55 @@ export const CUSTOMER_REVIEWS: CustomerReview[] = [
     authorName: 'دکتر شیما رادمنش',
     serviceType: 'نظافت عمیق منزل',
     rating: 5,
+    recordType: 'sample',
     date: '۲ روز پیش',
     comment: 'خانم مریم رضایی فوق‌العاده بودند. با نهایت دقت و بدون اتلاف حتی یک دقیقه، کل خانه را مثل روز اول تحویل دادند. مخصوصاً شستشوی پنجره‌ها و کاشی‌های حمام که بی‌نظیر شد.',
     cleanerName: 'مریم رضایی',
-    verifiedBooking: true
+    verifiedBooking: false
   },
   {
     id: 'rev-2',
     authorName: 'مهندس آرش کریمی (شرکت نرم‌افزاری نوین)',
     serviceType: 'نظافت دفاتر و شرکت‌ها',
     rating: 5,
+    recordType: 'sample',
     date: '۴ روز پیش',
     comment: 'ما به صورت هفتگی برای دفتر ۴۰۰ متری از پاک‌شو نیرو می‌گیریم. وقت‌شناسی، پوشش آراسته و رفتار بسیار محترمانه نیروها نقطه قوت بزرگ این مجموعه است. واقعا خسته نباشید.',
     cleanerName: 'محمدرضا مرادی',
-    verifiedBooking: true
+    verifiedBooking: false
   },
   {
     id: 'rev-3',
     authorName: 'سارا میرزایی',
     serviceType: 'نظافت استاندارد منزل',
     rating: 5,
+    recordType: 'sample',
     date: '۱ هفته پیش',
     comment: 'پشتیبانی سایت عالی بود، بعد از ثبت سفارش سریعاً هماهنگ شد. نیروی اعزامی سر وقت آمدند و پکیج شوینده همراهشون خیلی باکیفیت و خوشبو بود. حتما باز هم سفارش می‌دهم.',
     cleanerName: 'زهرا کاظمی',
-    verifiedBooking: true
+    verifiedBooking: false
   },
   {
     id: 'rev-4',
     authorName: 'حامد شایان',
     serviceType: 'مبل‌شویی در محل',
     rating: 5,
+    recordType: 'sample',
     date: '۲ هفته پیش',
     comment: 'مبلمان رنگ روشن ما لکه‌های قدیمی چای و قهوه داشت که فکر می‌کردم پاک نشود، اما آقای مرادی با دستگاه و مواد نانو در ۱ ساعت همه را مثل روز اول تمیز کردند.',
     cleanerName: 'محمدرضا مرادی',
-    verifiedBooking: true
+    verifiedBooking: false
   },
   {
     id: 'rev-5',
     authorName: 'فرشته احمدوند (مدیر ساختمان برج پارس)',
     serviceType: 'نظافت راه‌پله و مشاعات',
     rating: 5,
+    recordType: 'sample',
     date: '۲ هفته پیش',
     comment: 'برای یک مجتمع ۱۰ طبقه نیرو گرفتیم. پله‌ها، آسانسورها و پارکینگ بسیار تمیز شسته شد. ساکنین همه تشکر کردند. قیمت هم نسبت به تعرفه بازار بسیار منصفانه بود.',
     cleanerName: 'علیرضا حسینی',
-    verifiedBooking: true
+    verifiedBooking: false
   }
 ];
 
@@ -426,41 +437,19 @@ export const CLEANING_TIPS: CleaningTip[] = [
   }
 ];
 
-export const INITIAL_ORDERS: BookingOrder[] = [
-  {
-    id: 'ord-101',
-    trackingCode: 'PAK-84920',
-    createdAt: 'امروز - ۱۰:۳۰',
-    serviceId: 'home-standard',
-    serviceTitle: 'نظافت استاندارد منزل',
-    cleanerGender: 'female',
-    cleanerId: 'cl-1',
-    cleanerName: 'مریم رضایی',
-    cleanerPhone: '۰۹۱۲-۳۴۵-۶۷۸۹',
-    cleanerAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
-    hours: 5,
-    squareMeters: 110,
-    roomsCount: 2,
-    selectedAddons: ['detergents'],
-    hasDetergentPackage: true,
-    date: 'امروز ۱۴۰۳/۰۶/۱۰',
-    timeSlot: '۱۴:۰۰ الی ۱۹:۰۰',
-    cityName: 'تهران',
-    district: 'سعادت‌آباد و شهرک غرب',
-    address: 'بلوار پاکنژاد، خیابان هجدهم، پلاک ۱۲',
-    unit: 'واحد ۳',
-    customerName: 'سروش نیک‌پی',
-    customerPhone: '۰۹۳۵۰۰۰۱۱۲۲',
-    notes: 'لطفا روی تمیزکاری شیشه‌های سالن تاکید شود.',
-    totalPrice: 940000,
-    discountApplied: 50000,
-    paymentMethod: 'cash_on_site',
-    status: 'in_progress',
-  }
-];
-
 export const DISCOUNT_CODES: Record<string, number> = {
   'PAK1403': 100000, // ۱۰۰ هزار تومان تخفیف
   'NEWCUSTOMER': 150000, // ۱۵۰ هزار تومان تخفیف مشتری جدید
   'OFFER20': 80000 // ۸۰ هزار تومان تخفیف
 };
+
+/*
+ * توجه (مأموریت PAKSHO-WEBSITE-SAFETY-002):
+ * آرایه `INITIAL_ORDERS` که پیش از این یک «سفارش نمونه» با نام، شماره تماس و نشانی
+ * کامل یک مشتری ساختگی را در بسته تولیدی منتشر می‌کرد، حذف شد. دلایل:
+ *   ۱) انتشار اطلاعات شخصی (هرچند ساختگی) در بسته ارسالی به مرورگر کاربران،
+ *   ۲) نمایش آن به‌عنوان «سفارش شما» و «سفارشات اخیر شما» برای بازدیدکننده تازه،
+ *      که با واقعیت جریان نمایشی سایت ناسازگار بود.
+ * فهرست درخواست‌های نمایشی اکنون خالی آغاز می‌شود و فقط شامل رکوردهای واقعیِ
+ * همان مرورگر (با اطلاعات ماسک‌شده) خواهد بود.
+ */

@@ -1,4 +1,4 @@
-export type ServiceType = 
+export type ServiceType =
   | 'home-standard'
   | 'home-deep'
   | 'office'
@@ -33,6 +33,8 @@ export interface AddonOption {
 
 export interface CleanerSpecialist {
   id: string;
+  /** پروفایل‌های فعلی «نمونه» هستند و نباید به‌عنوان متخصص واقعی معرفی شوند. */
+  recordType: RecordType;
   name: string;
   gender: CleanerGender;
   avatar: string;
@@ -47,6 +49,12 @@ export interface CleanerSpecialist {
   satisfactionRate: number;
 }
 
+/**
+ * نوع رکورد: داده‌های «نمونه» هرگز نباید به‌عنوان اطلاعات واقعی مشتری یا سفارش
+ * عملیاتی معرفی شوند و باید در رابط کاربری متمایز و برچسب‌دار باشند.
+ */
+export type RecordType = 'sample' | 'demo';
+
 export interface CustomerReview {
   id: string;
   authorName: string;
@@ -56,10 +64,12 @@ export interface CustomerReview {
   comment: string;
   avatar?: string;
   cleanerName?: string;
+  /** فقط زمانی true می‌شود که سفارش متناظر واقعاً احراز شده باشد (نیازمند سرور). */
   verifiedBooking: boolean;
+  recordType: RecordType;
 }
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'pending' // ثبت شده در انتظار تایید
   | 'assigned' // نیروی خدماتی تعیین شد
   | 'on_the_way' // در حال اعزام به محل
@@ -67,17 +77,30 @@ export type OrderStatus =
   | 'completed' // با موفقیت انجام شد
   | 'cancelled'; // لغو شده
 
+export type PaymentStatus = 'unpaid' | 'paid';
+
 export interface BookingOrder {
   id: string;
   trackingCode: string;
   createdAt: string;
+  /**
+   * در نسخه آزمایشی، وضعیت نمایشی است و وضعیت عملیاتی واقعی محسوب نمی‌شود.
+   */
+  status: OrderStatus;
+  recordType: RecordType;
+  /** در نسخه آزمایشی همیشه «unpaid» است؛ هیچ پرداختی ثبت نمی‌شود. */
+  paymentStatus: PaymentStatus;
   serviceId: ServiceType;
   serviceTitle: string;
   cleanerGender: CleanerGender;
+  /** تنها در صورت تخصیص تأییدشده توسط سرور مقدار می‌گیرد. */
   cleanerId?: string;
   cleanerName?: string;
   cleanerPhone?: string;
   cleanerAvatar?: string;
+  /** انتخاب نمایشی کاربر از فهرست نمونه (به‌معنای تخصیص متخصص نیست). */
+  requestedCleanerId?: string;
+  requestedCleanerName?: string;
   hours: number;
   squareMeters?: number;
   roomsCount?: number;
@@ -95,9 +118,11 @@ export interface BookingOrder {
   totalPrice: number;
   discountApplied: number;
   paymentMethod: 'online' | 'cash_on_site';
-  status: OrderStatus;
+  /**
+   * امتیاز عددی مشتری. متن آزاد بازخورد عمداً در مدل سفارش وجود ندارد تا
+   * نتواند اطلاعات شخصی را وارد حافظه مرورگر کند.
+   */
   userRating?: number;
-  userFeedback?: string;
 }
 
 export interface FAQItem {

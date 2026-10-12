@@ -9,6 +9,7 @@ import {
   Award,
   ChevronLeft
 } from 'lucide-react';
+import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 interface FooterProps {
   onOpenBooking: () => void;
@@ -35,7 +36,7 @@ export const Footer: React.FC<FooterProps> = ({
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">ضمانت ۱۰۰٪ رضایت مشتری</h4>
+              <h4 className="font-bold text-white text-sm">نسخه آزمایشی — بدون ضمانت قابل اجرا</h4>
               <p className="text-xs text-slate-400 mt-0.5">در صورت نارضایتی، نظافت مجدد کاملا رایگان</p>
             </div>
           </div>
@@ -46,7 +47,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-white text-sm">متخصصین گزینش شده</h4>
-              <p className="text-xs text-slate-400 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p>
+              {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-slate-400 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-slate-400 mt-0.5">این نسخه آزمایشی است و به سرور عملیات متصل نیست</p>}
             </div>
           </div>
 
@@ -118,7 +119,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button onClick={() => scrollTo('why-us')} className="hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1">
                   <ChevronLeft className="w-3.5 h-3.5" />
-                  ضمانت و پوشش بیمه‌ای
+                  ضمانت و پوشش (در انتظار تأیید)
                 </button>
               </li>
               <li>
@@ -167,15 +168,16 @@ export const Footer: React.FC<FooterProps> = ({
             <h4 className="font-bold text-white text-sm mb-4">مجوزها و تاییده‌ها</h4>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-emerald-400">نماد اعتماد الکترونیکی</span>
-                <span className="text-[10px] text-slate-400 mt-1">وزارت صمت</span>
+                <span className="text-[11px] font-bold text-slate-300">نماد اعتماد الکترونیکی</span>
+                <span className="text-[10px] text-amber-400 mt-1">در انتظار صدور/درج کد رهگیری</span>
               </div>
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-teal-400">اتحادیه قالیشویان</span>
-                <span className="text-[10px] text-slate-400 mt-1">عضو رسمی</span>
+                <span className="text-[11px] font-bold text-slate-300">اتحادیه قالیشویان</span>
+                <span className="text-[10px] text-amber-400 mt-1">در انتظار ارائه مستند عضویت</span>
               </div>
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center col-span-2">
-                <span className="text-[11px] font-bold text-amber-400">تحت پوشش بیمه مسئولیت مدنی ایران</span>
+                <span className="text-[11px] font-bold text-slate-300">بیمه مسئولیت مدنی</span>
+                <span className="text-[10px] text-amber-400 mt-1">در انتظار درج شماره بیمه‌نامه معتبر</span>
               </div>
             </div>
           </div>
@@ -184,7 +186,7 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد.</p>
+          <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد. نسخه فعلی، نسخه آزمایشی و غیرعملیاتی است.</p>
           <p>طراحی شده با React 19، TypeScript و Tailwind CSS</p>
         </div>
 

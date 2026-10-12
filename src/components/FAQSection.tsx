@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  HelpCircle, 
-  ChevronDown, 
-  Search, 
-  PhoneCall, 
-  MessageCircle 
-} from 'lucide-react';
+import { HelpCircle, ChevronDown, Search, PhoneCall } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
+import { DemoInlineNotice } from './DemoNotice';
 
 export const FAQSection: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'safety' | 'pricing' | 'booking' | 'services'>('all');
@@ -37,7 +32,7 @@ export const FAQSection: React.FC = () => {
             پرسش‌های متداول درباره خدمات نظافت
           </h2>
           <p className="text-slate-600 text-sm sm:text-base">
-            پاسخ سریع به متداول‌ترین سوالات درباره احراز هویت، نحوه قیمت‌گذاری، بیمه و گارانتی پاک‌شو.
+            پاسخ به پرسش‌های رایج درباره قیمت‌گذاری، روند رزرو و سیاست‌های پیشنهادی پاک‌شو. موارد مربوط به بیمه، احراز هویت و گارانتی در نسخه آزمایشی قابل اجرا نیستند.
           </p>
         </div>
 
@@ -80,8 +75,10 @@ export const FAQSection: React.FC = () => {
           </div>
 
         </div>
-
-        {/* FAQ Accordion List */}
+        <DemoInlineNotice
+          className="mb-6"
+          text={'پاسخ‌های مربوط به بیمه، احراز هویت نیروها، درگاه بانکی و پیامک تا زمان اتصال سرور پاک‌شو و ارائه مستندات، صرفاً سیاست پیشنهادی هستند و در نسخه آزمایشی قابل اجرا نیستند.'}
+        />
         <div className="space-y-3">
           {filteredFaqs.length > 0 ? (
             filteredFaqs.map((faq) => {

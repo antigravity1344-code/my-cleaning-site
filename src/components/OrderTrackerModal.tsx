@@ -1,40 +1,66 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  X, 
-  Clock, 
-  MapPin, 
-  Phone, 
-  User, 
-  CheckCircle, 
-  AlertCircle, 
-  Calendar, 
-  Star, 
-  Sparkles, 
-  PhoneCall, 
-  RefreshCw,
-  Ban
+import React, { useEffect, useState } from 'react';
+import {
+  Search,
+  X,
+  MapPin,
+  Phone,
+  AlertCircle,
+  Star,
+  PhoneCall,
+  Ban,
+  Info,
 } from 'lucide-react';
 import { BookingOrder, OrderStatus } from '../types';
+import {
+  DemoBadge,
+  DemoSampleBadge,
+  DemoInlineNotice,
+} from './DemoNotice';
+import { DEMO_COPY } from '../config/capabilities';
+import { LEGACY_DATA_NOTICE } from '../services/pii';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
   onClose: () => void;
   orders: BookingOrder[];
-  onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus, userRating?: number, userFeedback?: string) => void;
+  /** فقط ثبت امتیاز عددی. مشتری اجازه تغییر وضعیت عملیاتی را ندارد. */
+  onSubmitOrderRating: (orderId: string, rating: number) => void;
+  /** لغو نمایشی رکورد محلی؛ هیچ اثر عملیاتی ندارد. */
+  onCancelOrder: (orderId: string) => void;
+  /** آیا داده‌ای از نسخه قبلی سایت در این مرورگر وجود دارد؟ (فقط اطلاع‌رسانی) */
+  hasLegacyStoredData?: boolean;
 }
 
 export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   isOpen,
   onClose,
   orders,
-  onUpdateOrderStatus
+  onSubmitOrderRating,
+  onCancelOrder,
+  hasLegacyStoredData = false
 }) => {
   const [searchCode, setSearchCode] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<BookingOrder | null>(orders[0] || null);
+  const [selectedOrder, setSelectedOrder] = useState<BookingOrder | null>(null);
+  const [searchError, setSearchError] = useState<string>('');
   const [userStarRating, setUserStarRating] = useState(5);
+  /**
+   * متن بازخورد فقط در حافظه همین کامپوننت نگه داشته می‌شود و **ذخیره نمی‌شود**.
+   * دلیل: متن آزاد می‌تواند حاوی شماره تماس یا نشانی باشد و نباید در
+   * localStorage باقی بماند.
+   */
   const [userFeedbackText, setUserFeedbackText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+
+  // انتخاب اولیه پس از بارگذاری سفارش‌های آزمایشی (و همگام‌سازی با تغییر فهرست).
+  useEffect(() => {
+    if (!isOpen) return;
+    setSelectedOrder((current) => {
+      if (current && orders.some((order) => order.id === current.id)) {
+        return orders.find((order) => order.id === current.id) ?? current;
+      }
+      return orders[0] ?? null;
+    });
+  }, [isOpen, orders]);
 
   if (!isOpen) return null;
 
@@ -43,15 +69,20 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     const query = searchCode.trim().toUpperCase();
     if (!query) return;
 
-    const found = orders.find(o => 
-      o.trackingCode.toUpperCase() === query || 
-      o.customerPhone.includes(query) ||
-      o.id === query
+    // جست‌وجو فقط در رکوردهای نمایشی همین مرورگر انجام می‌شود.
+    const found = orders.find(
+      (order) =>
+        order.trackingCode.toUpperCase() === query ||
+        order.id.toUpperCase() === query
     );
+
     if (found) {
       setSelectedOrder(found);
+      setSearchError('');
     } else {
-      alert('سفارشی با این کد پیگیری یا شماره تماس یافت نشد.');
+      setSearchError(
+        'درخواستی با این کد در همین مرورگر یافت نشد. در نسخه آزمایشی هیچ سامانه مرکزی برای رهگیری وجود ندارد.',
+      );
     }
   };
 
@@ -68,59 +99,50 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   };
 
   const statusSteps = [
-    { title: 'ثبت سفارش', desc: 'درخواست شما ثبت شد' },
-    { title: 'تخصیص متخصص', desc: 'نیروی خدماتی تایید شد' },
-    { title: 'در مسیر اعزام', desc: 'نیرو در راه آدرس شماست' },
-    { title: 'در حال نظافت', desc: 'عملیات تمیزکاری فعال است' },
-    { title: 'پایان کار و رضایت', desc: 'نظافت با موفقیت پایان یافت' }
+    { title: 'ثبت درخواست', desc: 'درخواست شما ثبت شد' },
+    { title: 'تخصیص متخصص', desc: 'نیازمند سرور عملیات' },
+    { title: 'در مسیر اعزام', desc: 'نیازمند سرور عملیات' },
+    { title: 'در حال نظافت', desc: 'نیازمند سرور عملیات' },
+    { title: 'پایان کار', desc: 'نیازمند سرور عملیات' },
   ];
-
-  const handleAdvanceStatusDemo = () => {
-    if (!selectedOrder) return;
-    const currentIdx = getStatusStepIndex(selectedOrder.status);
-    const statuses: OrderStatus[] = ['pending', 'assigned', 'on_the_way', 'in_progress', 'completed'];
-    if (currentIdx < statuses.length - 1) {
-      const nextStatus = statuses[currentIdx + 1];
-      onUpdateOrderStatus(selectedOrder.id, nextStatus);
-      setSelectedOrder({ ...selectedOrder, status: nextStatus });
-    }
-  };
 
   const handleCancelOrder = () => {
     if (!selectedOrder) return;
-    if (confirm('آیا از لغو این سفارش اطمینان دارید؟ (لغو تا ۲ ساعت قبل از شروع کاملاً رایگان است)')) {
-      onUpdateOrderStatus(selectedOrder.id, 'cancelled');
-      setSelectedOrder({ ...selectedOrder, status: 'cancelled' });
+    if (confirm('این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟')) {
+      onCancelOrder(selectedOrder.id);
     }
   };
 
   const handleSubmitRating = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
-    onUpdateOrderStatus(selectedOrder.id, selectedOrder.status, userStarRating, userFeedbackText);
-    setSelectedOrder({ ...selectedOrder, userRating: userStarRating, userFeedback: userFeedbackText });
+    // فقط امتیاز عددی ارسال و ذخیره می‌شود؛ متن بازخورد ارسال نمی‌شود.
+    onSubmitOrderRating(selectedOrder.id, userStarRating);
     setRatingSubmitted(true);
     setTimeout(() => setRatingSubmitted(false), 2500);
   };
 
   const currentStepIdx = selectedOrder ? getStatusStepIndex(selectedOrder.status) : 0;
+  const isDemoStatus = selectedOrder ? selectedOrder.status === 'pending' : false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto max-h-[92vh]">
-        
+
         {/* Header */}
         <div className="p-5 sm:px-8 border-b border-slate-200/80 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div>
-            <span className="text-xs font-bold text-emerald-600 block">
-              سامانه رهگیری لحظه‌ای
-            </span>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900">
-              پیگیری و مدیریت وضعیت سفارشات
+            <div className="flex items-center gap-2">
+              <DemoBadge />
+              <span className="text-xs font-bold text-slate-500">رهگیری آزمایشی</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
+              درخواست‌های نمایشی همین مرورگر
             </h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="بستن"
             className="w-9 h-9 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -129,13 +151,22 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-5 sm:p-8 overflow-y-auto flex-1 space-y-6 text-slate-800">
-          
+
+          <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} />
+
+          {hasLegacyStoredData && (
+            <div className="p-3 rounded-2xl bg-slate-100 border border-slate-300 text-slate-700 text-[11px] leading-relaxed flex items-start gap-2">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
+              <span>{LEGACY_DATA_NOTICE}</span>
+            </div>
+          )}
+
           {/* Search by tracking code */}
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="کد پیگیری (مثلا PAK-84920) یا شماره موبایل..."
+                placeholder="کد پیگیری آزمایشی (مثلا DEMO-...)"
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pr-10 pl-3 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
@@ -150,11 +181,18 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </button>
           </form>
 
-          {/* Quick Select from existing orders list */}
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {searchError}
+            </p>
+          )}
+
+          {/* Quick Select from existing demo orders */}
           {orders.length > 1 && (
             <div>
               <span className="text-xs font-bold text-slate-500 block mb-2">
-                سفارشات اخیر شما:
+                درخواست‌های آزمایشی این مرورگر:
               </span>
               <div className="flex flex-wrap gap-2">
                 {orders.map((ord) => (
@@ -167,7 +205,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    {ord.trackingCode} ({ord.serviceTitle.slice(0, 15)}...)
+                    {ord.trackingCode}
                   </button>
                 ))}
               </div>
@@ -176,19 +214,21 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
           {selectedOrder ? (
             <div className="space-y-6">
-              
-              {/* Order Info Card */}
+
+              {/* Demo order info card */}
               <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-4 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div>
-                    <span className="text-xs text-slate-400 block">کد پیگیری سفارش:</span>
-                    <strong className="text-xl font-black font-mono text-emerald-400">
+                    <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
+                    <strong className="text-lg font-black font-mono text-emerald-400">
                       {selectedOrder.trackingCode}
                     </strong>
                   </div>
                   <div className="text-left">
-                    <span className="text-xs text-slate-400 block">زمان ثبت:</span>
-                    <span className="text-xs font-medium text-slate-200">{selectedOrder.createdAt}</span>
+                    <span className="text-xs text-slate-400 block">زمان ثبت در این مرورگر:</span>
+                    <span className="text-xs font-medium text-slate-200">
+                      {formatCreatedAt(selectedOrder.createdAt)}
+                    </span>
                   </div>
                 </div>
 
@@ -202,32 +242,49 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                     <strong className="text-white font-mono">{selectedOrder.hours} ساعت</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">تاریخ مراجعه:</span>
+                    <span className="text-slate-400 block">تاریخ درخواستی:</span>
                     <strong className="text-white">{selectedOrder.date}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">مبلغ سفارش:</span>
-                    <strong className="text-emerald-400 font-mono">{selectedOrder.totalPrice.toLocaleString('fa-IR')} ت</strong>
+                    <span className="text-slate-400 block">{DEMO_COPY.provisionalPriceLabel}:</span>
+                    <strong className="text-emerald-400 font-mono">
+                      {selectedOrder.totalPrice.toLocaleString('fa-IR')} ت
+                    </strong>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800 text-xs text-slate-300 flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>
-                    {selectedOrder.cityName}، {selectedOrder.district}، {selectedOrder.address} {selectedOrder.unit && `(${selectedOrder.unit})`}
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                    وضعیت پرداخت: ثبت نشده
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                    مبلغ نهایی: پس از تأیید سرور
+                  </span>
+                </div>
+
+                {/* Masked / redacted customer data stored locally */}
+                <div className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700 text-[11px] text-slate-300 space-y-1">
+                  <span className="flex items-center gap-1.5 text-slate-400">
+                    <MapPin className="w-3.5 h-3.5" />
+                    اطلاعات ذخیره‌شده روی همین دستگاه (ماسک‌شده)
+                  </span>
+                  <span className="block">{selectedOrder.customerName || '—'}</span>
+                  <span className="block font-mono" dir="ltr">{selectedOrder.customerPhone || '—'}</span>
+                  <span className="block text-slate-400">
+                    نشانی دقیق برای حفاظت از حریم خصوصی در نسخه آزمایشی ذخیره نمی‌شود.
                   </span>
                 </div>
               </div>
 
-              {/* Progress Tracker Steps */}
+              {/* Status: demonstration only */}
               {selectedOrder.status !== 'cancelled' ? (
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-slate-900">
                       مراحل اجرای سفارش
                     </h4>
-                    <span className="text-xs text-emerald-700 bg-emerald-100 font-bold px-2.5 py-0.5 rounded-full">
-                      وضعیت زنده
+                    <span className="text-xs text-amber-800 bg-amber-100 font-bold px-2.5 py-0.5 rounded-full">
+                      نمایشی
                     </span>
                   </div>
 
@@ -240,12 +297,12 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                           <div key={idx} className="space-y-1.5 flex flex-col items-center">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                               isCurrent
-                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md animate-pulse'
+                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md'
                                 : isDone
                                 ? 'bg-emerald-500 text-white'
                                 : 'bg-slate-200 text-slate-500'
                             }`}>
-                              {isDone ? '✓' : idx + 1}
+                              {isDone && !isCurrent ? '✓' : idx + 1}
                             </div>
                             <span className={`text-[11px] font-bold block ${isCurrent ? 'text-emerald-800' : isDone ? 'text-slate-800' : 'text-slate-400'}`}>
                               {step.title}
@@ -259,72 +316,74 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Simulator button for previewing state progression */}
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      onClick={handleAdvanceStatusDemo}
-                      className="text-[11px] text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>شبیه‌سازی گام بعدی وضعیت</span>
-                    </button>
+                  <div className="p-3 rounded-2xl bg-white border border-amber-200 text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      {isDemoStatus
+                        ? 'مراحل بعدی در نسخه آزمایشی هرگز فعال نمی‌شوند، چون سامانه اعزام سرور پاک‌شو به این سایت متصل نیست. وضعیت ثبت‌شده در این صفحه وضعیت عملیاتی واقعی نیست و مشتری نمی‌تواند آن را تغییر دهد.'
+                        : 'تمدید خودکار وضعیت در نسخه آزمایشی انجام نمی‌شود.'}
+                    </span>
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-800 text-xs">
                   <Ban className="w-5 h-5 text-rose-600 shrink-0" />
-                  <span>این سفارش لغو شده است. در صورت نیاز به هماهنگی با پشتیبانی تماس حاصل فرمایید.</span>
+                  <span>
+                    این رکورد نمایشی در همین مرورگر لغو شده است. چون هیچ درخواستی به سامانه عملیاتی
+                    ارسال نشده، لغو نیز اثری در عملیات پاک‌شو ندارد.
+                  </span>
                 </div>
               )}
 
-              {/* Assigned Cleaner Profile Card */}
-              {selectedOrder.cleanerName && (
-                <div className="p-5 rounded-3xl bg-emerald-50/70 border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 text-right">
-                    <img
-                      src={selectedOrder.cleanerAvatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80'}
-                      alt={selectedOrder.cleanerName}
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500 shadow-sm shrink-0"
-                    />
-                    <div className="space-y-0.5">
-                      <span className="text-[11px] text-emerald-800 font-medium">متخصص اختصاص‌یافته برای شما:</span>
-                      <h4 className="text-base font-bold text-slate-900">{selectedOrder.cleanerName}</h4>
-                      <span className="text-xs text-slate-600 block">احراز هویت شده • تحت پوشش بیمه حوادث</span>
-                    </div>
+              {/* Requested cleaner: display-only, never an assignment; no phone number */}
+              {selectedOrder.requestedCleanerName && (
+                <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-slate-500">درخواست شما برای همکاری با:</span>
+                    <DemoSampleBadge />
                   </div>
-
-                  <a
-                    href={`tel:${selectedOrder.cleanerPhone}`}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all shrink-0"
-                  >
-                    <PhoneCall className="w-4 h-4" />
-                    <span>تماس: {selectedOrder.cleanerPhone}</span>
-                  </a>
+                  <h4 className="text-base font-bold text-slate-900">{selectedOrder.requestedCleanerName}</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">{DEMO_COPY.noCleanerAssignment}</p>
+                  <div className="pt-2 border-t border-slate-200 flex items-center gap-2 text-[11px] text-slate-500">
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>شماره تماس متخصص در نسخه آزمایشی نمایش داده نمی‌شود.</span>
+                  </div>
                 </div>
               )}
 
-              {/* Review & Rating Form (if completed or finished) */}
-              {selectedOrder.status === 'completed' && (
+              {/* Rating & feedback */}
+              {selectedOrder.status === 'pending' && (
                 <div className="p-5 rounded-3xl bg-amber-50/70 border border-amber-200 space-y-3">
                   <h4 className="font-bold text-sm text-amber-950 flex items-center gap-1.5">
                     <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                    نظرسنجی کیفیت خدمت انجام شده
+                    بازخورد شما درباره این نسخه آزمایشی
                   </h4>
-                  
+
                   {ratingSubmitted || selectedOrder.userRating ? (
-                    <div className="p-3 bg-white rounded-2xl border border-amber-200 text-xs text-emerald-800 font-bold text-center">
-                      ✓ امتیاز {selectedOrder.userRating || userStarRating} ستاره با موفقیت ثبت شد. از همکاری شما متشکریم!
+                    <div className="p-3 bg-white rounded-2xl border border-amber-200 space-y-1.5">
+                      <p className="text-xs text-emerald-800 font-bold text-center">
+                        ✓ امتیاز {selectedOrder.userRating || userStarRating} ستاره در همین مرورگر ثبت شد.
+                      </p>
+                      {userFeedbackText.trim() && (
+                        <>
+                          <p className="text-[11px] text-slate-700 leading-relaxed">«{userFeedbackText.trim()}»</p>
+                          <p className="text-[10px] text-slate-500">
+                            این متن ذخیره نشده است و با بستن یا بارگذاری مجدد صفحه از بین می‌رود.
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <form onSubmit={handleSubmitRating} className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-700 font-bold">امتیاز شما به متخصص:</span>
+                        <span className="text-xs text-slate-700 font-bold">امتیاز شما:</span>
                         <div className="flex items-center gap-1 text-amber-400">
                           {[1, 2, 3, 4, 5].map((s) => (
                             <button
                               key={s}
                               type="button"
                               onClick={() => setUserStarRating(s)}
+                              aria-label={`امتیاز ${s}`}
                               className="p-1 cursor-pointer"
                             >
                               <Star className={`w-5 h-5 ${s <= userStarRating ? 'fill-amber-400' : 'text-slate-300'}`} />
@@ -333,9 +392,14 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                         </div>
                       </div>
 
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        متن بازخورد ذخیره نمی‌شود و فقط تا بستن این پنجره نمایش داده می‌شود؛
+                        شماره تلفن، نشانی یا هر اطلاعات شخصی دیگری را وارد نکنید.
+                      </p>
+
                       <textarea
                         rows={2}
-                        placeholder="نظر شما درباره دقت، سرعت و برخورد متخصص..."
+                        placeholder="نظر شما درباره این نسخه آزمایشی..."
                         value={userFeedbackText}
                         onChange={(e) => setUserFeedbackText(e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800"
@@ -345,22 +409,22 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                         type="submit"
                         className="py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                       >
-                        ثبت امتیاز و بازخورد
+                        ثبت امتیاز
                       </button>
                     </form>
                   )}
                 </div>
               )}
 
-              {/* Order Actions */}
-              {selectedOrder.status !== 'completed' && selectedOrder.status !== 'cancelled' && (
+              {/* Order actions */}
+              {selectedOrder.status !== 'cancelled' && (
                 <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                   <button
                     onClick={handleCancelOrder}
                     className="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Ban className="w-3.5 h-3.5" />
-                    <span>لغو سفارش</span>
+                    <span>لغو رکورد نمایشی</span>
                   </button>
 
                   <a
@@ -377,7 +441,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
           ) : (
             <div className="text-center py-12 text-slate-400 space-y-2">
               <AlertCircle className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-xs">سفارشی برای نمایش انتخاب نشده است.</p>
+              <p className="text-xs">هنوز درخواست آزمایشی در این مرورگر ثبت نشده است.</p>
             </div>
           )}
 
@@ -387,3 +451,10 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     </div>
   );
 };
+
+/** نمایش خوانای زمان ثبت ISO با پشتیبانی از رکوردهای قدیمی. */
+function formatCreatedAt(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('fa-IR');
+}

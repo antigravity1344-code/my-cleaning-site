@@ -1,0 +1,168 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import App from './App';
+import { DEMO_STORAGE_KEY, LEGACY_DATA_NOTICE, LEGACY_STORAGE_KEYS } from './services/pii';
+
+/**
+ * یافته‌های ۱ و ۲ مأموریت PAKSHO-WEBSITE-SAFETY-003 — از مسیر واقعی App.
+ *
+ * این فایل «پنجره درخواست‌های آزمایشی» را از داخل `<App />` باز می‌کند و بررسی
+ * می‌کند که:
+ *   • متن بازخوردی که کاربر در فرم می‌نویسد، هرگز در localStorage ذخیره نمی‌شود؛
+ *   • داده ساختگی نسخه قبلی نه نمایش داده می‌شود، نه حذف، نه منتقل.
+ */
+
+const LEGACY_KEY = LEGACY_STORAGE_KEYS[0];
+const LEGACY_VALUE = JSON.stringify([
+  {
+    id: 'ord-legacy-1',
+    trackingCode: 'PAK-84920',
+    customerName: 'مشتری قدیمی نسخه قبل',
+    customerPhone: '۰۹۳۵۰۰۰۱۱۲۲',
+    address: 'بلوار پاکنژاد، خیابان هجدهم، پلاک ۱۲',
+  },
+]);
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
+
+/** همه مودال‌های بازشده در DOM. */
+const openModals = (): HTMLElement[] =>
+  Array.from(document.querySelectorAll('div.fixed.inset-0.z-50')) as HTMLElement[];
+
+/** مودال رزرو (نه پنجره درخواست‌های آزمایشی) را پیدا می‌کند. */
+const getBookingModal = (): HTMLElement => {
+  const modal = openModals().find((item) => /فرم آزمایشی رزرو/.test(item.textContent ?? ''));
+  if (!modal) throw new Error('مودال رزرو در DOM پیدا نشد.');
+  return modal;
+};
+
+/** پنجره درخواست‌های آزمایشی را از نوار بالای App باز می‌کند. */
+const openTracker = (): HTMLElement => {
+  const header = document.querySelector('header') ?? document.body;
+  const button = Array.from(header.querySelectorAll('button')).find((item) =>
+    /درخواست‌های آزمایشی/.test(item.textContent ?? ''),
+  );
+  if (!button) throw new Error('دکمه «درخواست‌های آزمایشی» در نوار بالا پیدا نشد.');
+  fireEvent.click(button);
+
+  const modal = openModals().find((item) => /رهگیری آزمایشی/.test(item.textContent ?? ''));
+  if (!modal) throw new Error('پنجره درخواست‌های آزمایشی باز نشد.');
+  return modal;
+};
+
+/** کاربر را داخل App تا مرحله فاکتور می‌برد و سفارش نمایشی را ثبت می‌کند. */
+const createDemoOrderThroughApp = (): void => {
+  fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
+
+  const modal = document.querySelector('div.fixed.inset-0.z-50') as HTMLElement;
+  for (let step = 0; step < 3; step += 1) {
+    fireEvent.click(
+      Array.from(modal.querySelectorAll('button')).find((item) => /مرحله بعد/.test(item.textContent ?? ''))!,
+    );
+  }
+  fireEvent.change(screen.getByPlaceholderText('مثال: سارا محمدی'), {
+    target: { value: 'کاربر آزمایشی' },
+  });
+  fireEvent.change(screen.getByPlaceholderText('0912xxxxxxx'), {
+    target: { value: '09123456789' },
+  });
+  fireEvent.change(screen.getByPlaceholderText(/بلوار دریا/), {
+    target: { value: 'خیابان نمونه، پلاک ۱' },
+  });
+  fireEvent.click(
+    Array.from(modal.querySelectorAll('button')).find((item) => /مرحله بعد/.test(item.textContent ?? ''))!,
+  );
+  fireEvent.click(
+    Array.from(modal.querySelectorAll('button')).find((item) => /تایید نهایی و ثبت سفارش/.test(item.textContent ?? ''))!,
+  );
+};
+
+/** پس از ثبت موفق (که غیرهمگام است)، صفحه موفقیت مودال رزرو را می‌بندد. */
+const closeBookingModal = async (): Promise<void> => {
+  await vi.waitFor(() => {
+    expect(getBookingModal().textContent).toContain('بستن و بازگشت به سایت');
+  });
+  const modal = getBookingModal();
+  fireEvent.click(
+    Array.from(modal.querySelectorAll('button')).find((item) => /بستن و بازگشت به سایت/.test(item.textContent ?? ''))!,
+  );
+};
+
+describe('پنجره درخواست‌های آزمایشی از مسیر App', () => {
+  it('متن بازخورد نوشته‌شده در فرم، در مقدار واقعی ذخیره‌شده ظاهر نمی‌شود', async () => {
+    render(<App />);
+    createDemoOrderThroughApp();
+    await closeBookingModal();
+
+    const tracker = openTracker();
+
+    // سفارش تازه پس از به‌روزرسانی وضعیت App به‌صورت خودکار انتخاب می‌شود.
+    await vi.waitFor(() => {
+      expect(tracker.querySelector('textarea')).not.toBeNull();
+    });
+
+    const textarea = tracker.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: 'لطفا زنگ بزنید ۰۹۱۲۳۴۵۶۷۸۹، خیابان ولیعصر پلاک ۲۵' },
+    });
+    fireEvent.click(
+      Array.from(tracker.querySelectorAll('button')).find((item) =>
+        /ثبت امتیاز/.test(item.textContent ?? ''),
+      )!,
+    );
+
+    const stored = localStorage.getItem(DEMO_STORAGE_KEY) ?? '';
+    expect(stored).not.toContain('۰۹۱۲۳۴۵۶۷۸۹');
+    expect(stored).not.toContain('خیابان ولیعصر');
+    expect(stored).not.toContain('userFeedback');
+
+    // امتیاز عددی حفظ شده است و تأیید به کاربر نمایش داده می‌شود.
+    await vi.waitFor(() => {
+      expect(tracker.textContent).toContain('ستاره در همین مرورگر ثبت شد');
+    });
+    expect(stored).toMatch(/"userRating":5|"userRating": ?5/);
+  });
+
+  it('داده نسخه قبلی نه نمایش داده می‌شود و نه حذف می‌ماند دست‌نخورده', () => {
+    localStorage.setItem(LEGACY_KEY, LEGACY_VALUE);
+    render(<App />);
+
+    const tracker = openTracker();
+
+    // محتوای داده قدیمی هرگز در رابط کاربری نمایش داده نمی‌شود.
+    expect(tracker.textContent).not.toContain('مشتری قدیمی نسخه قبل');
+    expect(tracker.textContent).not.toContain('۰۹۳۵۰۰۰۱۱۲۲');
+    expect(tracker.textContent).not.toContain('بلوار پاکنژاد');
+
+    // فقط یک اطلاع‌رسانی شفاف درباره وجود آن داده دیده می‌شود.
+    expect(tracker.textContent).toContain(LEGACY_DATA_NOTICE);
+
+    // و مقدار قدیمی دست‌نخورده باقی مانده است.
+    expect(localStorage.getItem(LEGACY_KEY)).toBe(LEGACY_VALUE);
+  });
+
+  it('کد پیگیری سفارش نسخه قبلی در فهرست آزمایشی پیدا نمی‌شود', () => {
+    localStorage.setItem(LEGACY_KEY, LEGACY_VALUE);
+    render(<App />);
+
+    const tracker = openTracker();
+    const searchInput = tracker.querySelector('input[type="text"], input:not([type])') as HTMLInputElement;
+    expect(searchInput).not.toBeNull();
+    fireEvent.change(searchInput, { target: { value: 'PAK-84920' } });
+    fireEvent.submit(searchInput.closest('form') as HTMLFormElement);
+
+    expect(tracker.textContent).toContain('یافت نشد');
+    expect(localStorage.getItem(LEGACY_KEY)).toBe(LEGACY_VALUE);
+  });
+
+  it('در نبود داده قدیمی، هیچ اطلاع‌رسانی اضافه‌ای نمایش داده نمی‌شود', () => {
+    render(<App />);
+
+    const tracker = openTracker();
+    expect(tracker.textContent).not.toContain(LEGACY_DATA_NOTICE);
+  });
+});

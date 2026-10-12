@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  Star, 
-  MessageSquareHeart, 
-  CheckCircle, 
-  PlusCircle, 
-  ThumbsUp, 
-  UserCheck 
-} from 'lucide-react';
+import { Star, MessageSquareHeart, CheckCircle, PlusCircle } from 'lucide-react';
 import { CUSTOMER_REVIEWS, SERVICES_LIST } from '../data/mockData';
 import { CustomerReview } from '../types';
+import { DemoInlineNotice, DemoSampleBadge } from './DemoNotice';
 
 export const ReviewsSection: React.FC = () => {
   const [reviews, setReviews] = useState<CustomerReview[]>(CUSTOMER_REVIEWS);
@@ -32,7 +26,9 @@ export const ReviewsSection: React.FC = () => {
       rating: newRating,
       date: 'همین الان',
       comment: newComment.trim(),
-      verifiedBooking: true
+      // احراز سفارش نیازمند سرور است و بدون آن این نشان داده نمی‌شود.
+      verifiedBooking: false,
+      recordType: 'demo'
     };
 
     setReviews([newRev, ...reviews]);
@@ -54,13 +50,13 @@ export const ReviewsSection: React.FC = () => {
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
               <MessageSquareHeart className="w-3.5 h-3.5 text-emerald-600" />
-              <span>تجربه واقعی مشتریان</span>
+              <span>نمونه نظرات (نمایشی)</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              نظرات و بازخوردهای شما
+              نظرات (داده‌های نمونه)
             </h2>
             <p className="text-slate-600 text-sm sm:text-base">
-              شفافیت و نظرات صادقانه مشتریان ما، بزرگترین گواه کیفیت و تعهد خانواده بزرگ پاک‌شو است.
+              نظرات این بخش نمونه هستند و بازخورد واقعی مشتریان پاک‌شو محسوب نمی‌شوند. بازخورد واقعی تنها پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.
             </p>
           </div>
 
@@ -72,8 +68,10 @@ export const ReviewsSection: React.FC = () => {
             <span>ثبت نظر و تجربه شما</span>
           </button>
         </div>
-
-        {/* Reviews Grid */}
+        <DemoInlineNotice
+          className="mb-6"
+          text={'همه نظرات این صفحه «نمونه» هستند. برچسب «سفارش احرازشده» فقط برای بازخوردهای متصل به سفارش تأییدشده سرور نمایش داده می‌شود.'}
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {reviews.map((rev) => (
             <div
@@ -87,10 +85,11 @@ export const ReviewsSection: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
                       <span>{rev.authorName}</span>
+                      {rev.recordType === 'sample' && <DemoSampleBadge />}
                       {rev.verifiedBooking && (
                         <span className="text-[10px] bg-emerald-50 text-emerald-700 font-medium px-2 py-0.5 rounded-full flex items-center gap-0.5">
                           <CheckCircle className="w-3 h-3 text-emerald-600" />
-                          مشتری تاییدشده
+                          سفارش احرازشده
                         </span>
                       )}
                     </h4>
@@ -146,7 +145,7 @@ export const ReviewsSection: React.FC = () => {
               ثبت نظر و تجربه نظافت
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              نظر شما به بهبود کیفیت خدمات و انتخاب بهتر دیگر کاربران کمک می‌کند.
+              در نسخه آزمایشی، نظر شما ارسال نمی‌شود و فقط تا زمان بستن صفحه در همین مرورگر نمایش داده می‌شود.
             </p>
 
             {submittedSuccess ? (
@@ -155,7 +154,7 @@ export const ReviewsSection: React.FC = () => {
                   <CheckCircle className="w-7 h-7" />
                 </div>
                 <h4 className="font-bold text-slate-900 text-base">
-                  نظر شما با موفقیت ثبت شد!
+                  نظر آزمایشی شما ثبت شد
                 </h4>
                 <p className="text-xs text-slate-500">
                   از اینکه با ما در اشتراک‌گذاری تجربه خود همراه شدید متشکریم.

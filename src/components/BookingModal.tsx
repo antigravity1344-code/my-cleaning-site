@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  X, Check, ArrowLeft, ArrowRight, Calendar, Clock, User, 
-  ShieldCheck, Sparkles, Tag, Percent, PackageCheck, CheckCircle2, Copy, Receipt 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  X, Check, ArrowLeft, ArrowRight,
+  Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
 } from 'lucide-react';
-import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA, DISCOUNT_CODES } from '../data/mockData';
-import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from '../types';
+import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
+import { ServiceType, CleanerGender, BookingOrder } from '../types';
 import { CreateOrderDTO } from '../services/orderService.types';
-
-const PRICING_CONFIG = {
-  detergentPackagePrice: 140000,
-  onlineDiscountPercent: 0.05,
-};
+import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
+import { buildDemoOrderPayload } from '../services/demoOrder';
+import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
+import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -66,7 +65,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Discount & Payment
   const [discountCodeInput, setDiscountCodeInput] = useState<string>('');
-  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState<number>(0);
+  // فقط «کد» نگه داشته می‌شود؛ مبلغ تخفیف را موتور قیمت‌گذاری محاسبه می‌کند.
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string>('');
   const [discountMsg, setDiscountMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash_on_site'>('cash_on_site');
 
@@ -114,7 +114,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setCustomerPhone('');
       setNotes('');
       setDiscountCodeInput('');
-      setAppliedDiscountAmount(0);
+      setAppliedPromoCode('');
       setDiscountMsg(null);
       setFormError('');
       setCreatedOrder(null);
@@ -126,36 +126,60 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (cityObj && cityObj.districts.length > 0) {
       setDistrict(cityObj.districts[0]);
     }
-  }, [cityName]);if (!isOpen) return null;
+  }, [cityName]);
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
-  // Calculations
-  const baseServicePrice = currentService.baseHourlyRate * hours;
-  let addonsPrice = 0;
-  selectedAddons.forEach(id => {
-    const addon = ADDON_OPTIONS.find(a => a.id === id);
-    if (addon) addonsPrice += addon.price;
-  });
-  const detergentPrice = hasDetergentPackage ? PRICING_CONFIG.detergentPackagePrice : 0;
-  const subtotalPrice = baseServicePrice + addonsPrice + detergentPrice;
-  const totalPrice = Math.max(0, subtotalPrice - appliedDiscountAmount);
+  // محاسبه قیمت از موتور مشترک قیمت‌گذاری — دقیقاً همان تابعی که محاسبه‌گر
+  // هزینه استفاده می‌کند، بنابراین مبلغ فاکتور با مبلغ نمایش‌داده‌شده در
+  // محاسبه‌گر همیشه یکسان است.
+  const pricing = useMemo(
+    () =>
+      calculatePrice({
+        serviceId,
+        hours,
+        addonIds: selectedAddons,
+        hasDetergentPackage,
+        promoCode: appliedPromoCode || undefined,
+      }),
+    [serviceId, hours, selectedAddons, hasDetergentPackage, appliedPromoCode],
+  );
+
+  const addonsPrice = pricing.addonsTotal;
+  const detergentPrice = pricing.detergentCost;
+  const baseServicePrice = pricing.serviceBase;
+  const totalPrice = pricing.total;
+
+  // بازگشت زودهنگام باید **بعد از همه هوک‌ها** باشد؛ در غیر این صورت وقتی مودال
+  // بسته رندر و سپس باز می‌شود، تعداد هوک‌ها تغییر می‌کند و React خطای
+  // «Rendered more hooks than during the previous render» می‌دهد.
+  if (!isOpen) return null;
 
   // Handlers
   const handleApplyDiscount = () => {
     const code = discountCodeInput.trim().toUpperCase();
     if (!code) return;
-    if (DISCOUNT_CODES[code]) {
-      const discount = DISCOUNT_CODES[code];
-      setAppliedDiscountAmount(discount);
-      setDiscountMsg({
-        type: 'success',
-        text: `کد تخفیف با موفقیت اعمال شد (${discount.toLocaleString('fa-IR')} تومان تخفیف)`
-      });
-    } else {
-      setAppliedDiscountAmount(0);
+
+    const result = validatePromoCode(code);
+    if (!result.valid) {
+      setAppliedPromoCode('');
       setDiscountMsg({ type: 'error', text: 'کد تخفیف معتبر نیست.' });
+      return;
     }
+
+    // تخفیف هرگز دوباره اعمال نمی‌شود: تنها یک کد در هر سفارش نگه داشته می‌شود
+    // و موتور قیمت‌گذاری خودش سقف تخفیف را با جمع اقلام محدود می‌کند.
+    setAppliedPromoCode(result.code);
+    setDiscountMsg({
+      type: 'success',
+      text: `کد تخفیف ${result.code} ثبت شد (${result.amount.toLocaleString('fa-IR')} تومان). اعتبارسنجی نهایی به‌عهده سرور پاک‌شو است.`,
+    });
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedPromoCode('');
+    setDiscountCodeInput('');
+    setDiscountMsg(null);
   };
 
   const validateStep3 = (): boolean => {
@@ -183,40 +207,48 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setIsSubmitting(true);
     setFormError('');
 
-    let matchedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
-    if (!matchedCleaner || selectedCleanerId === 'auto') {
-      const candidates = CLEANERS_LIST.filter(c => cleanerGender === 'no-pref' || c.gender === cleanerGender);
-      matchedCleaner = candidates[Math.floor(Math.random() * candidates.length)] || CLEANERS_LIST[0];
-    }
+    // انتخاب متخصص در نسخه آزمایشی هیچ‌گاه به «تخصیص» تبدیل نمی‌شود:
+    // نه متخصصی انتخاب می‌شود، نه شماره تماسی ساخته می‌شود.
+    const requestedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
 
-    const orderPayload: CreateOrderDTO = {
-      serviceId, serviceTitle: currentService.title, cleanerGender,
-      cleanerId: matchedCleaner?.id, cleanerName: matchedCleaner?.name,
-      cleanerPhone: '۰۹۱۲' + Math.floor(1000000 + Math.random() * 9000000),
-      cleanerAvatar: matchedCleaner?.avatar, hours, squareMeters, roomsCount,
-      selectedAddons, hasDetergentPackage, date: selectedDate, timeSlot: selectedTimeSlot,
-      cityName, district, address: address.trim(), unit: unit.trim(),
-      customerName: customerName.trim(), customerPhone: customerPhone.trim(), notes: notes.trim(),
-      totalPrice, discountApplied: appliedDiscountAmount, paymentMethod, status: 'assigned'
-    };
+    const orderPayload: CreateOrderDTO = buildDemoOrderPayload({
+      serviceId,
+      serviceTitle: currentService.title,
+      cleanerGender,
+      hours,
+      squareMeters,
+      roomsCount,
+      selectedAddons,
+      hasDetergentPackage,
+      date: selectedDate,
+      timeSlot: selectedTimeSlot,
+      cityName,
+      district,
+      address: address.trim(),
+      unit: unit.trim(),
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      notes: notes.trim(),
+      totalPrice,
+      discountApplied: pricing.discountsTotal,
+      requestedCleanerId: requestedCleaner?.id,
+      requestedCleanerName: requestedCleaner?.name,
+    });
 
     try {
-      let created: BookingOrder;
-      if (createOrderService) {
-        created = await createOrderService(orderPayload);
-      } else {
-        created = {
-          ...orderPayload,
-          id: `ord-${Date.now()}`,
-          trackingCode: `PAK-${Math.floor(10000 + Math.random() * 90000)}`,
-          createdAt: 'هم‌اکنون',
-          status: 'assigned'
-        };
+      if (!createOrderService) {
+        throw new Error('سرویس ثبت سفارش در دسترس نیست.');
       }
+      const created = await createOrderService(orderPayload);
       setCreatedOrder(created);
       onOrderCreated(created);
     } catch (err) {
-      setFormError('خطایی در ثبت سفارش رخ داد. مجدداً تلاش فرمایید.');
+      const message = err instanceof Error ? err.message : '';
+      setFormError(
+        message.includes('حافظه')
+          ? 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.'
+          : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -244,15 +276,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <CheckCircle2 className="w-10 h-10" />
         </div>
         <div className="space-y-2">
-          <h4 className="text-2xl font-black text-slate-900">سفارش شما با موفقیت ثبت شد!</h4>
+          <div className="flex justify-center"><DemoBadge /></div>
+          <h4 className="text-2xl font-black text-slate-900">{DEMO_COPY.successTitle}</h4>
           <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-            درخواست دریافت شد و متخصص نظافت اختصاص یافت. جزئیات به شماره شما پیامک شد.
+            {DEMO_COPY.successDescription}
           </p>
         </div>
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
-          <span className="text-xs text-slate-400 block">کد پیگیری اختصاصی:</span>
+          <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
-            <span className="text-2xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
+            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
             <button
               type="button"
               onClick={handleCopyTrackingCode}
@@ -262,16 +295,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </button>
           </div>
         </div>
-        {createdOrder.cleanerName && (
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 max-w-md mx-auto flex items-center gap-4 text-right">
-            <img src={createdOrder.cleanerAvatar} alt="" className="w-12 h-12 rounded-xl object-cover border border-emerald-400" />
-            <div className="space-y-0.5 text-xs">
-              <span className="text-slate-500">متخصص اختصاص یافته:</span>
-              <strong className="text-slate-900 font-bold block text-sm">{createdOrder.cleanerName}</strong>
-              <span className="text-emerald-700 font-mono">تماس هماهنگی: {createdOrder.cleanerPhone}</span>
+        {createdOrder.requestedCleanerName && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 max-w-md mx-auto space-y-1 text-right">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500">درخواست شما برای همکاری با:</span>
+              <DemoSampleBadge />
             </div>
+            <strong className="text-slate-900 font-bold block text-sm">{createdOrder.requestedCleanerName}</strong>
+            <span className="text-[11px] text-slate-600 block">{DEMO_COPY.noCleanerAssignment}</span>
           </div>
         )}
+        <DemoInlineNotice text={DEMO_COPY.notificationsNotice} className="max-w-md mx-auto text-right" />
         <div className="pt-2">
           <button
             type="button"
@@ -391,11 +425,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const renderStep2 = () => {
     const dates = [
-      { id: 'امروز', label: 'امروز', sub: 'اعزام فوری ۲ ساعته' },
-      { id: 'فردا', label: 'فردا', sub: 'تمام بازه‌ها فعال' },
-      { id: 'پس‌فردا', label: 'پس‌فردا', sub: 'ساعات دلخواه' },
-      { id: '۳ روز بعد', label: '۳ روز بعد', sub: 'تضمین نیروی ویژه' },
-      { id: 'هفته آینده', label: 'پایان هفته', sub: 'مناسب خانه‌تکانی' }
+      { id: 'امروز', label: 'امروز', sub: 'انتخاب شما' },
+      { id: 'فردا', label: 'فردا', sub: 'انتخاب شما' },
+      { id: 'پس‌فردا', label: 'پس‌فردا', sub: 'انتخاب شما' },
+      { id: '۳ روز بعد', label: '۳ روز بعد', sub: 'انتخاب شما' },
+      { id: 'هفته آینده', label: 'پایان هفته', sub: 'انتخاب شما' }
     ];
     const timeSlots = [
       '۰۸:۳۰ الی ۱۲:۳۰ (صبح زود)',
@@ -440,7 +474,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">انتخاب متخصص:</label>
+          <label className="block text-xs font-bold text-slate-700 mb-1">انتخاب متخصص (فهرست نمونه):</label>
+          <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
+            {CLEANER_ASSIGNMENT_AVAILABLE
+              ? 'انتخاب شما به موتور تخصیص سرور پاک‌شو ارسال می‌شود.'
+              : 'پروفایل‌های زیر نمونه هستند. در نسخه آزمایشی هیچ متخصصی تخصیص داده نمی‌شود؛ انتخاب شما فقط به‌عنوان «درخواست» ثبت می‌شود.'}
+          </p>
           <div className="space-y-2">
             <div
               onClick={() => setSelectedCleanerId('auto')}
@@ -453,8 +492,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-bold text-slate-900 block">انتخاب هوشمند بهترین متخصص در دسترس (پیشنهادی)</span>
-                  <span className="text-[11px] text-slate-500">سریع‌ترین زمان اعزام با بالاترین امتیاز رضایت منطقه شما</span>
+                  <span className="text-xs font-bold text-slate-900 block">بدون اولویت خاص (پیشنهادی)</span>
+                  <span className="text-[11px] text-slate-500">در نسخه آزمایشی هیچ تخصیص یا اعزامی انجام نمی‌شود</span>
                 </div>
               </div>
               {selectedCleanerId === 'auto' && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
@@ -470,8 +509,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <div className="flex items-center gap-3">
                   <img src={cl.avatar} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
                   <div className="text-right">
-                    <span className="text-xs font-bold text-slate-900 block">{cl.name} ({cl.badge})</span>
-                    <span className="text-[11px] text-slate-500">امتیاز {cl.rating} • {cl.completedOrders} سفارش موفق</span>
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      {cl.name}
+                      <DemoSampleBadge />
+                    </span>
+                    <span className="text-[11px] text-slate-500">{cl.badge}</span>
                   </div>
                 </div>
                 {selectedCleanerId === cl.id && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
@@ -541,7 +583,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">شماره همراه (جهت هماهنگی و پیامک):</label>
+          <label className="block text-xs font-bold text-slate-700 mb-1">شماره همراه (تماس/هماهنگی در نسخه واقعی):</label>
           <input
             type="tel"
             dir="ltr"
@@ -573,7 +615,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <Receipt className="w-4 h-4 text-emerald-600" />
             ریز پیش‌فاکتور رسمی پاک‌شو
           </span>
-          <span className="text-[11px] text-emerald-700 font-bold bg-emerald-100/60 px-2 py-0.5 rounded">گارانتی رضایت ۱۰۰٪</span>
+          <DemoBadge />
         </div>
         <div className="space-y-2 text-xs text-slate-700">
           <div className="flex justify-between">
@@ -592,19 +634,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <span className="font-mono">+{detergentPrice.toLocaleString('fa-IR')} ت</span>
             </div>
           )}
-          {appliedDiscountAmount > 0 && (
-            <div className="flex justify-between text-emerald-600 font-bold border-t border-slate-200 pt-2">
-              <span>کد تخفیف اعمال شده:</span>
-              <span className="font-mono">-{appliedDiscountAmount.toLocaleString('fa-IR')} ت</span>
+          {pricing.discountLines.map((line) => (
+            <div key={line.id} className="flex justify-between text-emerald-600 font-bold border-t border-slate-200 pt-2">
+              <span>{line.title}:</span>
+              <span className="font-mono">-{line.amount.toLocaleString('fa-IR')} ت</span>
             </div>
-          )}
+          ))}
         </div>
-        <div className="pt-3 border-t border-slate-300 flex items-center justify-between">
-          <span className="font-bold text-slate-900 text-sm">مبلغ کل نهایی:</span>
+        <div className="pt-3 border-t border-slate-300 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+          <span className="font-bold text-slate-900 text-sm">{DEMO_COPY.provisionalPriceLabel}:</span>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-black text-emerald-600 font-mono">{totalPrice.toLocaleString('fa-IR')}</span>
             <span className="text-xs text-slate-600">تومان</span>
           </div>
+          </div>
+          <ProvisionalPriceNote />
         </div>
       </div>
       <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
@@ -623,6 +668,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
         {discountMsg && <p className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
+        {appliedPromoCode && (
+          <button
+            type="button"
+            onClick={handleRemoveDiscount}
+            className="text-[11px] font-bold text-slate-600 underline hover:text-slate-900 cursor-pointer"
+          >
+            حذف کد تخفیف {appliedPromoCode}
+          </button>
+        )}
       </div>
       <div>
         <label className="block text-xs font-bold text-slate-700 mb-2">نحوه پرداخت:</label>
@@ -635,21 +689,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <span className="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center">
                 {paymentMethod === 'cash_on_site' && <span className="w-2 h-2 bg-emerald-600 rounded-full" />}
               </span>
-              <span className="text-xs font-bold text-slate-900">پرداخت در محل (پیشنهادی)</span>
+              <span className="text-xs font-bold text-slate-900">پرداخت در محل (نمایشی)</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 mr-6">پرداخت پس از اتمام کامل نظافت و تایید رضایت شما</p>
+            <p className="text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentCashNotice}</p>
           </div>
           <div
-            onClick={() => setPaymentMethod('online')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${paymentMethod === 'online' ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+            aria-disabled={!ONLINE_PAYMENT_AVAILABLE}
+            className="p-4 rounded-2xl border border-slate-200 bg-slate-100/70 opacity-70 cursor-not-allowed"
           >
             <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center">
-                {paymentMethod === 'online' && <span className="w-2 h-2 bg-emerald-600 rounded-full" />}
-              </span>
-              <span className="text-xs font-bold text-slate-900">پرداخت اینترنتی امن</span>
+              <span className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center" />
+              <span className="text-xs font-bold text-slate-500">پرداخت اینترنتی</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 mr-6">از طریق کلیه کارت‌های شتاب با درگاه شاپرک</p>
+            <p className="text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentOnlineDisabled}</p>
           </div>
         </div>
       </div>
@@ -673,8 +725,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         {/* Modal Header */}
         <div className="p-5 sm:px-8 border-b border-slate-200/80 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div className="text-right">
-            <span className="text-xs font-bold text-emerald-600 block">سامانه رزرو آنلاین و هوشمند</span>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900">ثبت درخواست خدمات نظافت</h3>
+            <div className="flex items-center gap-2">
+              <DemoBadge />
+              <span className="text-xs font-bold text-emerald-600">فرم آزمایشی رزرو</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">ثبت درخواست خدمات نظافت</h3>
           </div>
           <button
             type="button"
@@ -715,7 +770,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
         <form onSubmit={handleFormSubmitWrapper} className="flex-1 overflow-hidden flex flex-col">
           <div className="p-5 sm:p-8 overflow-y-auto flex-1 text-slate-800">
-            {createdOrder ? renderSuccessScreen() : renderStepContent()}
+            {createdOrder ? renderSuccessScreen() : (
+              <>
+                <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} className="mb-5" />
+                {renderStepContent()}
+              </>
+            )}
           </div>
 
           {/* Bottom Nav / Error Banner */}
