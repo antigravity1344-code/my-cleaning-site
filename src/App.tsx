@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ServicesSection } from './components/ServicesSection';
@@ -13,11 +13,12 @@ import { BookingModal } from './components/BookingModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AiConsultantModal } from './components/AiConsultantModal';
 import { OrderProvider, useOrders } from './context/OrderContext';
-import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist, OrderStatus } from './types';
+import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './types';
 import { PhoneCall, Bot } from 'lucide-react';
+import { DemoModeBanner } from './components/DemoNotice';
 
 function PakshoAppContent() {
-  const { orders, createOrder, updateOrderStatus } = useOrders();
+  const { orders, createOrder, submitOrderRating, cancelOrder } = useOrders();
 
   // Modal States
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -67,7 +68,10 @@ function PakshoAppContent() {
     setIsBookingOpen(true);
   };
 
-  // Open booking from Cost Calculator
+  // Open booking from Cost Calculator.
+  // توجه: هیچ مبلغی منتقل نمی‌شود. فرم رزرو همان ورودی‌های خام را می‌گیرد و مبلغ را
+  // با همان موتور مشترک قیمت‌گذاری بازمحاسبه می‌کند تا نمایش محاسبه‌گر و فاکتور
+  // هرگز واگرا نشوند و عدد محاسبه‌شده در مرورگر مبنای پرداخت تلقی نشود.
   const handleProceedFromCalculator = (calcData: {
     serviceId: ServiceType;
     hours: number;
@@ -76,7 +80,6 @@ function PakshoAppContent() {
     selectedAddons: string[];
     hasDetergentPackage: boolean;
     cleanerGender: CleanerGender;
-    totalPrice: number;
   }) => {
     setBookingParams({
       serviceId: calcData.serviceId,
@@ -125,19 +128,22 @@ function PakshoAppContent() {
     // State is synchronized via OrderContext
   };
 
-  // Update order status (simulate progression / rating)
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus, userRating?: number, userFeedback?: string) => {
-    await updateOrderStatus({
-      orderId,
-      status: newStatus,
-      userRating,
-      userFeedback
-    });
+  // ثبت امتیاز/بازخورد مشتری — وضعیت عملیاتی سفارش توسط مشتری تغییر نمی‌کند.
+  const handleSubmitOrderRating = async (orderId: string, userRating: number, userFeedback?: string) => {
+    await submitOrderRating(orderId, userRating, userFeedback);
+  };
+
+  // لغو نمایشی رکورد محلی (هیچ اثر عملیاتی ندارد).
+  const handleCancelOrder = async (orderId: string) => {
+    await cancelOrder(orderId);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
-      
+
+      {/* Global demo-mode disclosure */}
+      <DemoModeBanner />
+
       {/* Sticky Header */}
       <Header
         onOpenBooking={() => handleOpenBooking()}
@@ -227,7 +233,8 @@ function PakshoAppContent() {
         isOpen={isTrackerOpen}
         onClose={() => setIsTrackerOpen(false)}
         orders={orders}
-        onUpdateOrderStatus={handleUpdateOrderStatus}
+        onSubmitOrderRating={handleSubmitOrderRating}
+        onCancelOrder={handleCancelOrder}
       />
 
       {/* AI Consultant Modal */}

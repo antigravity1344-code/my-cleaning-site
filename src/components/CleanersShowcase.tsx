@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Users, 
-  Star, 
-  ShieldCheck, 
-  Award, 
-  CalendarCheck, 
-  ThumbsUp, 
-  CheckCircle,
-  Clock
-} from 'lucide-react';
+import { Users, Star, ShieldCheck, CalendarCheck, CheckCircle, Clock } from 'lucide-react';
 import { CLEANERS_LIST } from '../data/mockData';
 import { CleanerSpecialist } from '../types';
+import { DemoInlineNotice, DemoSampleBadge } from './DemoNotice';
+import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 interface CleanersShowcaseProps {
   onSelectCleaner: (cleaner: CleanerSpecialist) => void;
@@ -35,13 +28,17 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
               <Users className="w-3.5 h-3.5 text-emerald-600" />
-              <span>نیروهای گلچین‌شده و مجرب</span>
+              <span>فهرست نمایشی متخصصین (نمونه)</span>
             </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              برترین متخصصین و نیروهای خدماتی پاک‌شو
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                متخصصین نمونه پاک‌شو
+              </h2>
+              <DemoSampleBadge />
+            </div>
             <p className="text-slate-600 text-sm sm:text-base">
-              تمامی همکاران ما دارای گواهی معتبر عدم سوءپیشینه، احراز محل سکونت، بیمه حوادث و دوره‌های تخصصی استانداردهای بهداشتی و اخلاقی هستند.
+              پروفایل‌های این بخش نمونه هستند و اطلاعات واقعی متخصصین پاک‌شو محسوب نمی‌شوند.
+              مشخصات واقعی متخصصین پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.
             </p>
           </div>
 
@@ -80,6 +77,11 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
           </div>
         </div>
 
+        <DemoInlineNotice
+          className="mb-6"
+          text={'ادعاهای اعتبارسنجی مانند «گواهی عدم سوءپیشینه»، «بیمه حوادث» و «احراز هویت» تا زمان ارائه مستندات معتبر نمایش داده نمی‌شوند.'}
+        />
+
         {/* Cleaners Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {filteredCleaners.map((cleaner) => (
@@ -117,8 +119,11 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
                       </div>
                     </div>
 
-                    <span className="inline-block bg-teal-50 text-teal-800 text-[11px] font-bold px-2 py-0.5 rounded-md">
-                      {cleaner.badge}
+                    <span className="inline-flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-block bg-slate-100 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                        {cleaner.badge}
+                      </span>
+                      <DemoSampleBadge />
                     </span>
 
                     <div className="flex items-center gap-3 text-xs text-slate-500 pt-0.5">
@@ -158,7 +163,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-500 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    احراز هویت شده و دارای بیمه
+                    {VERIFIED_TRUST_CLAIMS_AVAILABLE ? 'احراز هویت شده و دارای بیمه' : 'پروفایل نمونه — اعتبارسنجی نشده'}
                   </span>
                   <span className="text-emerald-700 font-bold font-mono">
                     رضایت {cleaner.satisfactionRate}٪

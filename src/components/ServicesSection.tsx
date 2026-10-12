@@ -55,7 +55,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
             <span>پوشش کامل نیازهای نظافتی شما</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            خدمات تخصصی و تضمین‌شده پاک‌شو
+            خدمات و تعرفه‌های پیشنهادی پاک‌شو
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
             از نظافت سریع و دوره‌ای منازل تا شستشوی صنعتی مبلمان و تمیزکاری بعد از بازسازی، تمامی خدمات توسط نیروهای آموزش‌دیده و با تجهیزات درجه‌یک انجام می‌پذیرد.

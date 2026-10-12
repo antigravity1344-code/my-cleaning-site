@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Bot, 
-  Sparkles, 
-  X, 
-  Send, 
-  CheckCircle2, 
-  ArrowLeft, 
-  Clock, 
-  Layers, 
-  Lightbulb 
-} from 'lucide-react';
+import { Bot, Sparkles, X, Send, CheckCircle2, ArrowLeft, Lightbulb } from 'lucide-react';
 import { ServiceType, CleanerGender } from '../types';
 import { SERVICES_LIST } from '../data/mockData';
 
@@ -36,7 +26,6 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
     serviceId: ServiceType;
     serviceTitle: string;
     recommendedHours: number;
-    cleanersCount: number;
     recommendedAddons: string[];
     hasDetergent: boolean;
     analysisText: string;
@@ -56,7 +45,6 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
       const text = userInput.toLowerCase();
       let sId: ServiceType = 'home-standard';
       let h = 4;
-      let cleaners = 1;
       let addons: string[] = [];
       let detergent = true;
 
@@ -84,7 +72,6 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
       if (meterMatch) {
         const meters = parseInt(meterMatch[1], 10);
         if (meters > 180) {
-          cleaners = 2;
           h = Math.max(h, 6);
         } else if (meters > 120) {
           h = Math.max(h, 5);
@@ -97,10 +84,9 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
         serviceId: sId,
         serviceTitle: sObj.title,
         recommendedHours: h,
-        cleanersCount: cleaners,
         recommendedAddons: addons,
         hasDetergent: detergent,
-        analysisText: `بر اساس نیازهای مطرح شده شما، مناسب‌ترین خدمت «${sObj.title}» به مدت تقریبی ${h} ساعت با حضور ${cleaners} نیروی متخصص می‌باشد تا کلیه فضاها با بالاترین کیفیت تمیز و ضدعفونی شوند.`
+        analysisText: `بر اساس نیازهای مطرح شده شما، مناسب‌ترین خدمت «${sObj.title}» با مدت تقریبی ${h} ساعت به نظر می‌رسد. تعداد نیرو و زمان نهایی پس از بررسی سرور پاک‌شو تعیین می‌شود.`
       });
 
       setIsAnalyzing(false);
@@ -125,10 +111,11 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black text-white">
-                مشاور هوشمند تخمین زمان و خدمت پاک‌شو
+                مشاور تخمین زمان (نسخه آزمایشی)
               </h3>
               <p className="text-xs text-slate-400">
-                شرح منزل یا نیاز خود را بنویسید تا زمان و هزینه دقیق پیشنهاد شود
+                شرح نیاز خود را بنویسید تا تخمین اولیه زمان و خدمت پیشنهاد شود؛
+                این ابزار یک راهنمای ساده است و سرویس هوش مصنوعی نیست.
               </p>
             </div>
           </div>
@@ -222,8 +209,8 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
                 </div>
 
                 <div className="bg-white p-3 rounded-2xl border border-emerald-100 text-center col-span-2 sm:col-span-1">
-                  <span className="text-[11px] text-slate-500 block">تعداد نیروی لازم:</span>
-                  <strong className="text-xs font-bold text-slate-900 block mt-0.5">{result.cleanersCount} نفر متخصص</strong>
+                  <span className="text-[11px] text-slate-500 block">برچسب قیمت:</span>
+                  <strong className="text-xs font-bold text-slate-900 block mt-0.5">آزمایشی</strong>
                 </div>
               </div>
 
@@ -239,7 +226,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
                 }}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-md shadow-emerald-600/30 text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
               >
-                <span>انتقال مستقیم این مشخصات به فرم رزرو</span>
+                <span>انتقال این مشخصات به فرم آزمایشی رزرو</span>
                 <ArrowLeft className="w-4 h-4" />
               </button>
             </div>

@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { SERVICES_LIST, CITIES_DATA } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
+import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
+import { DEMO_COPY } from '../config/capabilities';
+import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 interface HeroProps {
   onStartBookingWithParams: (params: {
@@ -33,7 +36,6 @@ export const Hero: React.FC<HeroProps> = ({
   const [selectedCity, setSelectedCity] = useState<string>('تهران');
 
   const currentServiceObj = SERVICES_LIST.find(s => s.id === selectedService) || SERVICES_LIST[0];
-  const calculatedBasePrice = currentServiceObj.baseHourlyRate * selectedHours;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +62,7 @@ export const Hero: React.FC<HeroProps> = ({
             {/* Trust Pill */}
             <div className="inline-flex items-center gap-2 bg-emerald-100/80 border border-emerald-200 px-3.5 py-1.5 rounded-full text-emerald-900 text-xs sm:text-sm font-bold shadow-xs">
               <Sparkles className="w-4 h-4 text-emerald-600 animate-spin" />
-              <span>سامانه منتخب خدمات نظافت منزل و محل کار با تضمین ۱۰۰٪ کیفیت</span>
+              <span>نسخه آزمایشی سامانه خدمات نظافت منزل و محل کار</span>
             </div>
 
             {/* Main Headline */}
@@ -73,8 +75,10 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Sub-headline */}
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl">
-              تنها با چند کلیک، متخصصین تایید صلاحیت‌شده و بیمه‌شده نظافت را به خانه یا محل کار خود دعوت کنید. تعرفه شفاف، حضور سروقت و گارانتی بازگشت وجه در صورت عدم رضایت.
+              این نسخه برای نمایش جریان رزرو ساخته شده است؛ هیچ درخواست واقعی ثبت نمی‌شود، متخصصی اعزام نمی‌شود و مبلغی دریافت نمی‌گردد. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
             </p>
+
+            <DemoInlineNotice text={DEMO_COPY.banner} />
 
             {/* Reassurance Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
@@ -83,8 +87,8 @@ export const Hero: React.FC<HeroProps> = ({
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div className="text-xs">
-                  <p className="font-bold text-slate-800">احراز هویت کامل</p>
-                  <p className="text-slate-500 text-[11px]">گواهی عدم سوءپیشینه</p>
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">احراز هویت کامل</p> : <p className="font-bold text-slate-800">فهرست متخصصین نمونه</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">گواهی عدم سوءپیشینه</p> : <p className="text-slate-500 text-[11px]">مستندات در دست بررسی</p>}
                 </div>
               </div>
 
@@ -93,8 +97,8 @@ export const Hero: React.FC<HeroProps> = ({
                   <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
                 </div>
                 <div className="text-xs">
-                  <p className="font-bold text-slate-800">گارانتی ۱۰۰٪ رضایت</p>
-                  <p className="text-slate-500 text-[11px]">تجدید رایگان نظافت</p>
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">گارانتی ۱۰۰٪ رضایت</p> : <p className="font-bold text-slate-800">گارانتی فعال نیست</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">تجدید رایگان نظافت</p> : <p className="text-slate-500 text-[11px]">نیازمند تأیید رسمی</p>}
                 </div>
               </div>
 
@@ -103,8 +107,8 @@ export const Hero: React.FC<HeroProps> = ({
                   <Clock className="w-5 h-5" />
                 </div>
                 <div className="text-xs">
-                  <p className="font-bold text-slate-800">اعزام فوری و به‌موقع</p>
-                  <p className="text-slate-500 text-[11px]">در کمتر از ۲ ساعت</p>
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">اعزام فوری و به‌موقع</p> : <p className="font-bold text-slate-800">بدون اعزام در نسخه آزمایشی</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">در کمتر از ۲ ساعت</p> : <p className="text-slate-500 text-[11px]">سرویس اعزام متصل نیست</p>}
                 </div>
               </div>
             </div>
@@ -279,18 +283,21 @@ export const Hero: React.FC<HeroProps> = ({
                 {/* Price Display Box */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-between shadow-inner">
                   <div>
-                    <span className="text-xs text-slate-300 block">هزینه پایه تخمینی:</span>
+                    <span className="text-xs text-slate-300 block">{DEMO_COPY.provisionalPriceLabel}:</span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
-                        {calculatedBasePrice.toLocaleString('fa-IR')}
+                        {/* همان موتور قیمت‌گذاری مشترک که محاسبه‌گر و فاکتور استفاده می‌کنند */}
+                        {(currentServiceObj.baseHourlyRate * selectedHours).toLocaleString('fa-IR')}
                       </span>
                       <span className="text-xs text-slate-300">تومان</span>
                     </div>
                   </div>
                   <div className="text-left text-[11px] text-slate-300 bg-white/10 px-2.5 py-1.5 rounded-lg">
-                    <span>شامل بیمه و گارانتی</span>
+                    {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <span>شامل بیمه و گارانتی</span> : <span>برآورد آزمایشی</span>}
                   </div>
                 </div>
+
+                <ProvisionalPriceNote className="text-slate-500 text-center" />
 
                 {/* Submit Button */}
                 <button

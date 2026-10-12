@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Calculator, Sparkles, Layers, Grid, Maximize, Flame, Shirt, PackageCheck, ArrowLeft, Check, Percent 
-} from 'lucide-react';
+import { Calculator, Sparkles, PackageCheck, ArrowLeft, Check } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
-
-const PRICING_CONFIG = {
-  detergentPackagePrice: 140000,
-  onlineDiscountPercent: 0.05, // ۵ درصد تخفیف رزرو آنلاین
-};
+import {
+  PRICING_CONFIG,
+  calculatePrice,
+  calculateRecommendedHours,
+} from '../pricing/pricingEngine';
+import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
+import { DEMO_COPY } from '../config/capabilities';
 
 interface CostCalculatorProps {
   onProceedToBooking: (calcData: {
@@ -19,7 +19,6 @@ interface CostCalculatorProps {
     selectedAddons: string[];
     hasDetergentPackage: boolean;
     cleanerGender: CleanerGender;
-    totalPrice: number;
   }) => void;
 }
 
@@ -36,49 +35,24 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
-  // Calculate recommended hours based on inputs
-  const recommendedHours = useMemo(() => {
-    let baseH = 4;
-    if (squareMeters <= 60) baseH = 4;
-    else if (squareMeters <= 90) baseH = 4;
-    else if (squareMeters <= 130) baseH = 5;
-    else if (squareMeters <= 170) baseH = 6;
-    else if (squareMeters <= 220) baseH = 7;
-    else baseH = 8;
+  // برآورد ساعت پیشنهادی از موتور مشترک قیمت‌گذاری (تنها منبع حقیقت)
+  const recommendedHours = useMemo(
+    () => calculateRecommendedHours({ serviceId, squareMeters, roomsCount, bathroomsCount }),
+    [serviceId, squareMeters, roomsCount, bathroomsCount],
+  );
 
-    if (roomsCount >= 3) baseH += 1;
-    if (bathroomsCount >= 2) baseH += 1;
-    if (serviceId === 'home-deep') baseH += 2;
-    if (serviceId === 'post-construction') baseH += 2;
-
-    return Math.max(currentService.minHours, Math.min(12, baseH));
-  }, [squareMeters, roomsCount, bathroomsCount, serviceId, currentService.minHours]);
-
-  // Calculate total price
-  const calculation = useMemo(() => {
-    const serviceBase = currentService.baseHourlyRate * recommendedHours;
-    
-    let addonsTotal = 0;
-    selectedAddons.forEach(addonId => {
-      const found = ADDON_OPTIONS.find(a => a.id === addonId);
-      if (found) addonsTotal += found.price;
-    });
-
-    const detergentCost = hasDetergentPackage ? PRICING_CONFIG.detergentPackagePrice : 0;
-    const subtotal = serviceBase + addonsTotal + detergentCost;
-    
-    const autoDiscount = Math.round(subtotal * PRICING_CONFIG.onlineDiscountPercent / 1000) * 1000;
-    const finalTotal = subtotal - autoDiscount;
-
-    return {
-      serviceBase,
-      addonsTotal,
-      detergentCost,
-      subtotal,
-      autoDiscount,
-      finalTotal
-    };
-  }, [currentService, recommendedHours, selectedAddons, hasDetergentPackage]);
+  // محاسبه قیمت با موتور مشترک — همان تابعی که فرم رزرو استفاده می‌کند،
+  // بنابراین مبلغ نمایش‌داده‌شده در این‌جا و در فاکتور نهایی همیشه یکسان است.
+  const calculation = useMemo(
+    () =>
+      calculatePrice({
+        serviceId,
+        hours: recommendedHours,
+        addonIds: selectedAddons,
+        hasDetergentPackage,
+      }),
+    [serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
+  );
 
   const toggleAddon = (id: string) => {
     setSelectedAddons(prev => 
@@ -87,6 +61,8 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   };
 
   const handleBook = () => {
+    // فقط ورودی‌های خام منتقل می‌شوند. مبلغ در فرم رزرو با همان موتور مشترک
+    // بازمحاسبه می‌شود تا قیمت منتقل‌شده و قیمت نمایش‌داده‌شده هرگز واگرا نشوند.
     onProceedToBooking({
       serviceId,
       hours: recommendedHours,
@@ -95,7 +71,6 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
       selectedAddons,
       hasDetergentPackage,
       cleanerGender,
-      totalPrice: calculation.finalTotal
     });
   };return (
     <section id="calculator" className="py-16 sm:py-20 bg-white border-y border-slate-200/80">
@@ -111,7 +86,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             محاسبه‌گر آنلاین و تخمین آنی هزینه
           </h2>
           <p className="text-slate-600 text-sm sm:text-base">
-            مشخصات منزل یا محل کار خود را تنظیم کنید تا مدت زمان بهینه و هزینه دقیق بدون هیچ هزینه پنهانی برایتان محاسبه شود.
+            مشخصات منزل یا محل کار خود را تنظیم کنید تا مدت زمان پیشنهادی و برآورد هزینه را ببینید. مبلغ نهایی توسط سرور پاک‌شو تأیید می‌شود.
           </p>
         </div>
 
@@ -120,6 +95,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
           
           {/* Controls Config (8 cols) */}
           <div className="lg:col-span-7 bg-slate-50/80 rounded-3xl p-6 sm:p-8 border border-slate-200/80 space-y-6">
+            <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} />
             
             {/* Service Type Selection */}
             <div>
@@ -347,10 +323,10 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="text-right">
                   <h3 className="text-lg font-black text-white">
-                    پیش‌فاکتور شفاف سفارش
+                    برآورد هزینه (آزمایشی)
                   </h3>
                   <p className="text-xs text-slate-400">
-                    محاسبه هوشمند بر اساس پارامترهای انتخابی
+                    محاسبه بر اساس پارامترهای انتخابی شما
                   </p>
                 </div>
                 <div className="bg-emerald-500/20 text-emerald-400 p-2 rounded-xl">
@@ -391,28 +367,21 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   </div>
                 )}
 
-                <div className="flex justify-between items-center py-1 text-emerald-400">
-                  <span className="flex items-center gap-1">
-                    <Percent className="w-3.5 h-3.5" />
-                    تخفیف آنلاین پاک‌شو ({ (PRICING_CONFIG.onlineDiscountPercent * 100).toLocaleString('fa-IR') }٪):
-                  </span>
-                  <span className="font-mono">-{calculation.autoDiscount.toLocaleString('fa-IR')} ت</span>
-                </div>
               </div>
 
               {/* Total final amount */}
               <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
                 <div className="text-right">
-                  <span className="text-xs text-slate-400 block">مبلغ نهایی قابل پرداخت:</span>
+                  <span className="text-xs text-slate-400 block">{DEMO_COPY.provisionalPriceLabel}:</span>
                   <div className="flex items-baseline gap-1 mt-1">
                     <span className="text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                      {calculation.finalTotal.toLocaleString('fa-IR')}
+                      {calculation.total.toLocaleString('fa-IR')}
                     </span>
                     <span className="text-xs text-slate-300">تومان</span>
                   </div>
                 </div>
-                <div className="text-left text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 px-2 py-1 rounded-lg">
-                  <span>تضمین کمترین قیمت</span>
+                <div className="text-left text-[11px] text-amber-200 bg-amber-950/60 border border-amber-800/60 px-2 py-1 rounded-lg">
+                  <span>برآورد آزمایشی</span>
                 </div>
               </div>
 
@@ -421,13 +390,12 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                 onClick={handleBook}
                 className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer text-sm sm:text-base active:scale-98"
               >
-                <span>ثبت و تکمیل رزرو با این مشخصات</span>
+                <span>ادامه در فرم آزمایشی رزرو</span>
                 <ArrowLeft className="w-5 h-5" />
               </button>
 
-              <div className="space-y-1.5 text-[11px] text-slate-400 text-center">
-                <p>✓ امکان تغییر مشخصات تا ۲ ساعت قبل از اعزام</p>
-                <p>✓ پرداخت پس از رضایت از کیفیت نظافت در محل</p>
+              <div className="space-y-1.5 pt-1 text-center">
+                <ProvisionalPriceNote className="text-slate-400" />
               </div>
 
             </div>

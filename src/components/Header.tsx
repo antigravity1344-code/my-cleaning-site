@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  PhoneCall, 
-  Search, 
-  CalendarCheck, 
-  Menu, 
-  X, 
-  ShieldCheck, 
-  Bot
-} from 'lucide-react';
+import { Sparkles, PhoneCall, Search, CalendarCheck, Menu, X, ShieldCheck, Bot, FlaskConical } from 'lucide-react';
+import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 interface HeaderProps {
   onOpenBooking: (serviceId?: string) => void;
@@ -39,16 +31,33 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs md:text-sm py-1.5 px-4 font-medium">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {VERIFIED_TRUST_CLAIMS_AVAILABLE ? (
             <span className="inline-flex items-center justify-center bg-emerald-500/30 px-2 py-0.5 rounded-full text-[11px] font-bold">
               تخفیف ویژه
             </span>
-            <span>با کد تخفیف <strong className="bg-white/20 px-1.5 py-0.5 rounded font-mono text-amber-200">PAK1403</strong> ۱۰۰ هزار تومان تخفیف بگیرید!</span>
+            ) : (
+              <span className="inline-flex items-center justify-center bg-amber-400/30 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                حالت آزمایشی
+              </span>
+            )}
+            {VERIFIED_TRUST_CLAIMS_AVAILABLE ? (
+              <span>با کد تخفیف <strong className="bg-white/20 px-1.5 py-0.5 rounded font-mono text-amber-200">PAK1403</strong> ۱۰۰ هزار تومان تخفیف بگیرید!</span>
+            ) : (
+              <span>نسخه آزمایشی — قیمت‌های نمایش‌داده‌شده پیشنهادی هستند و تخفیف‌ها پس از تأیید سیاست تجاری فعال می‌شوند.</span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-emerald-100">
+            {VERIFIED_TRUST_CLAIMS_AVAILABLE ? (
             <span className="hidden md:flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
               بیمه مسئولیت و احراز هویت نیروها
             </span>
+            ) : (
+              <span className="hidden md:flex items-center gap-1">
+                <FlaskConical className="w-3.5 h-3.5 text-amber-200" />
+                حالت آزمایشی — بدون اعزام واقعی
+              </span>
+            )}
             <span className="hidden lg:flex items-center gap-1">
               <PhoneCall className="w-3.5 h-3.5 text-emerald-300" />
               ۰۲۱-۸۸۹۹۰۰۱۱
@@ -95,13 +104,13 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => scrollToSection('cleaners')}
                 className="hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                متخصصین نظافت
+                متخصصین (نمونه)
               </button>
               <button 
                 onClick={() => scrollToSection('why-us')}
                 className="hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                ضمانت و بیمه
+                ضمانت و پوشش (آزمایشی)
               </button>
               <button 
                 onClick={() => scrollToSection('reviews')}
@@ -142,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="relative flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
             >
               <Search className="w-4 h-4 text-slate-500" />
-              <span>پیگیری سفارش</span>
+              <span>درخواست‌های آزمایشی{DEMO_MODE ? ' (نمایشی)' : ''}</span>
               {ordersCount > 0 && (
                 <span className="flex items-center justify-center w-5 h-5 text-[11px] font-bold text-white bg-emerald-600 rounded-full">
                   {ordersCount}
@@ -165,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenTracker}
               className="p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
-              aria-label="پیگیری سفارش"
+              aria-label="درخواست‌های آزمایشی"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -223,13 +232,13 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => scrollToSection('cleaners')}
               className="text-right py-2.5 px-3 rounded-lg hover:bg-slate-100"
             >
-              متخصصین نظافت برتر
+              متخصصین نمونه
             </button>
             <button
               onClick={() => scrollToSection('why-us')}
               className="text-right py-2.5 px-3 rounded-lg hover:bg-slate-100"
             >
-              ضمانت و پوشش بیمه
+              ضمانت و پوشش (آزمایشی)
             </button>
             <button
               onClick={() => scrollToSection('reviews')}

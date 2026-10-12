@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { BookingOrder, OrderStatus } from '../types';
+import { BookingOrder } from '../types';
 import { orderService } from '../services/orderService';
-import { CreateOrderDTO, UpdateOrderStatusDTO } from '../services/orderService.types';
+import { CreateOrderDTO } from '../services/orderService.types';
 
 interface OrderContextType {
   orders: BookingOrder[];
   isLoading: boolean;
   error: string | null;
   createOrder: (orderData: CreateOrderDTO) => Promise<BookingOrder>;
-  updateOrderStatus: (updateData: UpdateOrderStatusDTO) => Promise<BookingOrder>;
+  /** ثبت امتیاز/بازخورد؛ وضعیت عملیاتی سفارش را تغییر نمی‌دهد. */
+  submitOrderRating: (orderId: string, rating: number, feedback?: string) => Promise<BookingOrder>;
+  /** لغو نمایشی رکورد محلی (هیچ اثری در سامانه عملیاتی ندارد). */
+  cancelOrder: (orderId: string) => Promise<BookingOrder>;
   refreshOrders: () => Promise<void>;
   getOrderById: (id: string) => Promise<BookingOrder | null>;
   getOrderByTrackingCode: (trackingCode: string) => Promise<BookingOrder | null>;
@@ -25,7 +28,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load orders on initial mount
+  // Load demo orders on initial mount
   const refreshOrders = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -33,8 +36,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
       const fetchedOrders = await orderService.getOrders();
       setOrders(fetchedOrders);
     } catch (err) {
-      console.error('[OrderContext] Error fetching orders:', err);
-      setError('خطا در دریافت لیست سفارش‌ها');
+      console.error('[OrderContext] Error fetching demo orders:', err);
+      setError('خطا در دریافت فهرست درخواست‌های آزمایشی');
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +47,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
     refreshOrders();
   }, [refreshOrders]);
 
-  // Create new order
+  // Create new demo order
   const handleCreateOrder = useCallback(async (orderData: CreateOrderDTO): Promise<BookingOrder> => {
     setError(null);
     try {
@@ -52,22 +55,38 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
       setOrders(prev => [created, ...prev]);
       return created;
     } catch (err) {
-      console.error('[OrderContext] Error creating order:', err);
-      setError('خطا در ایجاد سفارش');
+      console.error('[OrderContext] Error creating demo order:', err);
+      setError('خطا در ثبت درخواست آزمایشی');
       throw err;
     }
   }, []);
 
-  // Update order status or rating
-  const handleUpdateOrderStatus = useCallback(async (updateData: UpdateOrderStatusDTO): Promise<BookingOrder> => {
+  // Submit rating/feedback only — no operational status change by the customer
+  const handleSubmitOrderRating = useCallback(
+    async (orderId: string, rating: number, feedback?: string): Promise<BookingOrder> => {
+      setError(null);
+      try {
+        const updated = await orderService.submitOrderRating(orderId, rating, feedback);
+        setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
+        return updated;
+      } catch (err) {
+        console.error('[OrderContext] Error submitting rating:', err);
+        setError('خطا در ثبت امتیاز');
+        throw err;
+      }
+    },
+    [],
+  );
+
+  const handleCancelOrder = useCallback(async (orderId: string): Promise<BookingOrder> => {
     setError(null);
     try {
-      const updated = await orderService.updateOrderStatus(updateData);
-      setOrders(prev => prev.map(o => (o.id === updateData.orderId ? updated : o)));
+      const updated = await orderService.cancelOrder(orderId);
+      setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
       return updated;
     } catch (err) {
-      console.error('[OrderContext] Error updating order status:', err);
-      setError('خطا در به‌روزرسانی وضعیت سفارش');
+      console.error('[OrderContext] Error cancelling demo order:', err);
+      setError('خطا در لغو درخواست آزمایشی');
       throw err;
     }
   }, []);
@@ -86,10 +105,11 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
     isLoading,
     error,
     createOrder: handleCreateOrder,
-    updateOrderStatus: handleUpdateOrderStatus,
+    submitOrderRating: handleSubmitOrderRating,
+    cancelOrder: handleCancelOrder,
     refreshOrders,
     getOrderById: handleGetOrderById,
-    getOrderByTrackingCode: handleGetOrderByTrackingCode
+    getOrderByTrackingCode: handleGetOrderByTrackingCode,
   };
 
   return (
