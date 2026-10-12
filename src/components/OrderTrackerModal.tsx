@@ -17,15 +17,18 @@ import {
   DemoInlineNotice,
 } from './DemoNotice';
 import { DEMO_COPY } from '../config/capabilities';
+import { LEGACY_DATA_NOTICE } from '../services/pii';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
   onClose: () => void;
   orders: BookingOrder[];
-  /** فقط ثبت امتیاز/بازخورد. مشتری اجازه تغییر وضعیت عملیاتی را ندارد. */
-  onSubmitOrderRating: (orderId: string, rating: number, feedback?: string) => void;
+  /** فقط ثبت امتیاز عددی. مشتری اجازه تغییر وضعیت عملیاتی را ندارد. */
+  onSubmitOrderRating: (orderId: string, rating: number) => void;
   /** لغو نمایشی رکورد محلی؛ هیچ اثر عملیاتی ندارد. */
   onCancelOrder: (orderId: string) => void;
+  /** آیا داده‌ای از نسخه قبلی سایت در این مرورگر وجود دارد؟ (فقط اطلاع‌رسانی) */
+  hasLegacyStoredData?: boolean;
 }
 
 export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
@@ -33,12 +36,18 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   onClose,
   orders,
   onSubmitOrderRating,
-  onCancelOrder
+  onCancelOrder,
+  hasLegacyStoredData = false
 }) => {
   const [searchCode, setSearchCode] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<BookingOrder | null>(null);
   const [searchError, setSearchError] = useState<string>('');
   const [userStarRating, setUserStarRating] = useState(5);
+  /**
+   * متن بازخورد فقط در حافظه همین کامپوننت نگه داشته می‌شود و **ذخیره نمی‌شود**.
+   * دلیل: متن آزاد می‌تواند حاوی شماره تماس یا نشانی باشد و نباید در
+   * localStorage باقی بماند.
+   */
   const [userFeedbackText, setUserFeedbackText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
@@ -107,7 +116,8 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   const handleSubmitRating = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
-    onSubmitOrderRating(selectedOrder.id, userStarRating, userFeedbackText);
+    // فقط امتیاز عددی ارسال و ذخیره می‌شود؛ متن بازخورد ارسال نمی‌شود.
+    onSubmitOrderRating(selectedOrder.id, userStarRating);
     setRatingSubmitted(true);
     setTimeout(() => setRatingSubmitted(false), 2500);
   };
@@ -143,6 +153,13 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
         <div className="p-5 sm:p-8 overflow-y-auto flex-1 space-y-6 text-slate-800">
 
           <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} />
+
+          {hasLegacyStoredData && (
+            <div className="p-3 rounded-2xl bg-slate-100 border border-slate-300 text-slate-700 text-[11px] leading-relaxed flex items-start gap-2">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
+              <span>{LEGACY_DATA_NOTICE}</span>
+            </div>
+          )}
 
           {/* Search by tracking code */}
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -343,8 +360,18 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   </h4>
 
                   {ratingSubmitted || selectedOrder.userRating ? (
-                    <div className="p-3 bg-white rounded-2xl border border-amber-200 text-xs text-emerald-800 font-bold text-center">
-                      ✓ امتیاز {selectedOrder.userRating || userStarRating} ستاره در همین مرورگر ثبت شد.
+                    <div className="p-3 bg-white rounded-2xl border border-amber-200 space-y-1.5">
+                      <p className="text-xs text-emerald-800 font-bold text-center">
+                        ✓ امتیاز {selectedOrder.userRating || userStarRating} ستاره در همین مرورگر ثبت شد.
+                      </p>
+                      {userFeedbackText.trim() && (
+                        <>
+                          <p className="text-[11px] text-slate-700 leading-relaxed">«{userFeedbackText.trim()}»</p>
+                          <p className="text-[10px] text-slate-500">
+                            این متن ذخیره نشده است و با بستن یا بارگذاری مجدد صفحه از بین می‌رود.
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <form onSubmit={handleSubmitRating} className="space-y-3">
@@ -364,6 +391,11 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                           ))}
                         </div>
                       </div>
+
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        متن بازخورد ذخیره نمی‌شود و فقط تا بستن این پنجره نمایش داده می‌شود؛
+                        شماره تلفن، نشانی یا هر اطلاعات شخصی دیگری را وارد نکنید.
+                      </p>
 
                       <textarea
                         rows={2}

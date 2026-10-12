@@ -2,19 +2,28 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { BookingOrder } from '../types';
 import { orderService } from '../services/orderService';
 import { CreateOrderDTO } from '../services/orderService.types';
+import { hasLegacyStoredData } from '../services/pii';
 
 interface OrderContextType {
   orders: BookingOrder[];
   isLoading: boolean;
   error: string | null;
   createOrder: (orderData: CreateOrderDTO) => Promise<BookingOrder>;
-  /** ثبت امتیاز/بازخورد؛ وضعیت عملیاتی سفارش را تغییر نمی‌دهد. */
-  submitOrderRating: (orderId: string, rating: number, feedback?: string) => Promise<BookingOrder>;
+  /**
+   * ثبت امتیاز عددی؛ وضعیت عملیاتی سفارش را تغییر نمی‌دهد و متن آزاد بازخورد
+   * در حافظه مرورگر ذخیره نمی‌شود.
+   */
+  submitOrderRating: (orderId: string, rating: number) => Promise<BookingOrder>;
   /** لغو نمایشی رکورد محلی (هیچ اثری در سامانه عملیاتی ندارد). */
   cancelOrder: (orderId: string) => Promise<BookingOrder>;
   refreshOrders: () => Promise<void>;
   getOrderById: (id: string) => Promise<BookingOrder | null>;
   getOrderByTrackingCode: (trackingCode: string) => Promise<BookingOrder | null>;
+  /**
+   * آیا داده‌ای از نسخه قبلی سایت در همین مرورگر وجود دارد؟
+   * فقط برای اطلاع‌رسانی؛ هیچ خواندن، انتقال یا حذفی انجام نمی‌شود.
+   */
+  hasLegacyStoredData: boolean;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -27,6 +36,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
   const [orders, setOrders] = useState<BookingOrder[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // فقط یک‌بار و صرفاً برای اطلاع‌رسانی بررسی می‌شود؛ هیچ داده‌ای دست‌کاری نمی‌شود.
+  const [legacyDataPresent] = useState<boolean>(() => hasLegacyStoredData());
 
   // Load demo orders on initial mount
   const refreshOrders = useCallback(async () => {
@@ -61,12 +72,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // Submit rating/feedback only — no operational status change by the customer
+  // ثبت امتیاز عددی — مشتری وضعیت عملیاتی سفارش را تغییر نمی‌دهد و متن آزاد ذخیره نمی‌شود.
   const handleSubmitOrderRating = useCallback(
-    async (orderId: string, rating: number, feedback?: string): Promise<BookingOrder> => {
+    async (orderId: string, rating: number): Promise<BookingOrder> => {
       setError(null);
       try {
-        const updated = await orderService.submitOrderRating(orderId, rating, feedback);
+        const updated = await orderService.submitOrderRating(orderId, rating);
         setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
         return updated;
       } catch (err) {
@@ -110,6 +121,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
     refreshOrders,
     getOrderById: handleGetOrderById,
     getOrderByTrackingCode: handleGetOrderByTrackingCode,
+    hasLegacyStoredData: legacyDataPresent,
   };
 
   return (

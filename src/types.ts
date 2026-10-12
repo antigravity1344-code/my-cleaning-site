@@ -118,8 +118,11 @@ export interface BookingOrder {
   totalPrice: number;
   discountApplied: number;
   paymentMethod: 'online' | 'cash_on_site';
+  /**
+   * امتیاز عددی مشتری. متن آزاد بازخورد عمداً در مدل سفارش وجود ندارد تا
+   * نتواند اطلاعات شخصی را وارد حافظه مرورگر کند.
+   */
   userRating?: number;
-  userFeedback?: string;
 }
 
 export interface FAQItem {

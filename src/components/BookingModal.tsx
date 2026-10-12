@@ -126,7 +126,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (cityObj && cityObj.districts.length > 0) {
       setDistrict(cityObj.districts[0]);
     }
-  }, [cityName]);if (!isOpen) return null;
+  }, [cityName]);
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
@@ -149,6 +149,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const detergentPrice = pricing.detergentCost;
   const baseServicePrice = pricing.serviceBase;
   const totalPrice = pricing.total;
+
+  // بازگشت زودهنگام باید **بعد از همه هوک‌ها** باشد؛ در غیر این صورت وقتی مودال
+  // بسته رندر و سپس باز می‌شود، تعداد هوک‌ها تغییر می‌کند و React خطای
+  // «Rendered more hooks than during the previous render» می‌دهد.
+  if (!isOpen) return null;
 
   // Handlers
   const handleApplyDiscount = () => {

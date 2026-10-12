@@ -34,10 +34,14 @@ export interface CreateOrderDTO {
   recordType?: RecordType;
 }
 
+/**
+ * ثبت امتیاز مشتری.
+ * توجه: متن آزاد بازخورد عمداً در این قرارداد وجود ندارد؛ در نسخه نمایشی
+ * متن آزاد ذخیره نمی‌شود تا از باقی‌ماندن ناخواسته اطلاعات شخصی جلوگیری شود.
+ */
 export interface UpdateOrderRatingDTO {
   orderId: string;
   rating: number;
-  feedback?: string;
 }
 
 /**
@@ -52,6 +56,6 @@ export interface IOrderService {
   getOrderById(id: string): Promise<BookingOrder | null>;
   getOrderByTrackingCode(trackingCode: string): Promise<BookingOrder | null>;
   createOrder(orderData: CreateOrderDTO): Promise<BookingOrder>;
-  submitOrderRating(orderId: string, rating: number, feedback?: string): Promise<BookingOrder>;
+  submitOrderRating(orderId: string, rating: number): Promise<BookingOrder>;
   cancelOrder(orderId: string): Promise<BookingOrder>;
 }

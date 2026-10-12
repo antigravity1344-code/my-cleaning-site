@@ -18,7 +18,7 @@ import { PhoneCall, Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
 
 function PakshoAppContent() {
-  const { orders, createOrder, submitOrderRating, cancelOrder } = useOrders();
+  const { orders, createOrder, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
 
   // Modal States
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -70,8 +70,11 @@ function PakshoAppContent() {
 
   // Open booking from Cost Calculator.
   // توجه: هیچ مبلغی منتقل نمی‌شود. فرم رزرو همان ورودی‌های خام را می‌گیرد و مبلغ را
-  // با همان موتور مشترک قیمت‌گذاری بازمحاسبه می‌کند تا نمایش محاسبه‌گر و فاکتور
-  // هرگز واگرا نشوند و عدد محاسبه‌شده در مرورگر مبنای پرداخت تلقی نشود.
+  // با همان موتور مشترک قیمت‌گذاری بازمحاسبه می‌کند. این طراحی احتمال واگرایی نمایش
+  // محاسبه‌گر و فاکتور را کم می‌کند (و در آزمون
+  // src/App.bookingFlow.test.tsx برای ورودی‌های آزمون‌شده پوشش داده شده است)، اما
+  // تضمین ریاضی برای همه ورودی‌های ممکن نیست. عدد محاسبه‌شده در مرورگر در هر حال
+  // مبنای پرداخت نیست.
   const handleProceedFromCalculator = (calcData: {
     serviceId: ServiceType;
     hours: number;
@@ -128,9 +131,10 @@ function PakshoAppContent() {
     // State is synchronized via OrderContext
   };
 
-  // ثبت امتیاز/بازخورد مشتری — وضعیت عملیاتی سفارش توسط مشتری تغییر نمی‌کند.
-  const handleSubmitOrderRating = async (orderId: string, userRating: number, userFeedback?: string) => {
-    await submitOrderRating(orderId, userRating, userFeedback);
+  // ثبت امتیاز عددی مشتری — وضعیت عملیاتی سفارش تغییر نمی‌کند و متن آزاد
+  // بازخورد در حافظه مرورگر ذخیره نمی‌شود.
+  const handleSubmitOrderRating = async (orderId: string, userRating: number) => {
+    await submitOrderRating(orderId, userRating);
   };
 
   // لغو نمایشی رکورد محلی (هیچ اثر عملیاتی ندارد).
@@ -235,6 +239,7 @@ function PakshoAppContent() {
         orders={orders}
         onSubmitOrderRating={handleSubmitOrderRating}
         onCancelOrder={handleCancelOrder}
+        hasLegacyStoredData={hasLegacyStoredData}
       />
 
       {/* AI Consultant Modal */}

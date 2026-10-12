@@ -1,12 +1,7 @@
 import { BookingOrder } from '../types';
 import { CreateOrderDTO, IOrderService } from './orderService.types';
 import { DEMO_MODE } from '../config/capabilities';
-import {
-  DEMO_STORAGE_KEY,
-  purgeLegacyStorage,
-  redactOrderForStorage,
-  safeLocalStorage,
-} from './pii';
+import { DEMO_STORAGE_KEY, redactOrderForStorage, safeLocalStorage } from './pii';
 import { DEMO_ORDER_STATUS, DEMO_TRACKING_PREFIX, generateDemoTrackingCode } from './demoOrder';
 
 /**
@@ -27,9 +22,10 @@ class DemoLocalOrderService implements IOrderService {
     if (!storage) return [];
 
     try {
-      // کلید نسخه قبلی که ممکن بود اطلاعات خام مشتری داشته باشد پاک می‌شود.
-      purgeLegacyStorage(storage);
-
+      // توجه: داده‌های نسخه قبلی (`paksho_orders`) خوانده، منتقل یا حذف نمی‌شوند.
+      // کلید ذخیره‌سازی این نسخه متفاوت است، بنابراین داده قدیمی نه در فهرست
+      // آزمایشی ظاهر می‌شود و نه دست‌کاری می‌گردد. حذف/مهاجرت آن نیازمند تصمیم
+      // جداگانه مالک داده است.
       const saved = storage.getItem(DEMO_STORAGE_KEY);
       if (!saved) return [];
 
@@ -102,10 +98,15 @@ class DemoLocalOrderService implements IOrderService {
   }
 
   /**
-   * ثبت امتیاز و بازخورد مشتری روی سفارش آزمایشی.
-   * توجه: وضعیت عملیاتی سفارش تغییر نمی‌کند؛ مشتری مجاز به تغییر وضعیت نیست.
+   * ثبت امتیاز مشتری روی سفارش آزمایشی.
+   *
+   * توجه ۱: وضعیت عملیاتی سفارش تغییر نمی‌کند؛ مشتری مجاز به تغییر وضعیت نیست.
+   * توجه ۲: **فقط امتیاز عددی ذخیره می‌شود.** متن آزاد بازخورد ذخیره نمی‌شود،
+   * چون می‌تواند به‌طور ناخواسته حاوی شماره تماس یا نشانی باشد و پس از ذخیره
+   * قابل پاک‌سازی مطمئن نیست. متن بازخورد فقط در همان نشست در حافظه کامپوننت
+   * نگه داشته و نمایش داده می‌شود.
    */
-  public async submitOrderRating(orderId: string, rating: number, feedback?: string): Promise<BookingOrder> {
+  public async submitOrderRating(orderId: string, rating: number): Promise<BookingOrder> {
     const orders = this.getStoredOrders();
     let updatedOrder: BookingOrder | null = null;
 
@@ -113,10 +114,11 @@ class DemoLocalOrderService implements IOrderService {
       if (order.id !== orderId) return order;
       updatedOrder = {
         ...order,
-        // وضعیت عیناً حفظ می‌شود؛ فقط بازخورد ثبت می‌گردد.
+        // وضعیت عیناً حفظ می‌شود؛ فقط امتیاز عددی ثبت می‌گردد.
         userRating: rating,
-        userFeedback: feedback,
       };
+      // حذف احتمالی متن بازخورد از رکوردهای قدیمی‌تر همین نسخه.
+      delete (updatedOrder as BookingOrder & { userFeedback?: string }).userFeedback;
       return updatedOrder;
     });
 

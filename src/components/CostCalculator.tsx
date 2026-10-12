@@ -62,7 +62,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
   const handleBook = () => {
     // فقط ورودی‌های خام منتقل می‌شوند. مبلغ در فرم رزرو با همان موتور مشترک
-    // بازمحاسبه می‌شود تا قیمت منتقل‌شده و قیمت نمایش‌داده‌شده هرگز واگرا نشوند.
+    // بازمحاسبه می‌شود تا قیمت نمایش‌داده‌شده و فاکتور از یک منبع واحد بیایند.
     onProceedToBooking({
       serviceId,
       hours: recommendedHours,

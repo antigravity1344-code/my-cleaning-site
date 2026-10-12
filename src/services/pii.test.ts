@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEMO_STORAGE_KEY,
+  LEGACY_DATA_NOTICE,
   LEGACY_STORAGE_KEYS,
   REDACTED_PLACEHOLDER,
+  containsPiiInFreeText,
   containsRawCustomerPii,
+  hasLegacyStoredData,
   maskName,
   maskPhone,
-  purgeLegacyStorage,
   redactOrderForStorage,
   toLatinDigits,
 } from './pii';
@@ -115,6 +117,32 @@ describe('redactOrderForStorage — حذف اطلاعات شخصی پیش از �
     expect(redacted.serviceTitle).toBe('نظافت استاندارد منزل');
     expect(redacted.status).toBe('pending');
   });
+
+  it('متن آزاد بازخورد قدیمی را حذف می‌کند (فهرست سفید صریح)', () => {
+    const legacyRecord = {
+      ...buildOrder(),
+      userFeedback: 'با من تماس بگیرید ۰۹۱۲۳۴۵۶۷۸۹، خیابان ولیعصر پلاک ۱۰',
+    } as unknown as BookingOrder;
+
+    const redacted = redactOrderForStorage(legacyRecord);
+    const serialized = JSON.stringify(redacted);
+
+    expect('userFeedback' in redacted).toBe(false);
+    expect(serialized).not.toContain('userFeedback');
+    expect(serialized).not.toContain('۰۹۱۲۳۴۵۶۷۸۹');
+    expect(serialized).not.toContain('خیابان ولیعصر');
+  });
+
+  it('فقط فیلدهای فهرست سفید را برمی‌گرداند و فیلد ناشناخته را عبور نمی‌دهد', () => {
+    const withUnknownField = {
+      ...buildOrder(),
+      secretInternalNote: 'این فیلد نباید ذخیره شود',
+    } as unknown as BookingOrder;
+
+    const redacted = redactOrderForStorage(withUnknownField) as unknown as Record<string, unknown>;
+    expect(redacted.secretInternalNote).toBeUndefined();
+    expect(JSON.stringify(redacted)).not.toContain('secretInternalNote');
+  });
 });
 
 describe('containsRawCustomerPii — تشخیص اطلاعات ذخیره‌نشده‌ی خام', () => {
@@ -125,30 +153,72 @@ describe('containsRawCustomerPii — تشخیص اطلاعات ذخیره‌نش
   it('سفارش ماسک‌شده را پاک اعلام می‌کند', () => {
     expect(containsRawCustomerPii(redactOrderForStorage(buildOrder()))).toBe(false);
   });
+
+  it('متن آزاد بازخورد حاوی شماره تماس را به‌عنوان PII تشخیص می‌دهد', () => {
+    const withFeedback = {
+      ...redactOrderForStorage(buildOrder()),
+      userFeedback: 'لطفا قبل از آمدن زنگ بزنید ۰۹۱۲۳۴۵۶۷۸۹',
+    } as unknown as BookingOrder;
+
+    expect(containsRawCustomerPii(withFeedback)).toBe(true);
+  });
 });
 
-describe('purgeLegacyStorage — پاک‌سازی کلید نسخه قبلی', () => {
-  it('کلید قدیمی که اطلاعات خام مشتری داشت را حذف می‌کند', () => {
-    const removed: string[] = [];
-    purgeLegacyStorage({ removeItem: (key: string) => { removed.push(key); } });
+describe('containsPiiInFreeText — پایش متن آزاد', () => {
+  it('شماره موبایل لاتین و فارسی را تشخیص می‌دهد', () => {
+    expect(containsPiiInFreeText('تماس: 09123456789')).toBe(true);
+    expect(containsPiiInFreeText('تماس: ۰۹۱۲۳۴۵۶۷۸۹')).toBe(true);
+  });
 
-    LEGACY_STORAGE_KEYS.forEach((key) => {
-      expect(removed).toContain(key);
-    });
+  it('متن عادی را پاک اعلام می‌کند', () => {
+    expect(containsPiiInFreeText('نظافت آشپزخانه خوب بود')).toBe(false);
+    expect(containsPiiInFreeText('')).toBe(false);
+    expect(containsPiiInFreeText(undefined)).toBe(false);
+  });
+});
+
+describe('hasLegacyStoredData — تشخیص بدون مداخله', () => {
+  it('وجود داده قدیمی را تشخیص می‌دهد اما آن را حذف نمی‌کند', () => {
+    const store = new Map<string, string>([['paksho_orders', '[{"id":"legacy-1"}]']]);
+    const removed: string[] = [];
+
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      removeItem: (key: string) => {
+        removed.push(key);
+        store.delete(key);
+      },
+    };
+
+    expect(hasLegacyStoredData(storage)).toBe(true);
+    // هیچ کلیدی نباید حذف شده باشد
+    expect(removed).toHaveLength(0);
+    expect(store.get('paksho_orders')).toBe('[{"id":"legacy-1"}]');
+  });
+
+  it('وقتی داده قدیمی وجود ندارد، false برمی‌گرداند', () => {
+    expect(hasLegacyStoredData({ getItem: () => null })).toBe(false);
+    expect(hasLegacyStoredData({ getItem: () => '' })).toBe(false);
   });
 
   it('در صورت خطای دسترسی به حافظه، استثنا پرتاب نمی‌کند', () => {
-    expect(() =>
-      purgeLegacyStorage({
-        removeItem: () => {
-          throw new Error('storage blocked');
-        },
-      }),
-    ).not.toThrow();
+    const blocked = {
+      getItem: () => {
+        throw new Error('storage blocked');
+      },
+    };
+    expect(() => hasLegacyStoredData(blocked)).not.toThrow();
+    expect(hasLegacyStoredData(blocked)).toBe(false);
   });
 
   it('کلید ذخیره‌سازی جدید با کلید قدیمی یکسان نیست', () => {
     expect(LEGACY_STORAGE_KEYS).not.toContain(DEMO_STORAGE_KEY);
     expect(DEMO_STORAGE_KEY).toMatch(/_v\d+$/);
+  });
+
+  it('پیام اطلاع‌رسانی صریح است و وعده حذف خودکار نمی‌دهد', () => {
+    expect(LEGACY_DATA_NOTICE).toContain('حذف نمی‌شود');
+    expect(LEGACY_DATA_NOTICE).not.toContain('به‌طور خودکار');
+    expect(LEGACY_DATA_NOTICE.length).toBeGreaterThan(40);
   });
 });
