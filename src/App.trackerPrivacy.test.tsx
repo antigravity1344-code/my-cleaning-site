@@ -396,9 +396,16 @@ const normalizeClaimText = (text: string): string =>
     .replace(/(\d)[٫/](?=\d)/g, '$1.')
     .replace(/\s+/g, ' ');
 
-/** عدد مستقل (نه بخشی از عدد بزرگ‌تر، مثل قیمت ۴۵۰٬۰۰۰). */
+/**
+ * عدد مستقل (نه بخشی از عدد بزرگ‌تر، مثل قیمت ۴۵۰٬۰۰۰ یا اعشار ۴۵۰٫۵).
+ * جداکننده (. , ، ٬ ٫ /) فقط وقتی «ادامه عدد» حساب می‌شود که در سمت دیگرش رقم باشد؛
+ * علامت نگارشی پایان جمله یا فهرست (مثل «۲۵٬۰۰۰، مشتری» یا «۴۵۰. متخصص») عدد را پنهان نمی‌کند.
+ */
+const NUMBER_JOINERS = '.,٬،٫/';
 const standaloneNumber = (value: string): RegExp =>
-  new RegExp(`(^|[^\\d.,٬،٫/])${value.replace('.', '\\.')}(?![\\d.,٬،٫/])`);
+  new RegExp(
+    `(?<!\\d)(?<!\\d[${NUMBER_JOINERS}])${value.replace('.', '\\.')}(?!\\d)(?![${NUMBER_JOINERS}]\\d)`,
+  );
 
 const HERO_UNVERIFIED_FIGURES = ['25000', '450', '4.9'];
 const UNVERIFIED_SUPPORT_CLAIM = /24 ?ساعت|شبانه ?روز/;
@@ -427,6 +434,25 @@ describe('SAFETY-005 — claim normalizer catches formatting variants', () => {
       expect(normalizeClaimText('قیمت ' + variant)).not.toMatch(standaloneNumber('450'));
     },
   );
+
+  it.each([
+    ['+۲۵٬۰۰۰، مشتری راضی', '25000'],
+    ['+۲۵,۰۰۰. مشتری', '25000'],
+    ['۴۵۰، متخصص', '450'],
+    ['۴۵۰. متخصص', '450'],
+    ['متخصص،۴۵۰', '450'],
+    ['امتیاز ۴٫۹.', '4.9'],
+    ['امتیاز ۴/۹، عالی', '4.9'],
+    ['(۴۵۰)', '450'],
+  ])('F3: trailing/leading punctuation does not hide %s (→ %s)', (variant, figure) => {
+    expect(normalizeClaimText(variant)).toMatch(standaloneNumber(figure));
+  });
+
+  it.each([
+    ['۴۵۰٫۵', '450'], ['۱۴۵۰', '450'], ['۴٫۹۵', '4.9'], ['۱۴٫۹', '4.9'], ['۱٬۴۵۰٬۰۰۰، تومان', '450'], ['۲۵۰٬۰۰۰، تومان', '25000'],
+  ])('F3: %s is still not mistaken for a standalone %s', (variant, figure) => {
+    expect(normalizeClaimText(variant)).not.toMatch(standaloneNumber(figure));
+  });
 
   it('does not flag unrelated larger numbers such as prices', () => {
     const price = normalizeClaimText('۶۴۰٬۰۰۰ تومان و ۱٬۴۵۰٬۰۰۰ تومان و ۱۴.۹');
