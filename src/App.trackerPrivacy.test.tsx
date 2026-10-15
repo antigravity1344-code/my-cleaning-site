@@ -376,15 +376,88 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
   });
 });
 
+/**
+ * نرمال‌سازی متن برای سنجش ادعاها، تا تغییر قالب نوشتاری از آزمون فرار نکند:
+ *   • ارقام فارسی (۰-۹) و عربی (٠-٩) → لاتین
+ *   • حذف نیم‌فاصله، کشیده و اعراب (مثل تنوینِ «کاملاً»)؛ یکسان‌سازی ی/ک عربی
+ *   • حذف جداکننده هزارگان بین ارقام (, ٬ ، فاصله و فاصله‌های باریک)
+ *   • یکسان‌سازی ممیز (٫ و / بین دو رقم) به «.»
+ */
+const normalizeClaimText = (text: string): string =>
+  text
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[ً-ٰٟـ‌‍‎‏]/g, '')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/(\d)[,٬،   ](?=\d{3}(?:\D|$))/g, '$1')
+    .replace(/(\d)[٫/](?=\d)/g, '$1.')
+    .replace(/\s+/g, ' ');
+
+/** عدد مستقل (نه بخشی از عدد بزرگ‌تر، مثل قیمت ۴۵۰٬۰۰۰). */
+const standaloneNumber = (value: string): RegExp =>
+  new RegExp(`(^|[^\\d.])${value.replace('.', '\\.')}(?![\\d])`);
+
+const HERO_UNVERIFIED_FIGURES = ['25000', '450', '4.9'];
+const UNVERIFIED_SUPPORT_CLAIM = /24 ?ساعت|شبانه ?روز/;
+
+describe('SAFETY-005 — claim normalizer catches formatting variants', () => {
+  it.each([
+    ['+۲۵,۰۰۰', '25000'], ['+۲۵٬۰۰۰', '25000'], ['٢٥،٠٠٠', '25000'], ['25 000', '25000'], ['25,000', '25000'],
+    ['۴۵۰', '450'], ['٤٥٠', '450'],
+    ['۴.۹', '4.9'], ['۴٫۹', '4.9'], ['۴/۹', '4.9'], ['٤٫٩', '4.9'], ['4.9', '4.9'],
+  ])('%s is detected as %s', (variant, figure) => {
+    expect(normalizeClaimText(`امتیاز ${variant} مشتری`)).toMatch(standaloneNumber(figure));
+  });
+
+  it('does not flag unrelated larger numbers such as prices', () => {
+    const price = normalizeClaimText('۶۴۰٬۰۰۰ تومان و ۱٬۴۵۰٬۰۰۰ تومان و ۱۴.۹');
+    for (const figure of HERO_UNVERIFIED_FIGURES) {
+      expect(price).not.toMatch(standaloneNumber(figure));
+    }
+  });
+
+  it('catches support-hour and re-clean variants (ZWNJ, diacritics, spacing)', () => {
+    expect(normalizeClaimText('پشتیبانی ۲۴‌ساعته')).toMatch(UNVERIFIED_SUPPORT_CLAIM);
+    expect(normalizeClaimText('پشتیبانی شبانه‌روزی')).toMatch(UNVERIFIED_SUPPORT_CLAIM);
+    expect(normalizeClaimText('نظافت مجدد کاملاً رایگان')).toMatch(/نظافت ?مجدد.{0,30}رایگان/);
+  });
+});
+
 describe('SAFETY-005 — actual rendered marketing copy', () => {
-  it('does not display unverified Hero statistics or the free re-clean promise', () => {
+  it('does not display unverified Hero statistics in any digit/separator format', () => {
     render(<App />);
     const hero = document.querySelector('main')?.firstElementChild;
     expect(hero).toBeTruthy();
-    const heroText = hero?.textContent ?? '';
-    expect(heroText).not.toContain('۲۵,۰۰۰');
-    expect(heroText).not.toContain('۴۵۰');
-    expect(heroText).not.toContain('۴.۹');
-    expect(document.querySelector('footer')?.textContent ?? '').not.toContain('نظافت مجدد کاملا رایگان');
+    const heroText = normalizeClaimText(hero?.textContent ?? '');
+    for (const figure of HERO_UNVERIFIED_FIGURES) {
+      expect(heroText).not.toMatch(standaloneNumber(figure));
+    }
+  });
+
+  it('footer has no free re-clean promise, support-hours, line-count or "approved pricing" claims', () => {
+    render(<App />);
+    const footer = normalizeClaimText(document.querySelector('footer')?.textContent ?? '');
+    expect(footer).not.toMatch(/نظافت ?مجدد.{0,30}رایگان/);
+    expect(footer).not.toMatch(UNVERIFIED_SUPPORT_CLAIM);
+    expect(footer).not.toMatch(/\d+ ?خط/);
+    expect(footer).not.toContain('مصوب');
+  });
+
+  it('no support-hours claim is rendered outside the explicit "pending evidence" section', () => {
+    render(<App />);
+    // منوی موبایل را باز می‌کنیم تا متن آن هم در DOM باشد.
+    fireEvent.click(screen.getByRole('button', { name: 'باز کردن منو' }));
+    const page = document.body.cloneNode(true) as HTMLElement;
+    // بخش «ضمانت‌ها و ادعاهای در انتظار مستندسازی» عمداً می‌گوید این ادعا هنوز تأیید نشده است.
+    page.querySelector('#why-us')?.remove();
+    expect(normalizeClaimText(page.textContent ?? '')).not.toMatch(UNVERIFIED_SUPPORT_CLAIM);
+  });
+
+  it('service detail does not present the base rate as "approved"', () => {
+    render(<App />);
+    const services = document.querySelector('#services') as HTMLElement;
+    fireEvent.click(Array.from(services.querySelectorAll('button')).find((b) => /جزئیات خدمت/.test(b.textContent ?? ''))!);
+    expect(normalizeClaimText(document.body.textContent ?? '')).not.toContain('مصوب');
   });
 });
