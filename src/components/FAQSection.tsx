@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronDown, Search, PhoneCall } from 'lucide-react';
+import { HelpCircle, ChevronDown, Search } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 import { DemoInlineNotice } from './DemoNotice';
 
@@ -128,17 +128,13 @@ export const FAQSection: React.FC = () => {
               پاسخ سوال خود را پیدا نکردید؟
             </h4>
             <p className="text-xs text-slate-400">
-              می‌توانید با پشتیبانی پاک‌شو تماس بگیرید؛ ساعات پاسخگویی پس از راه‌اندازی رسمی سرویس پشتیبانی اعلام می‌شود.
+              در نسخه آزمایشی کانال تماس یا ساعات پاسخ‌گویی رسمی هنوز تأیید نشده‌اند.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <a
-              href="tel:02188990011"
-              className="flex items-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm shadow-md transition-all"
-            >
-              <PhoneCall className="w-4 h-4" />
-              <span>تماس مستقیم: ۰۲۱-۸۸۹۹۰۰۱۱</span>
-            </a>
+            <span className="flex items-center gap-2 px-5 py-3 bg-slate-200 text-slate-600 font-bold rounded-xl text-xs sm:text-sm">
+              راه تماس رسمی در انتظار تأیید مالک
+            </span>
           </div>
         </div>
 
