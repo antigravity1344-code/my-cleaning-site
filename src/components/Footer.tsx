@@ -1,9 +1,6 @@
 import React from 'react';
 import { 
   Sparkles, 
-  PhoneCall, 
-  Mail, 
-  MapPin, 
   ShieldCheck, 
   Clock, 
   Award,
@@ -78,20 +75,7 @@ export const Footer: React.FC<FooterProps> = ({
             <p className="text-xs text-slate-400 leading-relaxed">
               نسخه آزمایشی سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
             </p>
-            <div className="pt-2 text-xs text-slate-400 flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <PhoneCall className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>تلفن تماس: ۰۲۱-۸۸۹۹۰۰۱۱</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>ایمیل پشتیبانی: info@paksho.ir</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>تهران، خیابان ولیعصر، تقاطع فاطمی، پلاک ۱۲</span>
-              </div>
-            </div>
+            <p className="text-xs text-amber-300">راه‌های تماس و نشانی رسمی پس از تأیید مالک منتشر می‌شوند.</p>
           </div>
 
           {/* Quick Access */}
@@ -137,7 +121,7 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2.5 text-xs text-slate-400">
               <li>
                 <button onClick={onOpenBooking} className="hover:text-emerald-400 transition-colors cursor-pointer">
-                  نظافت کامل و استاندارد منزل
+                  نمونه نظافت منزل
                 </button>
               </li>
               <li>
