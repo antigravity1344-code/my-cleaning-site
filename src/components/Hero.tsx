@@ -4,10 +4,8 @@ import {
   Sparkles, 
   Clock, 
   Star, 
-  Users, 
   ArrowLeft, 
   MapPin, 
-  UserCheck, 
   Layers
 } from 'lucide-react';
 import { SERVICES_LIST, CITIES_DATA } from '../data/mockData';
