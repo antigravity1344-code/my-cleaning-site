@@ -601,3 +601,37 @@ describe('SAFETY-005 T1 — deferred rating/cancel cannot leak across order scop
     }
   });
 });
+
+
+describe('SAFETY-005 C1–C5 — active UI does not promise unsupported operations', () => {
+  it('does not render unverified contact links, personal contact details, or expert promises', () => {
+    render(<App />);
+    expect(document.querySelectorAll('a[href^="tel:"]')).toHaveLength(0);
+    expect(document.body.textContent).not.toContain('۰۲۱-۸۸۹۹۰۰۱۱');
+    expect(document.body.textContent).not.toContain('info@paksho.ir');
+    expect(document.body.textContent).not.toContain('تقاطع فاطمی');
+    const hero = document.querySelector('main')?.firstElementChild;
+    expect(hero?.textContent).not.toContain('مجرب و معتمد');
+    expect(document.querySelector('#services')?.textContent).not.toContain('تجهیزات درجه‌یک');
+  });
+
+  it('renders FAQ answers as unverified/demo, not as operative guarantees', () => {
+    render(<App />);
+    const faq = document.querySelector('#faq')!;
+    expect(faq.textContent).toContain('احراز هویت، استعلام سوابق و پوشش بیمه‌ای هنوز');
+    const select = (text: string) => {
+      const button = Array.from(faq.querySelectorAll('button')).find(x => x.textContent?.includes(text));
+      if (!button) throw new Error('FAQ not found: ' + text);
+      fireEvent.click(button);
+    };
+    select('لغو یا تغییر زمان سفارش');
+    expect(faq.textContent).toContain('مهلت، هزینه و امکان تغییر زمان سفارش واقعی هنوز');
+    expect(faq.textContent).not.toContain('تا ۲ ساعت قبل');
+    select('در صورت عدم رضایت');
+    expect(faq.textContent).toContain('هیچ ضمانت رضایت');
+    expect(faq.textContent).not.toContain('ما تضمین ۱۰۰٪ رضایت داریم');
+    select('نحوه پرداخت هزینه');
+    expect(faq.textContent).toContain('پرداخت آنلاین، پرداخت در محل');
+    expect(faq.textContent).not.toContain('می‌توانید هزینه را در انتهای ثبت سفارش');
+  });
+});
