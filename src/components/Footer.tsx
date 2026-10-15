@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">متخصصین گزینش شده</h4>
+              <h4 className="font-bold text-white text-sm">{VERIFIED_TRUST_CLAIMS_AVAILABLE ? 'متخصصین گزینش شده' : 'فهرست متخصصین نمونه'}</h4>
               {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-slate-400 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-slate-400 mt-0.5">این نسخه آزمایشی است و به سرور عملیات متصل نیست</p>}
             </div>
           </div>
@@ -56,8 +56,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Clock className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">پشتیبانی ۲۴ ساعته</h4>
-              <p className="text-xs text-slate-400 mt-0.5">پاسخگویی در تمام روزهای هفته حتی تعطیلات</p>
+              <h4 className="font-bold text-white text-sm">ساعات پشتیبانی</h4>
+              <p className="text-xs text-slate-400 mt-0.5">ساعات پاسخگویی پس از راه‌اندازی رسمی سرویس پشتیبانی اعلام می‌شود</p>
             </div>
           </div>
         </div>
@@ -76,12 +76,12 @@ export const Footer: React.FC<FooterProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              سامانه جامع و آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی با کادری مجرب و قیمت‌گذاری شفاف و مصوب.
+              نسخه آزمایشی سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
             </p>
             <div className="pt-2 text-xs text-slate-400 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>تلفن تماس: ۰۲۱-۸۸۹۹۰۰۱۱ (۳۰ خط)</span>
+                <span>تلفن تماس: ۰۲۱-۸۸۹۹۰۰۱۱</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-emerald-400 shrink-0" />

@@ -265,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
               <PhoneCall className="w-4 h-4 text-emerald-600" />
               تماس فوری: ۰۲۱-۸۸۹۹۰۰۱۱
             </span>
-            <span>پشتیبانی شبانه‌روزی</span>
+            <span>نسخه آزمایشی</span>
           </div>
         </div>
       )}

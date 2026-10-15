@@ -230,7 +230,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               {/* Pricing breakdown */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-100 text-slate-800">
                 <div>
-                  <span className="text-xs text-slate-500 block">نرخ پایه مصوب:</span>
+                  <span className="text-xs text-slate-500 block">نرخ پایه پیشنهادی (آزمایشی):</span>
                   <span className="text-lg font-black text-slate-900 font-mono">
                     {selectedServiceDetail.baseHourlyRate.toLocaleString('fa-IR')} تومان در ساعت
                   </span>
