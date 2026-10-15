@@ -37,7 +37,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-white text-sm">نسخه آزمایشی — بدون ضمانت قابل اجرا</h4>
-              <p className="text-xs text-slate-400 mt-0.5">در صورت نارضایتی، نظافت مجدد کاملا رایگان</p>
+              <p className="text-xs text-slate-400 mt-0.5">شرایط جبران خدمت پس از تأیید سیاست رسمی اعلام خواهد شد</p>
             </div>
           </div>
 
