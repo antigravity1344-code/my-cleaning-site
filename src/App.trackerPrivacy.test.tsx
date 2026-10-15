@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { orderService } from './services/orderService';
+import type { BookingOrder } from './types';
 import App from './App';
 import { DEMO_STORAGE_KEY, LEGACY_DATA_NOTICE, LEGACY_STORAGE_KEYS } from './services/pii';
 
@@ -390,13 +392,13 @@ const normalizeClaimText = (text: string): string =>
     .replace(/[ً-ٰٟـ‌‍‎‏]/g, '')
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
-    .replace(/(\d)[,٬،   ](?=\d{3}(?:\D|$))/g, '$1')
+    .replace(/(\d)[,٬، \u00a0\u202f\u2009\u2007.](?=\d{3}(?:\D|$))/g, '$1')
     .replace(/(\d)[٫/](?=\d)/g, '$1.')
     .replace(/\s+/g, ' ');
 
 /** عدد مستقل (نه بخشی از عدد بزرگ‌تر، مثل قیمت ۴۵۰٬۰۰۰). */
 const standaloneNumber = (value: string): RegExp =>
-  new RegExp(`(^|[^\\d.])${value.replace('.', '\\.')}(?![\\d])`);
+  new RegExp(`(^|[^\\d.,٬،٫/])${value.replace('.', '\\.')}(?![\\d.,٬،٫/])`);
 
 const HERO_UNVERIFIED_FIGURES = ['25000', '450', '4.9'];
 const UNVERIFIED_SUPPORT_CLAIM = /24 ?ساعت|شبانه ?روز/;
@@ -409,6 +411,22 @@ describe('SAFETY-005 — claim normalizer catches formatting variants', () => {
   ])('%s is detected as %s', (variant, figure) => {
     expect(normalizeClaimText(`امتیاز ${variant} مشتری`)).toMatch(standaloneNumber(figure));
   });
+
+
+  it.each([
+    ['۲۵ ۰۰۰', '25000'], ['٢٥ ٠٠٠', '25000'], ['25.000', '25000'],
+    ['۴۵۰', '450'], ['٤٥٠', '450'], ['450', '450'],
+    ['۴٫۹', '4.9'], ['٤٫٩', '4.9'], ['4.9', '4.9'],
+  ])('T2: thin spaces and Persian/Arabic/Latin figures %s normalize to %s', (variant, figure) => {
+    expect(normalizeClaimText('تعداد ' + variant)).toMatch(standaloneNumber(figure));
+  });
+
+  it.each(['۴۵۰٫۵', '٤٥٠٫٥', '450.5', '۱٬۴۵۰٬۰۰۰', '١٬٤٥٠٬٠٠٠', '1 450 000', '1.450.000', '۱٬۴۵۰٬۰۰۰ و ۲۵٬۰۰۰٬۰۰۰'])(
+    'T2: larger/decimal value %s is never mistaken for a standalone 450',
+    (variant) => {
+      expect(normalizeClaimText('قیمت ' + variant)).not.toMatch(standaloneNumber('450'));
+    },
+  );
 
   it('does not flag unrelated larger numbers such as prices', () => {
     const price = normalizeClaimText('۶۴۰٬۰۰۰ تومان و ۱٬۴۵۰٬۰۰۰ تومان و ۱۴.۹');
@@ -459,5 +477,127 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
     const services = document.querySelector('#services') as HTMLElement;
     fireEvent.click(Array.from(services.querySelectorAll('button')).find((b) => /جزئیات خدمت/.test(b.textContent ?? ''))!);
     expect(normalizeClaimText(document.body.textContent ?? '')).not.toContain('مصوب');
+  });
+});
+
+
+/**
+ * T1: actual <App/> state with deliberately unsettled Promise-based rating/cancel.
+ * These mocks simulate delayed storage at the service boundary; neither production
+ * data nor network calls are used.
+ */
+describe('SAFETY-005 T1 — deferred rating/cancel cannot leak across order scopes', { timeout: 20000 }, () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: Error) => void;
+    const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+  }
+
+  const sampleOrders = (): BookingOrder[] => {
+    const base = {
+      createdAt: '2026-10-15T10:00:00.000Z', status: 'pending', serviceId: 'home-standard',
+      serviceTitle: 'نظافت نمونه', hours: 4, date: 'امروز', totalPrice: 100000,
+      customerName: 'ک. ن.', customerPhone: '0912***000', address: 'نمونه',
+      cleanerGender: 'no-pref', paymentStatus: 'unpaid', recordType: 'demo',
+    };
+    return [
+      { ...base, id: 'demo-a', trackingCode: 'DEMO-ORDER-A' },
+      { ...base, id: 'demo-b', trackingCode: 'DEMO-ORDER-B' },
+    ] as BookingOrder[];
+  };
+  const trackerButton = (tracker: HTMLElement, text: string): HTMLButtonElement => {
+    const button = Array.from(tracker.querySelectorAll('button')).find(x => x.textContent?.includes(text));
+    if (!button) throw new Error('Missing tracker control: ' + text);
+    return button;
+  };
+
+  it.each([
+    ['rating', 'resolve', 'switch'],
+    ['rating', 'reject', 'switch'],
+    ['rating', 'resolve', 'close'],
+    ['rating', 'reject', 'close'],
+    ['cancel', 'resolve', 'switch'],
+    ['cancel', 'reject', 'switch'],
+    ['cancel', 'resolve', 'close'],
+    ['cancel', 'reject', 'close'],
+  ] as const)('%s %s after %s never displays stale pending/error/success on the new scope', async (operation, settlement, boundary) => {
+    const orders = sampleOrders();
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(orders));
+    const delayed = deferred<BookingOrder>();
+    const spy = vi.spyOn(orderService, operation === 'rating' ? 'submitOrderRating' : 'cancelOrder')
+      .mockImplementation(() => delayed.promise);
+    const confirmSpy = operation === 'cancel' ? vi.spyOn(window, 'confirm').mockReturnValue(true) : null;
+    try {
+      render(<App />);
+      const tracker = openTracker();
+      await vi.waitFor(() => {
+        expect(tracker.textContent).toContain('DEMO-ORDER-A');
+        expect(tracker.querySelector('textarea')).not.toBeNull();
+      });
+      if (operation === 'rating') {
+        fireEvent.change(tracker.querySelector('textarea')!, { target: { value: 'SECRET-A-TEXT' } });
+        fireEvent.click(trackerButton(tracker, 'ثبت امتیاز'));
+      } else {
+        fireEvent.click(trackerButton(tracker, 'لغو رکورد نمایشی'));
+      }
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toBe('demo-a');
+      expect(tracker.textContent).toContain(operation === 'rating' ? 'در حال ثبت...' : 'در حال لغو...');
+      expect(tracker.textContent).not.toContain('ستاره در همین مرورگر ثبت شد');
+      expect(tracker.querySelector('[role="alert"]')).toBeNull();
+
+      if (boundary === 'switch') fireEvent.click(trackerButton(tracker, 'DEMO-ORDER-B'));
+      else {
+        fireEvent.click(Array.from(tracker.querySelectorAll('button')).find(x => x.getAttribute('aria-label') === 'بستن')!);
+        openTracker();
+      }
+
+      await act(async () => {
+        if (settlement === 'resolve') delayed.resolve({
+          ...orders[0],
+          ...(operation === 'rating' ? { userRating: 5 } : { status: 'cancelled' }),
+        } as BookingOrder);
+        else delayed.reject(new Error('synthetic storage denial'));
+        await Promise.resolve();
+      });
+
+      const current = Array.from(document.querySelectorAll('div.fixed.inset-0.z-50'))
+        .find(x => x.textContent?.includes('رهگیری آزمایشی')) as HTMLElement;
+      expect(current).toBeTruthy();
+      if (boundary === 'switch') {
+        expect(current.textContent).toContain('DEMO-ORDER-B');
+        expect(current.querySelector('textarea')).not.toBeNull();
+      }
+      expect(current.textContent).not.toContain('SECRET-A-TEXT');
+      expect(current.textContent).not.toContain('در حال ثبت...');
+      expect(current.textContent).not.toContain('در حال لغو...');
+      expect(current.querySelector('[role="alert"]')).toBeNull();
+      if (operation === 'rating' && boundary === 'switch') {
+        expect(current.textContent).not.toContain('ستاره در همین مرورگر ثبت شد');
+      }
+    } finally {
+      spy.mockRestore();
+      confirmSpy?.mockRestore();
+    }
+  });
+
+  it('rating with unavailable storage shows an error, not early success', async () => {
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(sampleOrders()));
+    render(<App />);
+    const tracker = openTracker();
+    await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+    const blocked = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+    try {
+      fireEvent.click(trackerButton(tracker, 'ثبت امتیاز'));
+      await vi.waitFor(() => {
+        expect(tracker.querySelector('[role="alert"]')?.textContent).toContain('ثبت امتیاز ناموفق بود');
+      });
+      expect(tracker.textContent).not.toContain('ستاره در همین مرورگر ثبت شد');
+    } finally {
+      blocked.mockRestore();
+    }
   });
 });
