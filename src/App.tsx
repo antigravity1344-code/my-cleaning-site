@@ -133,6 +133,8 @@ function PakshoAppContent() {
 
   // ثبت امتیاز عددی مشتری — وضعیت عملیاتی سفارش تغییر نمی‌کند و متن آزاد
   // بازخورد در حافظه مرورگر ذخیره نمی‌شود.
+  // توجه: خطا عمداً اینجا بلعیده نمی‌شود؛ Promise رد‌شده به OrderTrackerModal برمی‌گردد
+  // تا خطای قابل‌مشاهده نشان دهد و پیام موفقیت ساختگی نمایش داده نشود.
   const handleSubmitOrderRating = async (orderId: string, userRating: number) => {
     await submitOrderRating(orderId, userRating);
   };

@@ -227,6 +227,152 @@ describe('SAFETY-005 — tracker ephemeral state with two synthetic orders', () 
 });
 
 
+/**
+ * SAFETY-005 follow-up — یافته‌های A و B بازبینی مستقل.
+ * رتبه‌دهی و لغو از مسیر واقعی App، با شکست نوشتن در localStorage.
+ */
+describe('SAFETY-005 follow-up — rating/cancel storage failures from the real App path', () => {
+  const seedOneOrder = (): void => {
+    const base = {
+      createdAt: '2026-10-15T10:00:00.000Z', status: 'pending', serviceId: 'home-standard',
+      serviceTitle: 'نظافت آزمایشی', hours: 4, date: 'امروز',
+      totalPrice: 100000, customerName: 'ک. ن.', customerPhone: '0912***000',
+      address: 'نمونه', cleanerGender: 'no-pref', paymentStatus: 'unpaid', recordType: 'demo',
+    };
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify([{ ...base, id: 'demo-a', trackingCode: 'DEMO-ORDER-A' }]));
+  };
+
+  /** rejectionهای مدیریت‌نشده را در طول آزمون جمع می‌کند. */
+  const trackUnhandledRejections = () => {
+    const seen: unknown[] = [];
+    const listener = (reason: unknown) => { seen.push(reason); };
+    process.on('unhandledRejection', listener);
+    return { seen, stop: () => process.off('unhandledRejection', listener) };
+  };
+
+  /** فرصت می‌دهد تا Promiseها و رویداد unhandledRejection در Node تخلیه شوند. */
+  const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+  const quotaOnWrite = () =>
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+  it('A: on QuotaExceededError the rating shows a visible error, no success, nothing stored, no unhandled rejection', async () => {
+    seedOneOrder();
+    const rejections = trackUnhandledRejections();
+    const storedBefore = localStorage.getItem(DEMO_STORAGE_KEY);
+    try {
+      render(<App />);
+      const tracker = openTracker();
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      fireEvent.change(tracker.querySelector('textarea')!, { target: { value: 'PRIVATE-FEEDBACK-A' } });
+
+      const setItem = quotaOnWrite();
+      fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /ثبت امتیاز/.test(b.textContent ?? ''))!);
+
+      await vi.waitFor(() => {
+        expect(tracker.querySelector('[role="alert"]')?.textContent ?? '').toMatch(/ثبت امتیاز ناموفق بود/);
+      });
+      await flushAsync();
+
+      expect(tracker.textContent).not.toContain('ستاره در همین مرورگر ثبت شد');
+      // متن بازخورد هرگز به لایه ذخیره‌سازی نمی‌رسد.
+      for (const call of setItem.mock.calls) {
+        expect(String(call[1])).not.toContain('PRIVATE-FEEDBACK-A');
+      }
+      setItem.mockRestore();
+      expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBe(storedBefore);
+      expect(rejections.seen).toHaveLength(0);
+    } finally {
+      rejections.stop();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('A: success is still shown after a real save (no regression)', async () => {
+    seedOneOrder();
+    const rejections = trackUnhandledRejections();
+    try {
+      render(<App />);
+      const tracker = openTracker();
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /ثبت امتیاز/.test(b.textContent ?? ''))!);
+      await vi.waitFor(() => expect(tracker.textContent).toContain('ستاره در همین مرورگر ثبت شد'));
+      await flushAsync();
+      expect(tracker.querySelector('[role="alert"]')).toBeNull();
+      expect(localStorage.getItem(DEMO_STORAGE_KEY) ?? '').toMatch(/"userRating":5/);
+      expect(rejections.seen).toHaveLength(0);
+    } finally {
+      rejections.stop();
+    }
+  });
+
+  it.each(['quota', 'unavailable'] as const)(
+    'B: cancelling with storage %s shows a visible error, never a cancelled state, and no unhandled rejection',
+    async (reason) => {
+      seedOneOrder();
+      const rejections = trackUnhandledRejections();
+      try {
+        render(<App />);
+        const tracker = openTracker();
+        await vi.waitFor(() => expect(tracker.textContent).toContain('لغو رکورد نمایشی'));
+
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        if (reason === 'quota') {
+          quotaOnWrite();
+        } else {
+          vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+            throw new Error('blocked');
+          });
+        }
+        fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /لغو رکورد نمایشی/.test(b.textContent ?? ''))!);
+
+        await vi.waitFor(() => {
+          expect(tracker.querySelector('[role="alert"]')?.textContent ?? '').toMatch(/لغو رکورد ناموفق بود/);
+        });
+        await flushAsync();
+
+        expect(tracker.textContent).not.toContain('لغو شده است');
+        expect(rejections.seen).toHaveLength(0);
+      } finally {
+        rejections.stop();
+        vi.restoreAllMocks();
+      }
+      // رکورد ذخیره‌شده دست‌نخورده باقی مانده است.
+      expect(localStorage.getItem(DEMO_STORAGE_KEY) ?? '').toContain('"status":"pending"');
+    },
+  );
+
+  it('A/B: errors are cleared when switching orders and on close', async () => {
+    seedOneOrder();
+    const existing = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY)!);
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify([...existing, { ...existing[0], id: 'demo-b', trackingCode: 'DEMO-ORDER-B' }]));
+    const rejections = trackUnhandledRejections();
+    try {
+      render(<App />);
+      const tracker = openTracker();
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      const setItem = quotaOnWrite();
+      fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /ثبت امتیاز/.test(b.textContent ?? ''))!);
+      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).not.toBeNull());
+      setItem.mockRestore();
+
+      fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => b.textContent?.includes('DEMO-ORDER-B'))!);
+      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).toBeNull());
+
+      fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'بستن')!);
+      const reopened = openTracker();
+      expect(reopened.querySelector('[role="alert"]')).toBeNull();
+      await flushAsync();
+      expect(rejections.seen).toHaveLength(0);
+    } finally {
+      rejections.stop();
+      vi.restoreAllMocks();
+    }
+  });
+});
+
 describe('SAFETY-005 — actual rendered marketing copy', () => {
   it('does not display unverified Hero statistics or the free re-clean promise', () => {
     render(<App />);
