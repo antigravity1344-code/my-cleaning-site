@@ -166,3 +166,62 @@ describe('پنجره درخواست‌های آزمایشی از مسیر App', 
     expect(tracker.textContent).not.toContain(LEGACY_DATA_NOTICE);
   });
 });
+
+
+describe('SAFETY-005 — actual App storage failures', () => {
+  it.each(['unavailable', 'quota'] as const)('does not show booking success or a tracking code when storage is %s', async (reason) => {
+    const accessor = reason === 'unavailable'
+      ? vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new Error('blocked'); })
+      : null;
+    const quota = reason === 'quota'
+      ? vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Quota exceeded', 'QuotaExceededError'); })
+      : null;
+    try {
+      render(<App />);
+      createDemoOrderThroughApp();
+      await vi.waitFor(() => {
+        expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی سفارش آزمایشی|ذخیره‌سازی محلی سفارش آزمایشی ناموفق/);
+      });
+      expect(getBookingModal().textContent).not.toContain('بستن و بازگشت به سایت');
+      expect(getBookingModal().textContent).not.toMatch(/DEMO-[A-Z0-9-]{5,}/);
+    } finally {
+      accessor?.mockRestore();
+      quota?.mockRestore();
+    }
+  });
+});
+
+describe('SAFETY-005 — tracker ephemeral state with two synthetic orders', () => {
+  it('clears feedback text and the submitted/error states across switching and reopen', async () => {
+    const base = {
+      createdAt: '2026-10-15T10:00:00.000Z', status: 'pending', serviceId: 'home-standard',
+      serviceTitle: 'نظافت آزمایشی', hours: 4, date: '۱۴۰۵/۰۷/۲۴',
+      totalPrice: 100000, customerName: 'کاربر نمونه', customerPhone: '09120000000',
+      address: 'نمونه', cleanerGender: 'no-pref', paymentStatus: 'unpaid', recordType: 'demo',
+    };
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify([
+      { ...base, id: 'demo-a', trackingCode: 'DEMO-ORDER-A' },
+      { ...base, id: 'demo-b', trackingCode: 'DEMO-ORDER-B' },
+    ]));
+    render(<App />);
+    const tracker = openTracker();
+    await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+    fireEvent.change(tracker.querySelector('textarea')!, { target: { value: 'PRIVATE-ORDER-A-FEEDBACK' } });
+    fireEvent.click(Array.from(tracker.querySelectorAll('button')).find(b => /ثبت امتیاز/.test(b.textContent ?? ''))!);
+    await vi.waitFor(() => expect(tracker.textContent).toContain('ستاره در همین مرورگر ثبت شد'));
+
+    fireEvent.click(Array.from(tracker.querySelectorAll('button')).find(b => b.textContent?.includes('DEMO-ORDER-B'))!);
+    await vi.waitFor(() => {
+      expect(tracker.textContent).not.toContain('PRIVATE-ORDER-A-FEEDBACK');
+      expect(tracker.querySelector('textarea')).not.toBeNull();
+      expect(tracker.querySelector('textarea')!.value).toBe('');
+    });
+    fireEvent.change(tracker.querySelector('textarea')!, { target: { value: 'PRIVATE-ORDER-B-FEEDBACK' } });
+    fireEvent.click(Array.from(tracker.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'بستن')!);
+    const reopened = openTracker();
+    await vi.waitFor(() => {
+      expect(reopened.textContent).not.toContain('PRIVATE-ORDER-B-FEEDBACK');
+      expect(reopened.textContent).not.toContain('PRIVATE-ORDER-A-FEEDBACK');
+    });
+  });
+});
