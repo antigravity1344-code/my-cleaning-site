@@ -84,7 +84,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       if (initialParams) {
         if (initialParams.serviceId) setServiceId(initialParams.serviceId);
         if (initialParams.cleanerGender) setCleanerGender(initialParams.cleanerGender);
-        if (initialParams.hours) setHours(initialParams.hours);
+        if (initialParams.hours) {
+          // دفاع در عمق: هر مقدار ساعتی که از بیرون می‌آید (مثلاً از لینک/استیت
+          // قدیمی یا مسیرهای بعدی) حتماً باید در بازه [minHours همان خدمت, 12]
+          // باشد، چون calculatePrice خودش این محدودیت را اعمال نمی‌کند.
+          const targetService = SERVICES_LIST.find(
+            (s) => s.id === (initialParams.serviceId ?? serviceId),
+          ) ?? SERVICES_LIST[0];
+          const clampedHours = Math.max(
+            targetService.minHours,
+            Math.min(12, initialParams.hours),
+          );
+          setHours(clampedHours);
+        }
         if (initialParams.squareMeters) setSquareMeters(initialParams.squareMeters);
         if (initialParams.roomsCount) setRoomsCount(initialParams.roomsCount);
         if (initialParams.selectedAddons) setSelectedAddons(initialParams.selectedAddons);
@@ -233,6 +245,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       discountApplied: pricing.discountsTotal,
       requestedCleanerId: requestedCleaner?.id,
       requestedCleanerName: requestedCleaner?.name,
+      paymentMethod,
     });
 
     try {

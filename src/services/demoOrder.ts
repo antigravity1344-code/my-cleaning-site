@@ -42,6 +42,13 @@ export interface DemoOrderFormInput {
   /** انتخاب نمایشی کاربر از فهرست نمونه — به‌معنای تخصیص متخصص نیست. */
   requestedCleanerId?: string;
   requestedCleanerName?: string;
+  /**
+   * روش پرداخت انتخاب‌شده توسط کاربر در فرم رزرو. تا زمانی که
+   * ONLINE_PAYMENT_AVAILABLE=false است، این مقدار همیشه باید
+   * 'cash_on_site' باشد (در ادامه هم اعتبارسنجی می‌شود)، اما خودِ انتخاب
+   * باید از فرم بیاید، نه این‌که این ماژول مستقل تصمیم بگیرد.
+   */
+  paymentMethod: 'online' | 'cash_on_site';
 }
 
 /**
@@ -114,8 +121,12 @@ export const buildDemoOrderPayload = (input: DemoOrderFormInput): CreateOrderDTO
     notes: input.notes,
     totalPrice: input.totalPrice,
     discountApplied: input.discountApplied,
-    // تا زمان وجود درگاه واقعی، تنها روش قابل ثبت «پرداخت در محل» نمایشی است.
-    paymentMethod: ONLINE_PAYMENT_AVAILABLE ? 'online' : 'cash_on_site',
+    // روش پرداخت از انتخاب واقعی کاربر در فرم می‌آید (و دیگر مستقل از آن
+    // تصمیم‌گیری نمی‌شود). با این حال، تا زمانی که درگاه واقعی وصل نشده،
+    // به‌عنوان یک محافظ، هر مقداری غیر از 'cash_on_site' نادیده گرفته
+    // می‌شود — چون رابط کاربری فعلی هم اصلاً اجازه انتخاب «پرداخت آنلاین»
+    // را نمی‌دهد.
+    paymentMethod: ONLINE_PAYMENT_AVAILABLE ? input.paymentMethod : 'cash_on_site',
     paymentStatus: 'unpaid',
     status: DEMO_ORDER_STATUS,
   };
