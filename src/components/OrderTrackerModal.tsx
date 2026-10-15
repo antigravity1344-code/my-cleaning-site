@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Search,
   X,
   MapPin,
-  Phone,
   AlertCircle,
   Star,
   PhoneCall,
@@ -23,10 +22,14 @@ interface OrderTrackerModalProps {
   isOpen: boolean;
   onClose: () => void;
   orders: BookingOrder[];
-  /** فقط ثبت امتیاز عددی. مشتری اجازه تغییر وضعیت عملیاتی را ندارد. */
-  onSubmitOrderRating: (orderId: string, rating: number) => void;
-  /** لغو نمایشی رکورد محلی؛ هیچ اثر عملیاتی ندارد. */
-  onCancelOrder: (orderId: string) => void;
+  /**
+   * فقط ثبت امتیاز عددی. مشتری اجازه تغییر وضعیت عملیاتی را ندارد.
+   * باید Promise برگرداند تا پیام موفقیت فقط پس از ذخیره‌ی واقعی نمایش داده شود
+   * و شکست ذخیره‌سازی به‌صورت خطای قابل‌مشاهده مدیریت شود.
+   */
+  onSubmitOrderRating: (orderId: string, rating: number) => Promise<unknown>;
+  /** لغو نمایشی رکورد محلی؛ هیچ اثر عملیاتی ندارد. شکست آن باید قابل مدیریت باشد. */
+  onCancelOrder: (orderId: string) => Promise<unknown>;
   /** آیا داده‌ای از نسخه قبلی سایت در این مرورگر وجود دارد؟ (فقط اطلاع‌رسانی) */
   hasLegacyStoredData?: boolean;
 }
@@ -50,6 +53,37 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
    */
   const [userFeedbackText, setUserFeedbackText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [ratingError, setRatingError] = useState('');
+  const [isRatingPending, setIsRatingPending] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const [isCancelPending, setIsCancelPending] = useState(false);
+
+  /**
+   * شمارنده‌ی «دامنه» درخواست‌های غیرهمگام. با بستن پنجره یا تغییر سفارش افزایش
+   * می‌یابد تا نتیجه‌ی دیرهنگام یک درخواست قدیمی، پیام موفقیت/خطا را روی سفارش
+   * دیگر یا پس از بستن پنجره نشان ندهد.
+   */
+  const requestScopeRef = useRef(0);
+
+  // Privacy: clear ephemeral feedback, success and errors whenever modal closes or order changes.
+  // useLayoutEffect (نه useEffect): ریست و افزایش scope باید در همان commitی انجام شود
+  // که سفارش جدید را در DOM نشان می‌دهد؛ در غیر این صورت کلیکی که بین paint و اجرای
+  // effect معمولی رخ دهد scope قدیمی را می‌گیرد و خطای واقعی به‌اشتباه پنهان می‌شود.
+  useLayoutEffect(() => {
+    requestScopeRef.current += 1;
+    setUserFeedbackText('');
+    setRatingSubmitted(false);
+    setRatingError('');
+    setIsRatingPending(false);
+    setCancelError('');
+    setIsCancelPending(false);
+    setSearchError('');
+    setUserStarRating(5);
+    if (!isOpen) {
+      setSelectedOrder(null);
+      setSearchCode('');
+    }
+  }, [isOpen, selectedOrder?.id]);
 
   // انتخاب اولیه پس از بارگذاری سفارش‌های آزمایشی (و همگام‌سازی با تغییر فهرست).
   useEffect(() => {
@@ -106,20 +140,43 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     { title: 'پایان کار', desc: 'نیازمند سرور عملیات' },
   ];
 
-  const handleCancelOrder = () => {
-    if (!selectedOrder) return;
-    if (confirm('این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟')) {
-      onCancelOrder(selectedOrder.id);
+  const handleCancelOrder = async () => {
+    if (!selectedOrder || isCancelPending) return;
+    if (!confirm('این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟')) return;
+
+    const scope = requestScopeRef.current;
+    setCancelError('');
+    setIsCancelPending(true);
+    try {
+      // وضعیت «لغو شده» فقط از رکورد به‌روزشده‌ی context می‌آید، یعنی فقط پس از ذخیره‌ی موفق.
+      await onCancelOrder(selectedOrder.id);
+    } catch {
+      if (scope !== requestScopeRef.current) return;
+      setCancelError(CANCEL_ERROR_TEXT);
+    } finally {
+      if (scope === requestScopeRef.current) setIsCancelPending(false);
     }
   };
 
-  const handleSubmitRating = (e: React.FormEvent) => {
+  const handleSubmitRating = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedOrder) return;
-    // فقط امتیاز عددی ارسال و ذخیره می‌شود؛ متن بازخورد ارسال نمی‌شود.
-    onSubmitOrderRating(selectedOrder.id, userStarRating);
-    setRatingSubmitted(true);
-    setTimeout(() => setRatingSubmitted(false), 2500);
+    if (!selectedOrder || isRatingPending) return;
+
+    const scope = requestScopeRef.current;
+    setRatingError('');
+    setIsRatingPending(true);
+    try {
+      // فقط امتیاز عددی ارسال و ذخیره می‌شود؛ متن بازخورد ارسال نمی‌شود.
+      await onSubmitOrderRating(selectedOrder.id, userStarRating);
+      // پیام موفقیت فقط پس از ذخیره‌ی واقعی و فقط برای همان سفارش/همان باز بودن پنجره.
+      if (scope !== requestScopeRef.current) return;
+      setRatingSubmitted(true);
+    } catch {
+      if (scope !== requestScopeRef.current) return;
+      setRatingError(RATING_ERROR_TEXT);
+    } finally {
+      if (scope === requestScopeRef.current) setIsRatingPending(false);
+    }
   };
 
   const currentStepIdx = selectedOrder ? getStatusStepIndex(selectedOrder.status) : 0;
@@ -407,33 +464,44 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
                       <button
                         type="submit"
-                        className="py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                        disabled={isRatingPending}
+                        className="py-2 px-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                       >
-                        ثبت امتیاز
+                        {isRatingPending ? 'در حال ثبت...' : 'ثبت امتیاز'}
                       </button>
+
+                      {ratingError && (
+                        <p role="alert" className="text-[11px] font-bold text-rose-600 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {ratingError}
+                        </p>
+                      )}
                     </form>
                   )}
                 </div>
               )}
 
               {/* Order actions */}
+              {selectedOrder.status !== 'cancelled' && cancelError && (
+                <p role="alert" className="text-[11px] font-bold text-rose-600 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {cancelError}
+                </p>
+              )}
               {selectedOrder.status !== 'cancelled' && (
                 <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                   <button
                     onClick={handleCancelOrder}
-                    className="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer"
+                    disabled={isCancelPending}
+                    className="text-xs text-rose-600 hover:text-rose-800 disabled:opacity-60 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Ban className="w-3.5 h-3.5" />
-                    <span>لغو رکورد نمایشی</span>
+                    <span>{isCancelPending ? 'در حال لغو...' : 'لغو رکورد نمایشی'}</span>
                   </button>
 
-                  <a
-                    href="tel:02188990011"
-                    className="text-xs text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>پشتیبانی پاک‌شو: ۰۲۱-۸۸۹۹۰۰۱۱</span>
-                  </a>
+                  <span className="text-xs text-slate-600 font-bold">
+                    راه تماس رسمی پشتیبانی هنوز تأیید نشده است.
+                  </span>
                 </div>
               )}
 
@@ -451,6 +519,12 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     </div>
   );
 };
+
+/** پیام‌های شکست ذخیره‌سازی؛ هیچ‌کدام موفقیت را اعلام نمی‌کنند. */
+const RATING_ERROR_TEXT =
+  'ثبت امتیاز ناموفق بود؛ امتیاز در حافظه مرورگر ذخیره نشد. ممکن است حافظه مرورگر پر یا غیرفعال باشد.';
+const CANCEL_ERROR_TEXT =
+  'لغو رکورد ناموفق بود؛ رکورد تغییری نکرد. ممکن است حافظه مرورگر پر یا غیرفعال باشد.';
 
 /** نمایش خوانای زمان ثبت ISO با پشتیبانی از رکوردهای قدیمی. */
 function formatCreatedAt(value: string): string {

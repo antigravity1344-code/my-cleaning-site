@@ -48,7 +48,7 @@ class DemoLocalOrderService implements IOrderService {
 
   private saveStoredOrders(orders: BookingOrder[]): void {
     const storage = safeLocalStorage();
-    if (!storage) return;
+    if (!storage) throw new Error('ذخیره‌سازی محلی سفارش آزمایشی در دسترس نیست.');
     try {
       // اطلاعات هویتی مشتری پیش از نوشتن روی دیسک حذف/ماسک می‌شود.
       const redacted = orders.map(redactOrderForStorage);

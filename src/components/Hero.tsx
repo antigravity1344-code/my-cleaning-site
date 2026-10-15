@@ -4,10 +4,8 @@ import {
   Sparkles, 
   Clock, 
   Star, 
-  Users, 
   ArrowLeft, 
   MapPin, 
-  UserCheck, 
   Layers
 } from 'lucide-react';
 import { SERVICES_LIST, CITIES_DATA } from '../data/mockData';
@@ -67,9 +65,9 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.25] tracking-tight">
-              نظافتی درخشان و بی‌نقص،{' '}
+              آشنایی با خدمات نظافت،{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700">
-                با نیروهای مجرب و معتمد
+                فرآیند درخواست نظافت را آزمایش کنید
               </span>
             </h1>
 
@@ -132,21 +130,7 @@ export const Hero: React.FC<HeroProps> = ({
               </button>
             </div>
 
-            {/* Customer Trust Stats */}
-            <div className="pt-2 flex items-center gap-6 text-slate-600 text-xs sm:text-sm border-t border-slate-200/60">
-              <div className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-600" />
-                <span><strong>+۲۵,۰۰۰</strong> مشتری راضی</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-teal-600" />
-                <span><strong>+۴۵۰</strong> متخصص تایید شده</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                <span>امتیاز <strong>۴.۹</strong> از ۵</span>
-              </div>
-            </div>
+            {/* Unverified customer/provider/rating figures intentionally omitted. */}
 
           </div>
 
@@ -309,7 +293,7 @@ export const Hero: React.FC<HeroProps> = ({
                 </button>
 
                 <p className="text-center text-[11px] text-slate-400">
-                  بدون پرداخت در این مرحله • امکان پرداخت در محل پس از رضایت
+                  نسخه آزمایشی — هیچ پرداخت یا اعزام واقعی انجام نمی‌شود
                 </p>
 
               </form>

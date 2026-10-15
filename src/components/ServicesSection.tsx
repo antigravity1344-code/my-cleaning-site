@@ -58,7 +58,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
             خدمات و تعرفه‌های پیشنهادی پاک‌شو
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-            از نظافت سریع و دوره‌ای منازل تا شستشوی صنعتی مبلمان و تمیزکاری بعد از بازسازی، تمامی خدمات توسط نیروهای آموزش‌دیده و با تجهیزات درجه‌یک انجام می‌پذیرد.
+            در این نسخه آزمایشی می‌توانید انواع خدمات نظافت و برآوردهای پیشنهادی را مشاهده کنید؛ آموزش نیروها و کیفیت تجهیزات هنوز تأیید نشده است.
           </p>
         </div>
 
@@ -230,14 +230,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               {/* Pricing breakdown */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-100 text-slate-800">
                 <div>
-                  <span className="text-xs text-slate-500 block">نرخ پایه مصوب:</span>
+                  <span className="text-xs text-slate-500 block">نرخ پایه پیشنهادی (آزمایشی):</span>
                   <span className="text-lg font-black text-slate-900 font-mono">
                     {selectedServiceDetail.baseHourlyRate.toLocaleString('fa-IR')} تومان در ساعت
                   </span>
                 </div>
                 <div className="text-left text-xs text-slate-600">
                   <span className="block">حداقل زمان: {selectedServiceDetail.minHours} ساعت</span>
-                  <span className="text-emerald-700 font-bold">بدون انعام اجباری</span>
+                  <span className="text-slate-500 font-bold">برآورد آزمایشی</span>
                 </div>
               </div>
             </div>

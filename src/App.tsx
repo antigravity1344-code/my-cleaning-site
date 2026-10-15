@@ -15,7 +15,7 @@ import { AiConsultantModal } from './components/AiConsultantModal';
 import { OrderProvider, useOrders } from './context/OrderContext';
 import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './types';
 import { SERVICES_LIST } from './data/mockData';
-import { PhoneCall, Bot } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
 
 function PakshoAppContent() {
@@ -139,6 +139,8 @@ function PakshoAppContent() {
 
   // ثبت امتیاز عددی مشتری — وضعیت عملیاتی سفارش تغییر نمی‌کند و متن آزاد
   // بازخورد در حافظه مرورگر ذخیره نمی‌شود.
+  // توجه: خطا عمداً اینجا بلعیده نمی‌شود؛ Promise رد‌شده به OrderTrackerModal برمی‌گردد
+  // تا خطای قابل‌مشاهده نشان دهد و پیام موفقیت ساختگی نمایش داده نشود.
   const handleSubmitOrderRating = async (orderId: string, userRating: number) => {
     await submitOrderRating(orderId, userRating);
   };
@@ -218,15 +220,6 @@ function PakshoAppContent() {
           <Bot className="w-6 h-6 text-amber-300 animate-pulse" />
         </button>
 
-        {/* Direct Call hotline button */}
-        <a
-          href="tel:02188990011"
-          className="w-12 h-12 rounded-full bg-emerald-600 text-white shadow-xl hover:bg-emerald-700 flex items-center justify-center transition-all hover:scale-110"
-          title="تماس با پشتیبانی پاک‌شو"
-          aria-label="تماس با پشتیبانی پاک‌شو"
-        >
-          <PhoneCall className="w-6 h-6" />
-        </a>
       </div>
 
       {/* Booking Wizard Modal */}

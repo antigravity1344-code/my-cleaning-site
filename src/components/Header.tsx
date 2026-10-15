@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             <span className="hidden lg:flex items-center gap-1">
               <PhoneCall className="w-3.5 h-3.5 text-emerald-300" />
-              ۰۲۱-۸۸۹۹۰۰۱۱
+              تماس رسمی پس از تأیید مالک
             </span>
           </div>
         </div>
@@ -263,9 +263,9 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1 text-slate-700 font-bold">
               <PhoneCall className="w-4 h-4 text-emerald-600" />
-              تماس فوری: ۰۲۱-۸۸۹۹۰۰۱۱
+              راه تماس رسمی هنوز تأیید نشده است
             </span>
-            <span>پشتیبانی شبانه‌روزی</span>
+            <span>نسخه آزمایشی</span>
           </div>
         </div>
       )}

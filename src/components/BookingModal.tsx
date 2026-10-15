@@ -258,7 +258,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       setFormError(
-        message.includes('حافظه')
+        message.includes('حافظه') || message.includes('ذخیره‌سازی')
           ? 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.'
           : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
       );
