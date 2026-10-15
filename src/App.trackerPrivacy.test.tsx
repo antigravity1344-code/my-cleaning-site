@@ -194,6 +194,34 @@ describe('SAFETY-005 — actual App storage failures', () => {
   });
 });
 
+describe('SAFETY-008 — corrupted stored demo orders are never overwritten from the real App path', { timeout: 20000 }, () => {
+  // رکورد سالم و کامل (هم‌شکل با رکورد ماسک‌شده واقعی) تا مسیر بازنویسی واقعاً اجرا شود؛
+  // رکورد ناقص باعث خطای تصادفی در ماسک‌کردن می‌شد و باگ را پنهان می‌کرد.
+  const healthyRecord = {
+    id: 'demo-ok', trackingCode: 'DEMO-OK', createdAt: '2026-10-15T10:00:00.000Z', status: 'pending',
+    recordType: 'demo', paymentStatus: 'unpaid', serviceId: 'home-standard', serviceTitle: 'نظافت آزمایشی',
+    cleanerGender: 'no-pref', hours: 4, selectedAddons: [], hasDetergentPackage: true, date: 'امروز',
+    timeSlot: 'صبح', cityName: 'تهران', district: 'مرکز', address: '(در نسخه آزمایشی ذخیره نمی‌شود)',
+    unit: '', customerName: 'ک. ن.', customerPhone: '0912***000', totalPrice: 100000, discountApplied: 0,
+    paymentMethod: 'cash_on_site',
+  };
+  it.each([
+    ['invalid JSON', '{not valid json'],
+    ['non-array JSON', JSON.stringify({ orders: [healthyRecord] })],
+    ['array with an invalid record', JSON.stringify([healthyRecord, { foo: 'bar' }])],
+  ])('booking with %s shows a visible storage error, no success, and leaves storage byte-for-byte unchanged', async (_label, raw) => {
+    localStorage.setItem(DEMO_STORAGE_KEY, raw);
+    render(<App />);
+    createDemoOrderThroughApp();
+    await vi.waitFor(() => {
+      expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی مرورگر ناموفق بود/);
+    }, { timeout: 5000 });
+    expect(getBookingModal().textContent).not.toContain('بستن و بازگشت به سایت');
+    expect(getBookingModal().textContent).not.toMatch(/DEMO-[A-Z0-9-]{5,}/);
+    expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBe(raw);
+  });
+});
+
 describe('SAFETY-005 — tracker ephemeral state with two synthetic orders', () => {
   it('clears feedback text and the submitted/error states across switching and reopen', async () => {
     const base = {

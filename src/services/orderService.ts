@@ -16,34 +16,77 @@ import { DEMO_ORDER_STATUS, DEMO_TRACKING_PREFIX, generateDemoTrackingCode } fro
  * امضای متدها async و مطابق `IOrderService` است تا در مأموریت یکپارچه‌سازی،
  * جانشینی با نسخه HTTP بدون تغییر کامپوننت‌ها انجام شود.
  */
+const isStoredOrder = (item: unknown): item is BookingOrder =>
+  typeof item === 'object' &&
+  item !== null &&
+  typeof (item as BookingOrder).id === 'string' &&
+  typeof (item as BookingOrder).trackingCode === 'string';
+
+/**
+ * نتیجه خواندن حافظه سفارش‌های آزمایشی.
+ * - `clean`: حافظه یا خالی است یا کامل و سالم خوانده شد؛ نوشتن روی آن امن است.
+ * - `unavailable` / `unreadable` / `corrupted`: نوشتن روی آن **امن نیست**، چون
+ *   بازنویسی، رکوردهای قبلی را که نتوانستیم بخوانیم بی‌صدا پاک می‌کند.
+ */
+type StoreReadResult =
+  | { status: 'clean'; orders: BookingOrder[] }
+  | { status: 'unavailable' | 'unreadable' | 'corrupted'; orders: BookingOrder[] };
+
+const STORE_WRITE_REFUSED_MESSAGE: Record<Exclude<StoreReadResult['status'], 'clean'>, string> = {
+  unavailable: 'ذخیره‌سازی محلی سفارش آزمایشی در دسترس نیست.',
+  unreadable:
+    'ذخیره‌سازی محلی سفارش آزمایشی خوانده نشد؛ برای جلوگیری از پاک شدن رکوردهای قبلی، چیزی نوشته نشد.',
+  corrupted:
+    'ذخیره‌سازی محلی: داده سفارش‌های آزمایشی قبلی در این مرورگر قابل خواندن نیست؛ برای جلوگیری از پاک شدن آن، چیزی نوشته نشد.',
+};
+
 class DemoLocalOrderService implements IOrderService {
-  private getStoredOrders(): BookingOrder[] {
+  private readStore(): StoreReadResult {
     const storage = safeLocalStorage();
-    if (!storage) return [];
+    if (!storage) return { status: 'unavailable', orders: [] };
 
+    let saved: string | null;
     try {
-      // توجه: داده‌های نسخه قبلی (`paksho_orders`) خوانده، منتقل یا حذف نمی‌شوند.
-      // کلید ذخیره‌سازی این نسخه متفاوت است، بنابراین داده قدیمی نه در فهرست
-      // آزمایشی ظاهر می‌شود و نه دست‌کاری می‌گردد. حذف/مهاجرت آن نیازمند تصمیم
-      // جداگانه مالک داده است.
-      const saved = storage.getItem(DEMO_STORAGE_KEY);
-      if (!saved) return [];
-
-      const parsed: unknown = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-
-      // فقط رکوردهای ساختاراً معتبر نگه داشته می‌شوند.
-      return parsed.filter(
-        (item): item is BookingOrder =>
-          typeof item === 'object' &&
-          item !== null &&
-          typeof (item as BookingOrder).id === 'string' &&
-          typeof (item as BookingOrder).trackingCode === 'string',
-      );
+      // توجه: این سرویس داده‌های نسخه قبلی (`paksho_orders`) را نمی‌خواند، منتقل
+      // یا حذف نمی‌کند؛ فقط کلید نسخه فعلی را می‌خواند. حذف/مهاجرت داده قدیمی
+      // نیازمند تصمیم جداگانه مالک داده است.
+      saved = storage.getItem(DEMO_STORAGE_KEY);
     } catch (error) {
       console.error('[DemoLocalOrderService] Failed to read demo orders:', error);
-      return [];
+      return { status: 'unreadable', orders: [] };
     }
+    if (!saved) return { status: 'clean', orders: [] };
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(saved);
+    } catch (error) {
+      console.error('[DemoLocalOrderService] Stored demo orders are not valid JSON:', error);
+      return { status: 'corrupted', orders: [] };
+    }
+    if (!Array.isArray(parsed)) return { status: 'corrupted', orders: [] };
+
+    const orders = parsed.filter(isStoredOrder);
+    // اگر حتی یک رکورد ساختار نامعتبر داشته باشد، نمایش رکوردهای سالم مجاز است اما
+    // نوشتن مجاز نیست؛ در غیر این صورت رکورد نامعتبر در بازنویسی بعدی گم می‌شود.
+    return { status: orders.length === parsed.length ? 'clean' : 'corrupted', orders };
+  }
+
+  /** خواندن برای نمایش: بهترین تلاش، بدون هیچ نوشتنی. */
+  private getStoredOrders(): BookingOrder[] {
+    return this.readStore().orders;
+  }
+
+  /**
+   * خواندن پیش از نوشتن: فقط وقتی حافظه کامل و سالم خوانده شده باشد ادامه می‌دهد.
+   * در غیر این صورت خطا می‌دهد تا رکوردهای قبلی هرگز بی‌صدا بازنویسی و پاک نشوند.
+   */
+  private getStoredOrdersForWrite(): BookingOrder[] {
+    const result = this.readStore();
+    if (result.status !== 'clean') {
+      throw new Error(STORE_WRITE_REFUSED_MESSAGE[result.status]);
+    }
+    return result.orders;
   }
 
   private saveStoredOrders(orders: BookingOrder[]): void {
@@ -74,7 +117,8 @@ class DemoLocalOrderService implements IOrderService {
   }
 
   public async createOrder(orderData: CreateOrderDTO): Promise<BookingOrder> {
-    const orders = this.getStoredOrders();
+    // خواندن ایمن برای نوشتن: اگر داده قبلی خوانا نباشد، سفارش جدید آن را پاک نمی‌کند.
+    const orders = this.getStoredOrdersForWrite();
     const trackingCode = generateDemoTrackingCode(
       orders.map((order) => order.trackingCode),
     );
@@ -107,7 +151,7 @@ class DemoLocalOrderService implements IOrderService {
    * نگه داشته و نمایش داده می‌شود.
    */
   public async submitOrderRating(orderId: string, rating: number): Promise<BookingOrder> {
-    const orders = this.getStoredOrders();
+    const orders = this.getStoredOrdersForWrite();
     let updatedOrder: BookingOrder | null = null;
 
     const updated = orders.map((order) => {
@@ -136,7 +180,7 @@ class DemoLocalOrderService implements IOrderService {
    * چون هیچ درخواستی به سامانه عملیاتی ارسال نشده است.
    */
   public async cancelOrder(orderId: string): Promise<BookingOrder> {
-    const orders = this.getStoredOrders();
+    const orders = this.getStoredOrdersForWrite();
     let updatedOrder: BookingOrder | null = null;
 
     const updated = orders.map((order) => {
