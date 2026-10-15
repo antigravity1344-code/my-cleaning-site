@@ -116,7 +116,7 @@ export const FAQSection: React.FC = () => {
             })
           ) : (
             <div className="text-center py-10 text-slate-400 text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              موردی با جستجوی شما یافت نشد. می‌توانید مستقیماً با پشتیبانی تماس بگیرید.
+              موردی با جستجوی شما یافت نشد. راه تماس رسمی هنوز تأیید نشده است.
             </div>
           )}
         </div>
