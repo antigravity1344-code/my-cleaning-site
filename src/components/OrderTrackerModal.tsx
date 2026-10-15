@@ -3,7 +3,6 @@ import {
   Search,
   X,
   MapPin,
-  Phone,
   AlertCircle,
   Star,
   PhoneCall,
@@ -500,13 +499,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                     <span>{isCancelPending ? 'در حال لغو...' : 'لغو رکورد نمایشی'}</span>
                   </button>
 
-                  <a
-                    href="tel:02188990011"
-                    className="text-xs text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>پشتیبانی پاک‌شو: ۰۲۱-۸۸۹۹۰۰۱۱</span>
-                  </a>
+                  <span className="text-xs text-slate-600 font-bold">
+                    راه تماس رسمی پشتیبانی هنوز تأیید نشده است.
+                  </span>
                 </div>
               )}
 
