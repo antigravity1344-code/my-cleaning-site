@@ -225,3 +225,17 @@ describe('SAFETY-005 — tracker ephemeral state with two synthetic orders', () 
     });
   });
 });
+
+
+describe('SAFETY-005 — actual rendered marketing copy', () => {
+  it('does not display unverified Hero statistics or the free re-clean promise', () => {
+    render(<App />);
+    const hero = document.querySelector('main')?.firstElementChild;
+    expect(hero).toBeTruthy();
+    const heroText = hero?.textContent ?? '';
+    expect(heroText).not.toContain('۲۵,۰۰۰');
+    expect(heroText).not.toContain('۴۵۰');
+    expect(heroText).not.toContain('۴.۹');
+    expect(document.querySelector('footer')?.textContent ?? '').not.toContain('نظافت مجدد کاملا رایگان');
+  });
+});
