@@ -65,9 +65,9 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.25] tracking-tight">
-              نظافتی درخشان و بی‌نقص،{' '}
+              آشنایی با خدمات نظافت،{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700">
-                با نیروهای مجرب و معتمد
+                فرآیند درخواست نظافت را آزمایش کنید
               </span>
             </h1>
 
@@ -293,7 +293,7 @@ export const Hero: React.FC<HeroProps> = ({
                 </button>
 
                 <p className="text-center text-[11px] text-slate-400">
-                  بدون پرداخت در این مرحله • امکان پرداخت در محل پس از رضایت
+                  نسخه آزمایشی — هیچ پرداخت یا اعزام واقعی انجام نمی‌شود
                 </p>
 
               </form>
