@@ -51,6 +51,18 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   const [userFeedbackText, setUserFeedbackText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
+  // Privacy: clear ephemeral feedback, success and errors whenever modal closes or order changes.
+  useEffect(() => {
+    setUserFeedbackText('');
+    setRatingSubmitted(false);
+    setSearchError('');
+    setUserStarRating(5);
+    if (!isOpen) {
+      setSelectedOrder(null);
+      setSearchCode('');
+    }
+  }, [isOpen, selectedOrder?.id]);
+
   // انتخاب اولیه پس از بارگذاری سفارش‌های آزمایشی (و همگام‌سازی با تغییر فهرست).
   useEffect(() => {
     if (!isOpen) return;
@@ -119,7 +131,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     // فقط امتیاز عددی ارسال و ذخیره می‌شود؛ متن بازخورد ارسال نمی‌شود.
     onSubmitOrderRating(selectedOrder.id, userStarRating);
     setRatingSubmitted(true);
-    setTimeout(() => setRatingSubmitted(false), 2500);
+    // Reset on order change/close rather than allowing an old timer to mutate another order.
   };
 
   const currentStepIdx = selectedOrder ? getStatusStepIndex(selectedOrder.status) : 0;
