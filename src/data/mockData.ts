@@ -178,7 +178,7 @@ export const ADDON_OPTIONS: AddonOption[] = [
     id: 'walls',
     title: 'دیوارشویی تخصصی اتاق‌ها',
     price: 180000,
-    description: 'پاک کردن دوده، رد دست و لکه‌های روی دیوار با دستمال نانو و اسفنج جادویی',
+    description: 'پاک کردن دوده، رد دست و لکه‌های روی دیوار',
     icon: 'Grid'
   },
   {
