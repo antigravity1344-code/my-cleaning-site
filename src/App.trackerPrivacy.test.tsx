@@ -180,7 +180,7 @@ describe('SAFETY-005 — actual App storage failures', () => {
       render(<App />);
       createDemoOrderThroughApp();
       await vi.waitFor(() => {
-        expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی سفارش آزمایشی|ذخیره‌سازی محلی سفارش آزمایشی ناموفق/);
+        expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی مرورگر ناموفق بود/);
       });
       expect(getBookingModal().textContent).not.toContain('بستن و بازگشت به سایت');
       expect(getBookingModal().textContent).not.toMatch(/DEMO-[A-Z0-9-]{5,}/);
