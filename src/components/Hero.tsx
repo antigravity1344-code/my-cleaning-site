@@ -132,21 +132,7 @@ export const Hero: React.FC<HeroProps> = ({
               </button>
             </div>
 
-            {/* Customer Trust Stats */}
-            <div className="pt-2 flex items-center gap-6 text-slate-600 text-xs sm:text-sm border-t border-slate-200/60">
-              <div className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-600" />
-                <span><strong>+۲۵,۰۰۰</strong> مشتری راضی</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-teal-600" />
-                <span><strong>+۴۵۰</strong> متخصص تایید شده</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                <span>امتیاز <strong>۴.۹</strong> از ۵</span>
-              </div>
-            </div>
+            {/* Unverified customer/provider/rating figures intentionally omitted. */}
 
           </div>
 
