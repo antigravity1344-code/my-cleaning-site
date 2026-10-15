@@ -14,6 +14,7 @@ import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AiConsultantModal } from './components/AiConsultantModal';
 import { OrderProvider, useOrders } from './context/OrderContext';
 import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './types';
+import { SERVICES_LIST } from './data/mockData';
 import { PhoneCall, Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
 
@@ -41,10 +42,15 @@ function PakshoAppContent() {
   // Open booking with specific service
   const handleOpenBooking = (serviceId?: string) => {
     if (serviceId) {
+      // توجه: ساعت پیش‌فرض باید حداقل ساعت همان خدمت باشد، نه یک عدد ثابت ۴.
+      // برخی خدمات (مثلاً «خانه‌تکانی عمیق» و «پس از بازسازی») حداقل ساعت
+      // بالاتری دارند و ۴ ساعت ثابت باعث می‌شد فرم رزرو و فاکتور زیر حداقل
+      // مجاز آن خدمت باز شوند.
+      const service = SERVICES_LIST.find((s) => s.id === serviceId);
       setBookingParams({
         serviceId: serviceId as ServiceType,
         cleanerGender: 'no-pref',
-        hours: 4
+        hours: service?.minHours ?? 4
       });
     } else {
       setBookingParams(undefined);

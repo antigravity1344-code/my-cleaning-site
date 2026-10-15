@@ -73,13 +73,28 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
   }, []);
 
   // ثبت امتیاز عددی — مشتری وضعیت عملیاتی سفارش را تغییر نمی‌دهد و متن آزاد ذخیره نمی‌شود.
+  //
+  // توجه: orderService.submitOrderRating رکورد را از روی نسخه‌ی ماسک‌شده‌ای
+  // که روی دیسک (localStorage) ذخیره شده می‌خواند و برمی‌گرداند. اگر این
+  // سفارش را همین نشست ساخته باشیم، نسخه‌ی کامل (نام/شماره واقعی) فقط در
+  // همین state (orders) وجود دارد. برای این‌که با جایگزینی کامل رکورد،
+  // داده‌های واقعی به‌اشتباه با نسخه‌ی ماسک‌شده عوض نشوند، فقط فیلدهایی که
+  // واقعاً توسط این عملیات تغییر کرده‌اند (امتیاز) روی رکورد موجود merge
+  // می‌شود.
   const handleSubmitOrderRating = useCallback(
     async (orderId: string, rating: number): Promise<BookingOrder> => {
       setError(null);
       try {
-        const updated = await orderService.submitOrderRating(orderId, rating);
-        setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
-        return updated;
+        const stored = await orderService.submitOrderRating(orderId, rating);
+        let merged: BookingOrder = stored;
+        setOrders(prev =>
+          prev.map(o => {
+            if (o.id !== orderId) return o;
+            merged = { ...o, userRating: stored.userRating };
+            return merged;
+          }),
+        );
+        return merged;
       } catch (err) {
         console.error('[OrderContext] Error submitting rating:', err);
         setError('خطا در ثبت امتیاز');
@@ -89,12 +104,21 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children }) => {
     [],
   );
 
+  // لغو نمایشی — همان دلیل بالا: فقط وضعیت را merge می‌کنیم تا نام/شماره/آدرس
+  // واقعی سفارشی که همین نشست ساخته شده، با نسخه ماسک‌شده‌ی ذخیره‌شده جایگزین نشود.
   const handleCancelOrder = useCallback(async (orderId: string): Promise<BookingOrder> => {
     setError(null);
     try {
-      const updated = await orderService.cancelOrder(orderId);
-      setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
-      return updated;
+      const stored = await orderService.cancelOrder(orderId);
+      let merged: BookingOrder = stored;
+      setOrders(prev =>
+        prev.map(o => {
+          if (o.id !== orderId) return o;
+          merged = { ...o, status: stored.status };
+          return merged;
+        }),
+      );
+      return merged;
     } catch (err) {
       console.error('[OrderContext] Error cancelling demo order:', err);
       setError('خطا در لغو درخواست آزمایشی');

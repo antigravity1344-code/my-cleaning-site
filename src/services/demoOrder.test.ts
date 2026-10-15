@@ -29,6 +29,7 @@ const baseInput: DemoOrderFormInput = {
   notes: 'یادداشت آزمایشی',
   totalPrice: 780_000,
   discountApplied: 0,
+  paymentMethod: 'cash_on_site',
 };
 
 describe('buildDemoOrderPayload — جلوگیری از تولید شماره تماس ساختگی', () => {
@@ -82,13 +83,20 @@ describe('buildDemoOrderPayload — عدم ادعای وضعیت و پرداخت
     expect(payload.paymentStatus).toBe('unpaid');
   });
 
-  it('پرداخت آنلاین ناموجود را انتخاب نمی‌کند (حتی اگر ورودی آن را بخواهد)', () => {
+  it('پرداخت آنلاین ناموجود را انتخاب نمی‌کند (حتی اگر فرم آن را درخواست کند)', () => {
+    // تا زمانی که ONLINE_PAYMENT_AVAILABLE=false است، حتی اگر مقدار واقعی
+    // انتخاب‌شده در فرم 'online' باشد، نباید در payload نهایی ظاهر شود.
     const payload = buildDemoOrderPayload({
       ...baseInput,
-      paymentMethodOnlineRequested: true,
-    } as DemoOrderFormInput & { paymentMethodOnlineRequested?: boolean });
+      paymentMethod: 'online',
+    });
 
     expect(payload.paymentMethod).not.toBe('online');
+    expect(payload.paymentMethod).toBe('cash_on_site');
+  });
+
+  it('روش پرداخت واقعاً انتخاب‌شده در فرم را منتقل می‌کند، نه یک مقدار مستقل', () => {
+    const payload = buildDemoOrderPayload({ ...baseInput, paymentMethod: 'cash_on_site' });
     expect(payload.paymentMethod).toBe('cash_on_site');
   });
 
