@@ -237,7 +237,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 </div>
                 <div className="text-left text-xs text-slate-600">
                   <span className="block">حداقل زمان: {selectedServiceDetail.minHours} ساعت</span>
-                  <span className="text-emerald-700 font-bold">بدون انعام اجباری</span>
+                  <span className="text-slate-500 font-bold">برآورد آزمایشی</span>
                 </div>
               </div>
             </div>

@@ -472,6 +472,47 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
     expect(normalizeClaimText(page.textContent ?? '')).not.toMatch(UNVERIFIED_SUPPORT_CLAIM);
   });
 
+  it('F1: the identity-verification card does not assert the check is performed', () => {
+    render(<App />);
+    const whyUs = normalizeClaimText(document.querySelector('#why-us')?.textContent ?? '');
+    expect(whyUs).toContain(normalizeClaimText('احراز هویت متخصصین'));
+    expect(whyUs).not.toMatch(/احراز هویت[^.؛]{0,120}انجام می ?شود/);
+    expect(whyUs).not.toContain(normalizeClaimText('در سامانه عملیاتی پاک‌شو انجام'));
+  });
+
+  it('F2: service cards and every service detail make no unverified equipment, result or policy claims', () => {
+    render(<App />);
+    const services = document.querySelector('#services') as HTMLElement;
+    const detailButtons = Array.from(services.querySelectorAll('button')).filter((b) =>
+      /جزئیات خدمت/.test(b.textContent ?? ''),
+    );
+    expect(detailButtons.length).toBeGreaterThanOrEqual(6);
+
+    // متن کارت‌ها + متن جزئیات هر خدمت پس از باز کردن آن (پنجره جزئیات داخل #services رندر می‌شود).
+    // عمداً فقط #services سنجیده می‌شود: محتوای «پکیج مواد شوینده» در محاسبه‌گر فهرست اقلام فروشی است.
+    const rendered: string[] = [services.textContent ?? ''];
+    for (const button of detailButtons) {
+      fireEvent.click(button);
+      const detail = services.querySelector('div.fixed.inset-0');
+      expect(detail).not.toBeNull();
+      rendered.push(detail?.textContent ?? '');
+    }
+    const text = normalizeClaimText(rendered.join(' '));
+
+    const unverifiedClaims = [
+      'نانو', 'مکنده صنعتی', 'پولیشر', 'خشک‌کن قوی', 'بدون ایجاد اختلال', 'ابزار ایمن',
+      'صددرصد', 'آسیب نمی‌زنند', 'ارگانیک', 'انعام', 'ضربتی', 'بسیار دقیق',
+    ];
+    for (const claim of unverifiedClaims) {
+      expect(text, claim).not.toContain(normalizeClaimText(claim));
+    }
+  });
+
+  it('F2: the appliance add-on does not claim organic detergents', () => {
+    render(<App />);
+    expect(normalizeClaimText(document.body.textContent ?? '')).not.toContain('ارگانیک');
+  });
+
   it('service detail does not present the base rate as "approved"', () => {
     render(<App />);
     const services = document.querySelector('#services') as HTMLElement;
