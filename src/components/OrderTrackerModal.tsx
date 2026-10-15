@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Search,
   X,
@@ -67,7 +67,10 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   const requestScopeRef = useRef(0);
 
   // Privacy: clear ephemeral feedback, success and errors whenever modal closes or order changes.
-  useEffect(() => {
+  // useLayoutEffect (نه useEffect): ریست و افزایش scope باید در همان commitی انجام شود
+  // که سفارش جدید را در DOM نشان می‌دهد؛ در غیر این صورت کلیکی که بین paint و اجرای
+  // effect معمولی رخ دهد scope قدیمی را می‌گیرد و خطای واقعی به‌اشتباه پنهان می‌شود.
+  useLayoutEffect(() => {
     requestScopeRef.current += 1;
     setUserFeedbackText('');
     setRatingSubmitted(false);

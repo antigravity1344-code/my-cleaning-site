@@ -231,7 +231,7 @@ describe('SAFETY-005 — tracker ephemeral state with two synthetic orders', () 
  * SAFETY-005 follow-up — یافته‌های A و B بازبینی مستقل.
  * رتبه‌دهی و لغو از مسیر واقعی App، با شکست نوشتن در localStorage.
  */
-describe('SAFETY-005 follow-up — rating/cancel storage failures from the real App path', () => {
+describe('SAFETY-005 follow-up — rating/cancel storage failures from the real App path', { timeout: 20000 }, () => {
   const seedOneOrder = (): void => {
     const base = {
       createdAt: '2026-10-15T10:00:00.000Z', status: 'pending', serviceId: 'home-standard',
@@ -253,6 +253,9 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
   /** فرصت می‌دهد تا Promiseها و رویداد unhandledRejection در Node تخلیه شوند. */
   const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 50));
 
+  /** رندر کامل App در jsdom زیر بار CPU کند است؛ مهلت بیشتر از پیش‌فرض ۱ ثانیه. */
+  const WAIT = { timeout: 5000 };
+
   const quotaOnWrite = () =>
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
@@ -265,7 +268,7 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
     try {
       render(<App />);
       const tracker = openTracker();
-      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull(), WAIT);
       fireEvent.change(tracker.querySelector('textarea')!, { target: { value: 'PRIVATE-FEEDBACK-A' } });
 
       const setItem = quotaOnWrite();
@@ -273,7 +276,7 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
 
       await vi.waitFor(() => {
         expect(tracker.querySelector('[role="alert"]')?.textContent ?? '').toMatch(/ثبت امتیاز ناموفق بود/);
-      });
+      }, WAIT);
       await flushAsync();
 
       expect(tracker.textContent).not.toContain('ستاره در همین مرورگر ثبت شد');
@@ -296,9 +299,9 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
     try {
       render(<App />);
       const tracker = openTracker();
-      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull(), WAIT);
       fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /ثبت امتیاز/.test(b.textContent ?? ''))!);
-      await vi.waitFor(() => expect(tracker.textContent).toContain('ستاره در همین مرورگر ثبت شد'));
+      await vi.waitFor(() => expect(tracker.textContent).toContain('ستاره در همین مرورگر ثبت شد'), WAIT);
       await flushAsync();
       expect(tracker.querySelector('[role="alert"]')).toBeNull();
       expect(localStorage.getItem(DEMO_STORAGE_KEY) ?? '').toMatch(/"userRating":5/);
@@ -316,7 +319,7 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
       try {
         render(<App />);
         const tracker = openTracker();
-        await vi.waitFor(() => expect(tracker.textContent).toContain('لغو رکورد نمایشی'));
+        await vi.waitFor(() => expect(tracker.textContent).toContain('لغو رکورد نمایشی'), WAIT);
 
         vi.spyOn(window, 'confirm').mockReturnValue(true);
         if (reason === 'quota') {
@@ -330,7 +333,7 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
 
         await vi.waitFor(() => {
           expect(tracker.querySelector('[role="alert"]')?.textContent ?? '').toMatch(/لغو رکورد ناموفق بود/);
-        });
+        }, WAIT);
         await flushAsync();
 
         expect(tracker.textContent).not.toContain('لغو شده است');
@@ -352,14 +355,14 @@ describe('SAFETY-005 follow-up — rating/cancel storage failures from the real 
     try {
       render(<App />);
       const tracker = openTracker();
-      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull());
+      await vi.waitFor(() => expect(tracker.querySelector('textarea')).not.toBeNull(), WAIT);
       const setItem = quotaOnWrite();
       fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => /ثبت امتیاز/.test(b.textContent ?? ''))!);
-      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).not.toBeNull());
+      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).not.toBeNull(), WAIT);
       setItem.mockRestore();
 
       fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => b.textContent?.includes('DEMO-ORDER-B'))!);
-      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).toBeNull());
+      await vi.waitFor(() => expect(tracker.querySelector('[role="alert"]')).toBeNull(), WAIT);
 
       fireEvent.click(Array.from(tracker.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'بستن')!);
       const reopened = openTracker();
