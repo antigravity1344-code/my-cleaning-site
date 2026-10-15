@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEMO_STORAGE_KEY,
   LEGACY_DATA_NOTICE,
@@ -220,5 +220,17 @@ describe('hasLegacyStoredData — تشخیص بدون مداخله', () => {
     expect(LEGACY_DATA_NOTICE).toContain('حذف نمی‌شود');
     expect(LEGACY_DATA_NOTICE).not.toContain('به‌طور خودکار');
     expect(LEGACY_DATA_NOTICE.length).toBeGreaterThan(40);
+  });
+
+  it('SAFETY-008: پیام کاربر انکار نمی‌کند که مقدار برای بررسی وجود خوانده می‌شود', () => {
+    // hasLegacyStoredData واقعاً مقدار کلید قدیمی را با getItem می‌خواند (فقط برای بررسی خالی‌نبودن)؛
+    // پس پیام کاربر نباید بگوید داده «خوانده نمی‌شود».
+    const getItem = vi.fn(() => 'legacy-raw-value');
+    expect(hasLegacyStoredData({ getItem })).toBe(true);
+    expect(getItem).toHaveBeenCalledWith(LEGACY_STORAGE_KEYS[0]);
+
+    expect(LEGACY_DATA_NOTICE).not.toMatch(/خوانده[^.؛]*نمی‌شود/);
+    expect(LEGACY_DATA_NOTICE).toContain('فقط وجود آن را بررسی');
+    expect(LEGACY_DATA_NOTICE).toMatch(/محتوای آن پردازش، نمایش داده، منتقل یا حذف نمی‌شود/);
   });
 });
