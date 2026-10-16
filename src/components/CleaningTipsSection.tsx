@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { 
   BookOpen, 
   Clock, 
@@ -9,10 +9,12 @@ import {
 } from 'lucide-react';
 import { CLEANING_TIPS } from '../data/mockData';
 import { CleaningTip } from '../types';
+import { PageModal } from './PageModal';
 
 export const CleaningTipsSection: React.FC = () => {
   const [selectedTip, setSelectedTip] = useState<CleaningTip | null>(null);
   const [copied, setCopied] = useState(false);
+  const tipTitleId = useId();
 
   const handleShare = () => {
     navigator.clipboard?.writeText(window.location.href);
@@ -93,8 +95,12 @@ export const CleaningTipsSection: React.FC = () => {
 
       {/* Tip Reader Modal */}
       {selectedTip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <PageModal
+          onClose={() => setSelectedTip(null)}
+          labelledBy={tipTitleId}
+          overlayClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+          panelClassName="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col"
+        >
             
             <div className="relative h-48 shrink-0 overflow-hidden">
               <img
@@ -105,16 +111,18 @@ export const CleaningTipsSection: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
               <button
+                type="button"
                 onClick={() => setSelectedTip(null)}
+                aria-label="بستن"
                 className="absolute top-4 left-4 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
               >
-                ✕
+                <span aria-hidden="true">✕</span>
               </button>
               <div className="absolute bottom-4 right-4 text-white">
                 <span className="text-xs bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded-full mb-1 inline-block">
                   {selectedTip.category}
                 </span>
-                <h3 className="text-lg font-black">{selectedTip.title}</h3>
+                <h3 id={tipTitleId} className="text-lg font-black">{selectedTip.title}</h3>
               </div>
             </div>
 
@@ -151,8 +159,7 @@ export const CleaningTipsSection: React.FC = () => {
               </button>
             </div>
 
-          </div>
-        </div>
+        </PageModal>
       )}
 
     </section>

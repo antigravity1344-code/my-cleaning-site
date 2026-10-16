@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Star, MessageSquareHeart, CheckCircle, PlusCircle } from 'lucide-react';
 import { CUSTOMER_REVIEWS, SERVICES_LIST } from '../data/mockData';
 import { CustomerReview } from '../types';
 import { DemoInlineNotice, DemoSampleBadge } from './DemoNotice';
+import { PageModal } from './PageModal';
 
 export const ReviewsSection: React.FC = () => {
   const [reviews, setReviews] = useState<CustomerReview[]>(CUSTOMER_REVIEWS);
@@ -14,6 +15,7 @@ export const ReviewsSection: React.FC = () => {
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const reviewFormId = useId();
 
   const handleAddReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,16 +134,22 @@ export const ReviewsSection: React.FC = () => {
 
       {/* Add Review Modal */}
       {showAddReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 relative">
+        <PageModal
+          onClose={() => setShowAddReviewModal(false)}
+          labelledBy={`${reviewFormId}-title`}
+          overlayClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+          panelClassName="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 relative"
+        >
             <button
+              type="button"
               onClick={() => setShowAddReviewModal(false)}
+              aria-label="بستن"
               className="absolute top-5 left-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
 
-            <h3 className="text-lg font-black text-slate-900 mb-1">
+            <h3 id={`${reviewFormId}-title`} className="text-lg font-black text-slate-900 mb-1">
               ثبت نظر و تجربه نظافت
             </h3>
             <p className="text-xs text-slate-500 mb-6">
@@ -149,7 +157,7 @@ export const ReviewsSection: React.FC = () => {
             </p>
 
             {submittedSuccess ? (
-              <div className="text-center py-8 space-y-3">
+              <div role="status" className="text-center py-8 space-y-3">
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="w-7 h-7" />
                 </div>
@@ -163,10 +171,11 @@ export const ReviewsSection: React.FC = () => {
             ) : (
               <form onSubmit={handleAddReview} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor={`${reviewFormId}-author`} className="block text-xs font-bold text-slate-700 mb-1">
                     نام و نام خانوادگی
                   </label>
                   <input
+                    id={`${reviewFormId}-author`}
                     type="text"
                     required
                     placeholder="مثال: علی اکبری"
@@ -177,10 +186,11 @@ export const ReviewsSection: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor={`${reviewFormId}-service`} className="block text-xs font-bold text-slate-700 mb-1">
                     نوع خدمت دریافت شده
                   </label>
                   <select
+                    id={`${reviewFormId}-service`}
                     value={newService}
                     onChange={(e) => setNewService(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
@@ -192,18 +202,20 @@ export const ReviewsSection: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <span id={`${reviewFormId}-rating`} className="block text-xs font-bold text-slate-700 mb-1">
                     میزان رضایت و امتیاز شما
-                  </label>
-                  <div className="flex items-center gap-2">
+                  </span>
+                  <div role="group" aria-labelledby={`${reviewFormId}-rating`} className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setNewRating(star)}
+                        aria-label={`${star.toLocaleString('fa-IR')} ستاره`}
+                        aria-pressed={star === newRating}
                         className="p-1 text-amber-400 hover:scale-110 transition-transform cursor-pointer"
                       >
-                        <Star className={`w-6 h-6 ${star <= newRating ? 'fill-amber-400' : 'text-slate-300'}`} />
+                        <Star aria-hidden="true" className={`w-6 h-6 ${star <= newRating ? 'fill-amber-400' : 'text-slate-300'}`} />
                       </button>
                     ))}
                     <span className="text-xs text-slate-500 font-bold mr-2">
@@ -213,10 +225,11 @@ export const ReviewsSection: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor={`${reviewFormId}-comment`} className="block text-xs font-bold text-slate-700 mb-1">
                     متن نظر و جزئیات تجربه
                   </label>
                   <textarea
+                    id={`${reviewFormId}-comment`}
                     rows={4}
                     required
                     placeholder="کیفیت کار نیرو، وقت‌شناسی، دقت در جزئیات..."
@@ -235,8 +248,7 @@ export const ReviewsSection: React.FC = () => {
               </form>
             )}
 
-          </div>
-        </div>
+        </PageModal>
       )}
 
     </section>
