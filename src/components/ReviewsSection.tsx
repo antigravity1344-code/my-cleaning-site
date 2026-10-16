@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Star, MessageSquareHeart, CheckCircle, PlusCircle } from 'lucide-react';
 import { CUSTOMER_REVIEWS, SERVICES_LIST } from '../data/mockData';
 import { CustomerReview } from '../types';
@@ -16,6 +16,31 @@ export const ReviewsSection: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const reviewFormId = useId();
+  // زمان‌سنج بستن خودکار پس از ثبت؛ با بستن دستی یا unmount پاک می‌شود تا پنجره‌ای را که
+  // دوباره باز شده نبندد و پیام موفقیتِ کهنه نشان ندهد.
+  const autoCloseTimerRef = useRef<number | null>(null);
+  const successRef = useRef<HTMLDivElement | null>(null);
+
+  const clearAutoCloseTimer = () => {
+    if (autoCloseTimerRef.current !== null) {
+      window.clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+  };
+
+  const closeReviewModal = () => {
+    clearAutoCloseTimer();
+    setSubmittedSuccess(false);
+    setShowAddReviewModal(false);
+  };
+
+  useEffect(() => clearAutoCloseTimer, []);
+
+  // دکمه‌ی ثبت پس از موفقیت حذف می‌شود؛ فوکوس به پیام موفقیت می‌رود تا گم نشود و
+  // صفحه‌خوان همان پیام را بخواند.
+  useEffect(() => {
+    if (submittedSuccess) successRef.current?.focus();
+  }, [submittedSuccess]);
 
   const handleAddReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +60,9 @@ export const ReviewsSection: React.FC = () => {
 
     setReviews([newRev, ...reviews]);
     setSubmittedSuccess(true);
-    setTimeout(() => {
+    clearAutoCloseTimer();
+    autoCloseTimerRef.current = window.setTimeout(() => {
+      autoCloseTimerRef.current = null;
       setSubmittedSuccess(false);
       setShowAddReviewModal(false);
       setNewAuthor('');
@@ -135,14 +162,14 @@ export const ReviewsSection: React.FC = () => {
       {/* Add Review Modal */}
       {showAddReviewModal && (
         <PageModal
-          onClose={() => setShowAddReviewModal(false)}
+          onClose={closeReviewModal}
           labelledBy={`${reviewFormId}-title`}
           overlayClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
           panelClassName="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 relative"
         >
             <button
               type="button"
-              onClick={() => setShowAddReviewModal(false)}
+              onClick={closeReviewModal}
               aria-label="بستن"
               className="absolute top-5 left-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
             >
@@ -157,7 +184,7 @@ export const ReviewsSection: React.FC = () => {
             </p>
 
             {submittedSuccess ? (
-              <div role="status" className="text-center py-8 space-y-3">
+              <div ref={successRef} tabIndex={-1} className="text-center py-8 space-y-3 outline-none">
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="w-7 h-7" />
                 </div>

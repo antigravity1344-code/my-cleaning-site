@@ -153,17 +153,42 @@ describe('فرم ثبت نظر', () => {
     expect(within(stars).getByRole('button', { name: '۵ ستاره' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('پس از ثبت، پیام موفقیت اعلام می‌شود و بسته شدن خودکار، فوکوس را به بازکننده برمی‌گرداند', async () => {
-    render(<App />);
-    const { opener, dialog } = open(CASES[2]);
-
+  const submitReview = (dialog: HTMLElement): void => {
     fireEvent.change(within(dialog).getByLabelText('نام و نام خانوادگی'), { target: { value: 'کاربر آزمایشی' } });
     fireEvent.change(within(dialog).getByLabelText('متن نظر و جزئیات تجربه'), { target: { value: 'نظر آزمایشی' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'ارسال و ثبت نظر' }));
+    // مثل کاربر واقعی، دکمه‌ی ثبت هنگام کلیک فوکوس دارد (پس از ثبت، این دکمه حذف می‌شود).
+    const submit = within(dialog).getByRole('button', { name: 'ارسال و ثبت نظر' });
+    submit.focus();
+    fireEvent.click(submit);
+  };
 
-    expect(within(dialog).getByRole('status').textContent).toContain('نظر آزمایشی شما ثبت شد');
+  it('پس از ثبت، فوکوس روی پیام موفقیت می‌رود (گم نمی‌شود) و بسته شدن خودکار، فوکوس را به بازکننده برمی‌گرداند', async () => {
+    render(<App />);
+    const { opener, dialog } = open(CASES[2]);
+    submitReview(dialog);
+
+    // دکمه‌ی ثبت حذف شده است؛ فوکوس باید داخل پنجره و روی پیام موفقیت باشد، نه body.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement?.textContent).toContain('نظر آزمایشی شما ثبت شد');
+
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 3000 });
     await waitFor(() => expect(document.activeElement).toBe(opener));
     expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+  });
+
+  it('بستن دستی پس از ثبت، زمان‌سنج بستن خودکار را لغو می‌کند؛ پنجره‌ی دوباره بازشده فرم تازه دارد و بسته نمی‌شود', async () => {
+    render(<App />);
+    const { opener, dialog } = open(CASES[2]);
+    submitReview(dialog);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(opener);
+    const reopened = screen.getByRole('dialog', { name: 'ثبت نظر و تجربه نظافت' });
+    expect(within(reopened).getByRole('button', { name: 'ارسال و ثبت نظر' })).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+    expect(screen.getByRole('dialog', { name: 'ثبت نظر و تجربه نظافت' })).toBe(reopened);
   });
 });

@@ -26,8 +26,9 @@ interface PageModalProps {
  * وقتی پنجره باز است mount می‌شود.
  */
 export function PageModal({ onClose, labelledBy, overlayClassName, panelClassName, children }: PageModalProps) {
-  // ترتیب مهم است: هوک اول دکمه‌ی بازکننده را ثبت و فوکوس را به پنجره منتقل می‌کند،
-  // بعد پس‌زمینه inert می‌شود.
+  // هوک، دکمه‌ی بازکننده را در layout effect ثبت و فوکوس را به پنجره منتقل می‌کند.
+  // اعلام باز بودن به App (setState) پس از همه‌ی layout effectها اعمال می‌شود، پس
+  // پس‌زمینه بعد از ثبت بازکننده inert می‌شود؛ ترتیب این دو فراخوانی اهمیتی ندارد.
   const dialogRef = useDialogA11y(true, onClose);
   const holdBackgroundInert = useContext(BackgroundInertContext);
   useLayoutEffect(() => holdBackgroundInert(), [holdBackgroundInert]);
