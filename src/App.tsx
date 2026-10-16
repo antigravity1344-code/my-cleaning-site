@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ServicesSection } from './components/ServicesSection';
@@ -17,6 +17,7 @@ import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './t
 import { SERVICES_LIST } from './data/mockData';
 import { Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
+import { BackgroundInertContext } from './context/BackgroundInertContext';
 
 function PakshoAppContent() {
   const { orders, createOrder, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
@@ -25,7 +26,14 @@ function PakshoAppContent() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [isAiConsultantOpen, setIsAiConsultantOpen] = useState(false);
-  const isAnyModalOpen = isBookingOpen || isTrackerOpen || isAiConsultantOpen;
+  // پنجره‌های داخل بخش‌ها (جزئیات خدمت، مطلب مجله، ثبت نظر) با BackgroundInertContext
+  // باز بودن خود را اعلام می‌کنند.
+  const [openPageModalCount, setOpenPageModalCount] = useState(0);
+  const holdBackgroundInert = useCallback(() => {
+    setOpenPageModalCount((count) => count + 1);
+    return () => setOpenPageModalCount((count) => count - 1);
+  }, []);
+  const isAnyModalOpen = isBookingOpen || isTrackerOpen || isAiConsultantOpen || openPageModalCount > 0;
 
   // Booking Modal Pre-fill Params
   const [bookingParams, setBookingParams] = useState<{
@@ -163,6 +171,7 @@ function PakshoAppContent() {
         چیدمانی نمی‌سازد و چیدمان flex صفحه دست نمی‌خورد.
         ترتیب مهم است: این بخش باید پیش از پنجره‌ها بیاید.
       */}
+      <BackgroundInertContext.Provider value={holdBackgroundInert}>
       <div className="contents" inert={isAnyModalOpen}>
 
       {/* Global demo-mode disclosure */}
@@ -235,6 +244,7 @@ function PakshoAppContent() {
       </div>
 
       </div>
+      </BackgroundInertContext.Provider>
       {/* پایان پس‌زمینه‌ی inert‌شونده */}
 
       {/* Booking Wizard Modal */}

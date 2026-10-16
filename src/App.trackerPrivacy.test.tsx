@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { orderService } from './services/orderService';
 import type { BookingOrder } from './types';
 import App from './App';
@@ -543,14 +543,17 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
     );
     expect(detailButtons.length).toBeGreaterThanOrEqual(6);
 
-    // متن کارت‌ها + متن جزئیات هر خدمت پس از باز کردن آن (پنجره جزئیات داخل #services رندر می‌شود).
-    // عمداً فقط #services سنجیده می‌شود: محتوای «پکیج مواد شوینده» در محاسبه‌گر فهرست اقلام فروشی است.
+    // متن کارت‌ها + متن جزئیات هر خدمت پس از باز کردن آن. پنجره‌ی جزئیات (dialog) با portal
+    // بیرون از #services رندر می‌شود، پس با نقش dialog پیدا و بعد از خواندن بسته می‌شود.
+    // عمداً فقط #services و پنجره‌ی جزئیات سنجیده می‌شود: محتوای «پکیج مواد شوینده» در
+    // محاسبه‌گر فهرست اقلام فروشی است.
     const rendered: string[] = [services.textContent ?? ''];
     for (const button of detailButtons) {
       fireEvent.click(button);
-      const detail = services.querySelector('div.fixed.inset-0');
-      expect(detail).not.toBeNull();
-      rendered.push(detail?.textContent ?? '');
+      const detail = screen.getByRole('dialog');
+      rendered.push(detail.textContent ?? '');
+      fireEvent.click(within(detail).getAllByRole('button', { name: 'بستن' })[0]);
+      expect(screen.queryByRole('dialog')).toBeNull();
     }
     const text = normalizeClaimText(rendered.join(' '));
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { 
   Home, 
   Sparkles, 
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SERVICES_LIST } from '../data/mockData';
 import { ServiceItem } from '../types';
+import { PageModal } from './PageModal';
 
 interface ServicesSectionProps {
   onSelectServiceForBooking: (serviceId: string) => void;
@@ -24,6 +25,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onSelectServiceForBooking
 }) => {
   const [selectedServiceDetail, setSelectedServiceDetail] = useState<ServiceItem | null>(null);
+  const detailTitleId = useId();
 
   const getServiceIcon = (iconName: string) => {
     switch (iconName) {
@@ -160,8 +162,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
       {/* Service Detail Modal */}
       {selectedServiceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <PageModal
+          onClose={() => setSelectedServiceDetail(null)}
+          labelledBy={detailTitleId}
+          overlayClassName="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+          panelClassName="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col"
+        >
             
             {/* Modal Header */}
             <div className="relative h-44 shrink-0 overflow-hidden">
@@ -173,17 +179,18 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
               <button
+                type="button"
                 onClick={() => setSelectedServiceDetail(null)}
                 className="absolute top-4 left-4 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
                 aria-label="بستن"
               >
-                ✕
+                <span aria-hidden="true">✕</span>
               </button>
               <div className="absolute bottom-4 right-4 text-white">
                 <span className="text-xs bg-emerald-500 text-slate-950 font-black px-2.5 py-0.5 rounded-full mb-1 inline-block">
                   جزئیات شفاف
                 </span>
-                <h3 className="text-xl font-black">
+                <h3 id={detailTitleId} className="text-xl font-black">
                   {selectedServiceDetail.title}
                 </h3>
               </div>
@@ -263,8 +270,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               </button>
             </div>
 
-          </div>
-        </div>
+        </PageModal>
       )}
 
     </section>
