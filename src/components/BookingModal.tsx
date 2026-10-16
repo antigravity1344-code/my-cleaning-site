@@ -880,7 +880,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 {currentStep < 4 ? (
                   <button
                     type="button"
-                    onClick={handleNextStep}
+                    onClick={(event) => {
+                      // React همین گره‌ی DOM را در مرحله ۴ به دکمه‌ی type="submit" تبدیل می‌کند.
+                      // مرورگر پس از اجرای همین کلیک «رفتار فعال‌سازی» دکمه را با type جدید
+                      // اجرا می‌کرد و فرم را فوراً ثبت می‌کرد؛ یعنی مرحله‌ی فاکتور (کد تخفیف،
+                      // روش پرداخت، تأیید نهایی) هرگز دیده نمی‌شد. preventDefault آن را لغو می‌کند.
+                      event.preventDefault();
+                      handleNextStep();
+                    }}
                     className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
                   >
                     <span>مرحله بعد</span>

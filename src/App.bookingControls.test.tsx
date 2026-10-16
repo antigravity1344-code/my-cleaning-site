@@ -170,6 +170,31 @@ describe('بازه‌ی زمانی پیش‌فرض', () => {
   });
 });
 
+describe('رفتن از مرحله ۳ به ۴ نباید سفارش را فوراً ثبت کند', () => {
+  /*
+   * در مرورگر واقعی، کلیک «مرحله بعد» در مرحله ۳ مستقیماً سفارش را ثبت می‌کرد و مرحله‌ی
+   * فاکتور هرگز دیده نمی‌شد: React همان گره‌ی دکمه را در مرحله ۴ به type="submit" تبدیل
+   * می‌کند و مرورگر پس از کلیک، رفتار فعال‌سازی را با type جدید اجرا می‌کند. jsdom این
+   * بازبررسی را انجام نمی‌دهد؛ پس اینجا خودِ سازوکار محافظ سنجیده می‌شود: کلیک باید
+   * preventDefault شده باشد. رفتار واقعی در Chromium جداگانه بررسی شده است (گزارش PR).
+   */
+  it('کلیک «مرحله بعد» در مرحله ۳ رفتار پیش‌فرض را لغو می‌کند، فاکتور را نشان می‌دهد و چیزی ذخیره نمی‌کند', () => {
+    const dialog = openBooking();
+    nextStep(dialog);
+    nextStep(dialog);
+    fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+    fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+    fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: '09123456789' } });
+
+    const notCanceled = fireEvent.click(within(dialog).getByRole('button', { name: /مرحله بعد/ }));
+
+    expect(notCanceled).toBe(false);
+    expect(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeTruthy();
+    expect(within(dialog).getByRole('radiogroup', { name: 'نحوه پرداخت:' })).toBeTruthy();
+    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+  });
+});
+
 describe('مرحله ۳ و ۴ — برچسب فیلدها، خطا، پرداخت، کد تخفیف', () => {
   it('همه‌ی فیلدهای مرحله ۳ برچسبِ وصل‌شده دارند و خطای اعتبارسنجی اعلام می‌شود', () => {
     const dialog = openBooking();
