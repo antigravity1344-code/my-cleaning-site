@@ -2,6 +2,11 @@ name: Website safety 005 verification
 on:
   pull_request:
     branches: [main]
+  # بعد از هر push/merge روی main هم همین بررسی‌ها دوباره اجرا می‌شوند.
+  # این workflow فقط بررسی می‌کند (typecheck، test، build)؛ هیچ استقرار، انتشار
+  # یا آپلود خروجی‌ای ندارد و دسترسی آن فقط خواندنی است.
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
