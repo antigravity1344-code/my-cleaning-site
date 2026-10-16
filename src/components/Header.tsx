@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import { Sparkles, PhoneCall, Search, CalendarCheck, Menu, X, ShieldCheck, Bot, FlaskConical } from 'lucide-react';
 import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
@@ -16,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   ordersCount
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuId = useId();
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
@@ -179,11 +180,14 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-5 h-5" />
             </button>
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-700 rounded-lg hover:bg-slate-100 focus:outline-hidden"
-              aria-label="باز کردن منو"
+              className="p-2 text-slate-700 rounded-lg hover:bg-slate-100"
+              aria-label={mobileMenuOpen ? 'بستن منو' : 'باز کردن منو'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X aria-hidden="true" className="w-6 h-6" /> : <Menu aria-hidden="true" className="w-6 h-6" />}
             </button>
           </div>
         </div>
@@ -191,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl animate-in slide-in-from-top-2">
+        <div id={mobileMenuId} className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl animate-in slide-in-from-top-2">
           <div className="grid grid-cols-2 gap-2 pb-2">
             <button
               onClick={() => {
