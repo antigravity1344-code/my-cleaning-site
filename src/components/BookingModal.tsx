@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useId } from 'react';
 import {
   X, Check, ArrowLeft, ArrowRight,
   Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
@@ -10,6 +10,7 @@ import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pr
 import { buildDemoOrderPayload } from '../services/demoOrder';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -161,6 +162,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const detergentPrice = pricing.detergentCost;
   const baseServicePrice = pricing.serviceBase;
   const totalPrice = pricing.total;
+
+  // دسترس‌پذیری پنجره: نقش dialog، Escape برای بستن، نگه‌داشتن فوکوس داخل پنجره
+  // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
+  const dialogRef = useDialogA11y(isOpen, onClose);
+  const titleId = useId();
 
   // بازگشت زودهنگام باید **بعد از همه هوک‌ها** باشد؛ در غیر این صورت وقتی مودال
   // بسته رندر و سپس باز می‌شود، تعداد هوک‌ها تغییر می‌کند و React خطای
@@ -733,7 +739,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto max-h-[92vh]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto max-h-[92vh] outline-none"
+      >
         
         {/* Modal Header */}
         <div className="p-5 sm:px-8 border-b border-slate-200/80 bg-slate-50/80 flex items-center justify-between shrink-0">
@@ -742,11 +755,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <DemoBadge />
               <span className="text-xs font-bold text-emerald-600">فرم آزمایشی رزرو</span>
             </div>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">ثبت درخواست خدمات نظافت</h3>
+            <h3 id={titleId} className="text-lg sm:text-xl font-black text-slate-900 mt-1">ثبت درخواست خدمات نظافت</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="بستن"
             className="w-9 h-9 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />

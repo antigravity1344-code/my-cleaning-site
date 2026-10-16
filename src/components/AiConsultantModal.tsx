@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Bot, Sparkles, X, Send, CheckCircle2, ArrowLeft, Lightbulb } from 'lucide-react';
 import { ServiceType, CleanerGender } from '../types';
 import { SERVICES_LIST } from '../data/mockData';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 
 interface AiConsultantModalProps {
   isOpen: boolean;
@@ -30,6 +31,10 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
     hasDetergent: boolean;
     analysisText: string;
   } | null>(null);
+
+  // دسترس‌پذیری پنجره (پیش از return زودهنگام): نقش dialog، Escape، نگه‌داشتن فوکوس.
+  const dialogRef = useDialogA11y(isOpen, onClose);
+  const titleId = useId();
 
   if (!isOpen) return null;
 
@@ -101,7 +106,14 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto max-h-[90vh]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-auto max-h-[90vh] outline-none"
+      >
         
         {/* Header */}
         <div className="p-5 sm:px-8 border-b border-slate-200/80 bg-slate-900 text-white flex items-center justify-between shrink-0">
@@ -110,7 +122,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white">
+              <h3 id={titleId} className="text-base sm:text-lg font-black text-white">
                 مشاور تخمین زمان (نسخه آزمایشی)
               </h3>
               <p className="text-xs text-slate-400">
@@ -120,7 +132,9 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="بستن"
             className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />

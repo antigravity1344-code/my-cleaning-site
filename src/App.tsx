@@ -25,6 +25,7 @@ function PakshoAppContent() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [isAiConsultantOpen, setIsAiConsultantOpen] = useState(false);
+  const isAnyModalOpen = isBookingOpen || isTrackerOpen || isAiConsultantOpen;
 
   // Booking Modal Pre-fill Params
   const [bookingParams, setBookingParams] = useState<{
@@ -153,6 +154,17 @@ function PakshoAppContent() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
 
+      {/*
+        پس‌زمینه‌ی صفحه: تا وقتی هر پنجره‌ای باز است، inert می‌شود؛ یعنی از درخت
+        دسترس‌پذیری (صفحه‌خوان) و از فوکوس/کلیک خارج می‌شود. پنجره‌ها عمداً بیرون از
+        این بخش رندر می‌شوند تا خودشان هرگز زیر عنصر inert قرار نگیرند. چون شرط
+        «هر پنجره‌ای باز است» در انتقال مشاور ← فرم رزرو true می‌ماند، پس‌زمینه
+        در آن انتقال حتی یک لحظه هم فعال نمی‌شود. `contents` یعنی این div هیچ جعبه‌ی
+        چیدمانی نمی‌سازد و چیدمان flex صفحه دست نمی‌خورد.
+        ترتیب مهم است: این بخش باید پیش از پنجره‌ها بیاید.
+      */}
+      <div className="contents" inert={isAnyModalOpen}>
+
       {/* Global demo-mode disclosure */}
       <DemoModeBanner />
 
@@ -221,6 +233,9 @@ function PakshoAppContent() {
         </button>
 
       </div>
+
+      </div>
+      {/* پایان پس‌زمینه‌ی inert‌شونده */}
 
       {/* Booking Wizard Modal */}
       <BookingModal
