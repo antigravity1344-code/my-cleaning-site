@@ -742,13 +742,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           />
           <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
-        {/* ناحیه‌ی اعلام همیشه حاضر است تا صفحه‌خوان همان پیام اول را هم اعلام کند. */}
-        <p
-          role="status"
-          className={discountMsg ? `text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}` : 'sr-only'}
-        >
-          {discountMsg?.text ?? ''}
-        </p>
+        {/* متن دیداری؛ اعلام برای صفحه‌خوان در ناحیه‌ی status زیر کارت است (تکرار نشود). */}
+        {discountMsg && <p aria-hidden="true" className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
         {appliedPromoCode && (
           <button
             type="button"
@@ -759,6 +754,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </button>
         )}
       </div>
+      {/*
+        ناحیه‌ی اعلام پیام کد تخفیف: همیشه حاضر است تا صفحه‌خوان همان پیام اول را هم اعلام کند.
+        بیرون از کارت کد تخفیف و با sr-only (موقعیت absolute) است تا فاصله‌ها و چیدمان دیداری
+        تغییر نکنند.
+      */}
+      <p role="status" className="sr-only">{discountMsg?.text ?? ''}</p>
       <div>
         <span id={`${fieldId}-payment`} className="block text-xs font-bold text-slate-700 mb-2">نحوه پرداخت:</span>
         <div role="radiogroup" aria-labelledby={`${fieldId}-payment`} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
