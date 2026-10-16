@@ -182,7 +182,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
               <button
                 type="submit"
                 disabled={isAnalyzing || !userInput.trim()}
-                className="absolute left-3 bottom-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                className="absolute left-3 bottom-3 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 {isAnalyzing ? (
                   <>
@@ -238,7 +238,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
                     hasDetergentPackage: result.hasDetergent
                   });
                 }}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-md shadow-emerald-600/30 text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md shadow-emerald-600/30 text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
               >
                 <span>انتقال این مشخصات به فرم آزمایشی رزرو</span>
                 <ArrowLeft className="w-4 h-4" />

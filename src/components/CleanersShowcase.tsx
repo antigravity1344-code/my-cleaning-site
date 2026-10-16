@@ -48,7 +48,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
               onClick={() => setFilterGender('all')}
               className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 filterGender === 'all'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -58,7 +58,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
               onClick={() => setFilterGender('female')}
               className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 filterGender === 'female'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -68,7 +68,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
               onClick={() => setFilterGender('male')}
               className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 filterGender === 'male'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -172,7 +172,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
 
                 <button
                   onClick={() => onSelectCleaner(cleaner)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 hover:border-emerald-600 font-bold rounded-xl text-xs sm:text-sm transition-all cursor-pointer active:scale-95"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-50 hover:bg-emerald-700 text-emerald-800 hover:text-white border border-emerald-200 hover:border-emerald-700 font-bold rounded-xl text-xs sm:text-sm transition-all cursor-pointer active:scale-95"
                 >
                   <CalendarCheck className="w-4 h-4" />
                   <span>درخواست این متخصص برای نظافت</span>

@@ -62,7 +62,7 @@ export const CleaningTipsSection: React.FC = () => {
                 </div>
 
                 <div className="p-6 space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-slate-400 text-xs font-mono">
+                  <div className="flex items-center gap-1.5 text-slate-500 text-xs font-mono">
                     <Clock className="w-3.5 h-3.5" />
                     <span>زمان مطالعه: {tip.readTime}</span>
                   </div>
@@ -153,7 +153,7 @@ export const CleaningTipsSection: React.FC = () => {
 
               <button
                 onClick={() => setSelectedTip(null)}
-                className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs"
+                className="py-2 px-5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-xs"
               >
                 متوجه شدم
               </button>

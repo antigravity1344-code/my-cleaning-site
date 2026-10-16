@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-4 h-4 text-slate-500" />
               <span>درخواست‌های آزمایشی{DEMO_MODE ? ' (نمایشی)' : ''}</span>
               {ordersCount > 0 && (
-                <span className="flex items-center justify-center w-5 h-5 text-[11px] font-bold text-white bg-emerald-600 rounded-full">
+                <span className="flex items-center justify-center w-5 h-5 text-[11px] font-bold text-white bg-emerald-700 rounded-full">
                   {ordersCount}
                 </span>
               )}
@@ -202,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
                 setMobileMenuOpen(false);
                 onOpenBooking();
               }}
-              className="w-full flex items-center justify-center gap-2 py-3 px-3 bg-emerald-600 text-white font-bold rounded-xl text-sm shadow-md"
+              className="w-full flex items-center justify-center gap-2 py-3 px-3 bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md"
             >
               <CalendarCheck className="w-4 h-4" />
               رزرو فوری نظافت

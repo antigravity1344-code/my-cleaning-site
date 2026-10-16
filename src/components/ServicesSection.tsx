@@ -106,7 +106,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
                 {/* Included features preview */}
                 <div className="space-y-2 py-3 border-y border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-400 block">
+                  <span className="text-[11px] font-bold text-slate-500 block">
                     برخی از اقلام شامل این خدمت:
                   </span>
                   <div className="space-y-1.5">
@@ -123,7 +123,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] text-slate-400 block">تعرفه ساعتی:</span>
+                      <span className="text-[11px] text-slate-500 block">تعرفه ساعتی:</span>
                       <span className="text-lg font-black text-slate-900 font-mono">
                         {service.baseHourlyRate.toLocaleString('fa-IR')}{' '}
                         <small className="text-xs font-normal text-slate-500">تومان</small>
@@ -145,7 +145,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     </button>
                     <button
                       onClick={() => onSelectServiceForBooking(service.id)}
-                      className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      className="py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                     >
                       <CalendarCheck className="w-3.5 h-3.5" />
                       <span>رزرو این خدمت</span>
@@ -263,7 +263,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                   setSelectedServiceDetail(null);
                   onSelectServiceForBooking(sId);
                 }}
-                className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-md shadow-emerald-600/30 flex items-center gap-2 cursor-pointer"
+                className="py-2.5 px-6 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl shadow-md shadow-emerald-600/30 flex items-center gap-2 cursor-pointer"
               >
                 <span>رزرو آنلاین این خدمت</span>
                 <ArrowLeft className="w-4 h-4" />
