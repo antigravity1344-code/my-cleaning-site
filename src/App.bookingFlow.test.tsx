@@ -100,12 +100,15 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     const slider = section.querySelector('input[type="range"]') as HTMLInputElement;
     fireEvent.change(slider, { target: { value: '220' } });
 
-    // تعداد اتاق خواب را از دکمه‌های همان بخش تغییر می‌دهیم.
-    const roomButton = Array.from(section.querySelectorAll('button')).find(
-      (button) => (button.textContent ?? '').trim() === '4',
+    // تعداد اتاق خواب را از گروه گزینه‌های همان بخش (radio) تغییر می‌دهیم.
+    const roomsGroup = screen.getByRole('radiogroup', { name: 'تعداد اتاق خواب‌ها:' });
+    expect(section.contains(roomsGroup)).toBe(true);
+    const roomButton = Array.from(roomsGroup.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(
+      (radio) => (radio.closest('label')?.textContent ?? '').trim() === '4',
     );
-    if (!roomButton) throw new Error('دکمه تعداد اتاق ۴ در محاسبه‌گر پیدا نشد.');
+    if (!roomButton) throw new Error('گزینه تعداد اتاق ۴ در محاسبه‌گر پیدا نشد.');
     fireEvent.click(roomButton);
+    expect(roomButton.checked).toBe(true);
 
     // و یک خدمت جانبی اضافه می‌کنیم.
     fireEvent.click(screen.getAllByText('شستشوی کامل شیشه‌ها و بالکن')[0]);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { 
   ShieldCheck, 
   Sparkles, 
@@ -13,6 +13,7 @@ import { ServiceType, CleanerGender } from '../types';
 import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY } from '../config/capabilities';
 import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { ChoiceCard } from './ChoiceCard';
 
 interface HeroProps {
   onStartBookingWithParams: (params: {
@@ -32,6 +33,8 @@ export const Hero: React.FC<HeroProps> = ({
   const [selectedGender, setSelectedGender] = useState<CleanerGender>('female');
   const [selectedHours, setSelectedHours] = useState<number>(4);
   const [selectedCity, setSelectedCity] = useState<string>('تهران');
+  // پیشوند یکتا برای id برچسب‌ها و name گروه گزینه‌ها.
+  const fieldId = useId();
 
   const currentServiceObj = SERVICES_LIST.find(s => s.id === selectedService) || SERVICES_LIST[0];
 
@@ -158,11 +161,12 @@ export const Hero: React.FC<HeroProps> = ({
                 
                 {/* City selection */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <label htmlFor={`${fieldId}-city`} className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <MapPin aria-hidden="true" className="w-3.5 h-3.5 text-emerald-600" />
                     انتخاب شهر
                   </label>
                   <select
+                    id={`${fieldId}-city`}
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
@@ -175,10 +179,11 @@ export const Hero: React.FC<HeroProps> = ({
 
                 {/* Service Selection */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label htmlFor={`${fieldId}-service`} className="block text-xs font-bold text-slate-700 mb-1.5">
                     نوع خدمت نظافت
                   </label>
                   <select
+                    id={`${fieldId}-service`}
                     value={selectedService}
                     onChange={(e) => {
                       const newService = e.target.value as ServiceType;
@@ -200,51 +205,38 @@ export const Hero: React.FC<HeroProps> = ({
 
                 {/* Cleaner Gender */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <span id={`${fieldId}-gender`} className="block text-xs font-bold text-slate-700 mb-1.5">
                     جنسیت نیروی خدماتی
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGender('female')}
-                      className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        selectedGender === 'female'
-                          ? 'bg-emerald-50 border-emerald-600 text-emerald-800 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      نظافتچی خانم
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGender('male')}
-                      className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        selectedGender === 'male'
-                          ? 'bg-emerald-50 border-emerald-600 text-emerald-800 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      نظافتچی آقا
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGender('no-pref')}
-                      className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        selectedGender === 'no-pref'
-                          ? 'bg-emerald-50 border-emerald-600 text-emerald-800 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      فرقی ندارد
-                    </button>
+                  </span>
+                  <div role="radiogroup" aria-labelledby={`${fieldId}-gender`} className="grid grid-cols-3 gap-2">
+                    {([
+                      { id: 'female', label: 'نظافتچی خانم' },
+                      { id: 'male', label: 'نظافتچی آقا' },
+                      { id: 'no-pref', label: 'فرقی ندارد' },
+                    ] as const).map((g) => (
+                      <ChoiceCard
+                        key={g.id}
+                        type="radio"
+                        name={`${fieldId}-gender`}
+                        checked={selectedGender === g.id}
+                        onChange={() => setSelectedGender(g.id)}
+                        className={`flex items-center justify-center text-center py-2 px-2 text-xs font-bold rounded-xl border transition-all ${
+                          selectedGender === g.id
+                            ? 'bg-emerald-50 border-emerald-600 text-emerald-800 shadow-xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {g.label}
+                      </ChoiceCard>
+                    ))}
                   </div>
                 </div>
 
                 {/* Hours Slider / Selector */}
                 <div>
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1.5">
-                    <span>مدت زمان مورد نیاز:</span>
-                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">
+                    <span id={`${fieldId}-hours`}>مدت زمان مورد نیاز:</span>
+                    <span aria-hidden="true" className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">
                       {selectedHours} ساعت
                     </span>
                   </div>
@@ -255,9 +247,11 @@ export const Hero: React.FC<HeroProps> = ({
                     step={1}
                     value={selectedHours}
                     onChange={(e) => setSelectedHours(Number(e.target.value))}
+                    aria-labelledby={`${fieldId}-hours`}
+                    aria-valuetext={`${selectedHours} ساعت`}
                     className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                  <div aria-hidden="true" className="flex justify-between text-[10px] text-slate-400 mt-1">
                     <span>حداقل {currentServiceObj.minHours} ساعت</span>
                     <span>۸ ساعت (یک روز کاری کامل)</span>
                     <span>۱۲ ساعت</span>

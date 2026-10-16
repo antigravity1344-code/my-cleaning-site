@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useId, useState, useMemo } from 'react';
 import { Calculator, Sparkles, PackageCheck, ArrowLeft, Check } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
@@ -9,6 +9,7 @@ import {
 } from '../pricing/pricingEngine';
 import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY } from '../config/capabilities';
+import { ChoiceCard } from './ChoiceCard';
 
 interface CostCalculatorProps {
   onProceedToBooking: (calcData: {
@@ -32,6 +33,8 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   const [cleanerGender, setCleanerGender] = useState<CleanerGender>('no-pref');
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [hasDetergentPackage, setHasDetergentPackage] = useState<boolean>(true);
+  // پیشوند یکتا برای id برچسب‌ها و name گروه‌های گزینه.
+  const fieldId = useId();
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
@@ -99,16 +102,18 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             
             {/* Service Type Selection */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
+              <span id={`${fieldId}-service`} className="block text-xs font-bold text-slate-700 mb-2">
                 ۱. نوع خدمت نظافت را انتخاب کنید:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              </span>
+              <div role="radiogroup" aria-labelledby={`${fieldId}-service`} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {SERVICES_LIST.map(s => (
-                  <button
+                  <ChoiceCard
                     key={s.id}
-                    type="button"
-                    onClick={() => setServiceId(s.id)}
-                    className={`p-3 text-right rounded-2xl border transition-all cursor-pointer ${
+                    type="radio"
+                    name={`${fieldId}-service`}
+                    checked={serviceId === s.id}
+                    onChange={() => setServiceId(s.id)}
+                    className={`block p-3 text-right rounded-2xl border transition-all ${
                       serviceId === s.id
                         ? 'bg-emerald-50 border-emerald-600 shadow-xs'
                         : 'bg-white border-slate-200 hover:bg-slate-100'
@@ -120,7 +125,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     <span className="text-[11px] text-slate-500 font-mono mt-0.5 block">
                       {s.baseHourlyRate.toLocaleString('fa-IR')} ت/ساعت
                     </span>
-                  </button>
+                  </ChoiceCard>
                 ))}
               </div>
             </div>
@@ -128,8 +133,8 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             {/* Square meters Slider */}
             <div>
               <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
-                <span>۲. متراژ تقریبی فضا:</span>
-                <span className="bg-emerald-600 text-white font-mono text-sm px-3 py-0.5 rounded-lg shadow-xs">
+                <span id={`${fieldId}-area`}>۲. متراژ تقریبی فضا:</span>
+                <span aria-hidden="true" className="bg-emerald-600 text-white font-mono text-sm px-3 py-0.5 rounded-lg shadow-xs">
                   {squareMeters} متر مربع
                 </span>
               </div>
@@ -140,9 +145,11 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                 step={5}
                 value={squareMeters}
                 onChange={(e) => setSquareMeters(Number(e.target.value))}
+                aria-labelledby={`${fieldId}-area`}
+                aria-valuetext={`${squareMeters} متر مربع`}
                 className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
               />
-              <div className="flex justify-between text-[11px] text-slate-400 mt-1.5">
+              <div aria-hidden="true" className="flex justify-between text-[11px] text-slate-400 mt-1.5">
                 <span>کوچک (۴۰ تا ۷۰ متر)</span>
                 <span>متوسط (۸۰ تا ۱۲۰ متر)</span>
                 <span>بزرگ (۱۳۰ تا ۳۰۰+ متر)</span>
@@ -153,46 +160,50 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Rooms */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200">
-                <label className="block text-xs font-bold text-slate-700 mb-2">
+                <span id={`${fieldId}-rooms`} className="block text-xs font-bold text-slate-700 mb-2">
                   تعداد اتاق خواب‌ها:
-                </label>
-                <div className="flex items-center justify-between">
+                </span>
+                <div role="radiogroup" aria-labelledby={`${fieldId}-rooms`} className="flex items-center justify-between">
                   {[1, 2, 3, 4, 5].map(num => (
-                    <button
+                    <ChoiceCard
                       key={num}
-                      type="button"
-                      onClick={() => setRoomsCount(num)}
-                      className={`w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all cursor-pointer ${
+                      type="radio"
+                      name={`${fieldId}-rooms`}
+                      checked={roomsCount === num}
+                      onChange={() => setRoomsCount(num)}
+                      className={`flex items-center justify-center w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all ${
                         roomsCount === num
                           ? 'bg-emerald-600 text-white shadow-md'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
                       {num === 5 ? '+۵' : num}
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </div>
 
               {/* Bathrooms */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200">
-                <label className="block text-xs font-bold text-slate-700 mb-2">
+                <span id={`${fieldId}-baths`} className="block text-xs font-bold text-slate-700 mb-2">
                   تعداد سرویس بهداشتی / حمام:
-                </label>
-                <div className="flex items-center justify-between">
+                </span>
+                <div role="radiogroup" aria-labelledby={`${fieldId}-baths`} className="flex items-center justify-between">
                   {[1, 2, 3, 4].map(num => (
-                    <button
+                    <ChoiceCard
                       key={num}
-                      type="button"
-                      onClick={() => setBathroomsCount(num)}
-                      className={`w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all cursor-pointer ${
+                      type="radio"
+                      name={`${fieldId}-baths`}
+                      checked={bathroomsCount === num}
+                      onChange={() => setBathroomsCount(num)}
+                      className={`flex items-center justify-center w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all ${
                         bathroomsCount === num
                           ? 'bg-emerald-600 text-white shadow-md'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
                       {num === 4 ? '+۴' : num}
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </div>
@@ -200,116 +211,106 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
             {/* Cleaner Gender */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
+              <span id={`${fieldId}-gender`} className="block text-xs font-bold text-slate-700 mb-2">
                 ۳. اولویت جنسیت متخصص:
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCleanerGender('female')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                    cleanerGender === 'female'
-                      ? 'bg-emerald-100 border-emerald-600 text-emerald-900'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  نظافتچی خانم
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCleanerGender('male')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                    cleanerGender === 'male'
-                      ? 'bg-emerald-100 border-emerald-600 text-emerald-900'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  نظافتچی آقا
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCleanerGender('no-pref')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                    cleanerGender === 'no-pref'
-                      ? 'bg-emerald-100 border-emerald-600 text-emerald-900'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  اولویت ندارد
-                </button>
+              </span>
+              <div role="radiogroup" aria-labelledby={`${fieldId}-gender`} className="grid grid-cols-3 gap-2">
+                {([
+                  { id: 'female', label: 'نظافتچی خانم' },
+                  { id: 'male', label: 'نظافتچی آقا' },
+                  { id: 'no-pref', label: 'اولویت ندارد' },
+                ] as const).map((g) => (
+                  <ChoiceCard
+                    key={g.id}
+                    type="radio"
+                    name={`${fieldId}-gender`}
+                    checked={cleanerGender === g.id}
+                    onChange={() => setCleanerGender(g.id)}
+                    className={`flex items-center justify-center text-center py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                      cleanerGender === g.id
+                        ? 'bg-emerald-100 border-emerald-600 text-emerald-900'
+                        : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {g.label}
+                  </ChoiceCard>
+                ))}
               </div>
             </div>
 
             {/* Optional Add-ons */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
+            <div role="group" aria-labelledby={`${fieldId}-addons`}>
+              <span id={`${fieldId}-addons`} className="block text-xs font-bold text-slate-700 mb-2">
                 ۴. خدمات جانبی و شوینده (اختیاری):
-              </label>
+              </span>
               <div className="space-y-2">
                 {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
                   const isChecked = selectedAddons.includes(addon.id);
                   return (
-                    <div
+                    <ChoiceCard
                       key={addon.id}
-                      onClick={() => toggleAddon(addon.id)}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleAddon(addon.id)}
+                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                         isChecked 
                           ? 'bg-emerald-50/80 border-emerald-500 shadow-xs' 
                           : 'bg-white border-slate-200 hover:bg-slate-100/60'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                      <span className="flex items-center gap-3">
+                        <span aria-hidden="true" className={`w-5 h-5 rounded-md flex items-center justify-center border ${
                           isChecked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'
                         }`}>
                           {isChecked && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                        <div className="text-right">
+                        </span>
+                        <span className="block text-right">
                           <span className="text-xs font-bold text-slate-800 block">
                             {addon.title}
                           </span>
                           <span className="text-[11px] text-slate-500">
                             {addon.description}
                           </span>
-                        </div>
-                      </div>
+                        </span>
+                      </span>
                       <span className="text-xs font-bold font-mono text-emerald-700 shrink-0 mr-2">
                         +{addon.price.toLocaleString('fa-IR')} ت
                       </span>
-                    </div>
+                    </ChoiceCard>
                   );
                 })}
 
                 {/* Detergent package toggle */}
-                <div
-                  onClick={() => setHasDetergentPackage(!hasDetergentPackage)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                <ChoiceCard
+                  type="checkbox"
+                  checked={hasDetergentPackage}
+                  onChange={() => setHasDetergentPackage(!hasDetergentPackage)}
+                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
                     hasDetergentPackage 
                       ? 'bg-teal-50 border-teal-500 shadow-xs' 
                       : 'bg-white border-slate-200 hover:bg-slate-100/60'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                  <span className="flex items-center gap-3">
+                    <span aria-hidden="true" className={`w-5 h-5 rounded-md flex items-center justify-center border ${
                       hasDetergentPackage ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300 bg-white'
                     }`}>
                       {hasDetergentPackage && <Check className="w-3.5 h-3.5" />}
-                    </div>
-                    <div className="text-right">
+                    </span>
+                    <span className="block text-right">
                       <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <PackageCheck className="w-4 h-4 text-teal-600" />
+                        <PackageCheck aria-hidden="true" className="w-4 h-4 text-teal-600" />
                         تامین کامل شوینده‌ها و دستمال نانو توسط نیرو
                       </span>
                       <span className="text-[11px] text-slate-500">
                         (شامل جرم‌گیر، وایتکس معطر، شیشه‌پاک‌کن، گازپاک‌کن و ۴ عدد دستمال نانو)
                       </span>
-                    </div>
-                  </div>
+                    </span>
+                  </span>
                   <span className="text-xs font-bold font-mono text-teal-800 shrink-0 mr-2">
                     +{PRICING_CONFIG.detergentPackagePrice.toLocaleString('fa-IR')} ت
                   </span>
-                </div>
-
+                </ChoiceCard>
               </div>
             </div>
 
