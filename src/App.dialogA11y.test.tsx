@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
 
@@ -11,15 +11,33 @@ import App from './App';
  *   • با باز شدن، فوکوس صفحه‌کلید داخل پنجره می‌رود،
  *   • Tab / Shift+Tab در مرزهای پنجره می‌چرخد و به صفحه پشت نمی‌رود،
  *   • Escape پنجره را می‌بندد و فوکوس به دکمه بازکننده برمی‌گردد،
- *   • دکمه بستن نام قابل‌خواندن دارد.
+ *   • دکمه بستن نام قابل‌خواندن دارد،
+ *   • تا وقتی پنجره باز است، صفحه‌ی پشت آن inert است (از صفحه‌خوان و تعامل خارج
+ *     است) و خود پنجره زیر هیچ عنصر inert نیست؛ پس از بستن، پس‌زمینه دوباره فعال
+ *     می‌شود و inertِ ازپیش‌موجود دست نمی‌خورد.
  *
  * محدوده: jsdom رفتار پیش‌فرض Tab مرورگر را اجرا نمی‌کند؛ بنابراین فقط
  * «چرخش در مرزها» (آخرین ← اولین و برعکس) و محافظ focusin آزموده می‌شود.
  */
 
+/**
+ * jsdom ویژگی inert را برای فوکوس اجرا نمی‌کند، اما مرورگر واقعی (طبق HTML) فراخوانی
+ * focus() روی عنصری که داخل inert است را نادیده می‌گیرد. این شبیه‌سازی همان رفتار را
+ * می‌سازد تا آزمون‌ها مثل مرورگر واقعی رفتار کنند (مثلاً بازگشت فوکوس در انتقال پنجره‌ها).
+ */
+const nativeFocus = HTMLElement.prototype.focus;
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+    if (this.closest('[inert]')) return;
+    nativeFocus.call(this, options);
+  });
+});
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 const TABBABLE =
@@ -131,9 +149,54 @@ describe.each(DIALOGS)('پنجره $label — دسترس‌پذیری', (dialogC
     render(<App />);
     const { trigger, dialog } = openWithKeyboardFocus(dialogCase);
 
-    trigger.focus();
+    // focus مستقیم (بدون شبیه‌سازی inert)، مثل مرورگری که inert را پشتیبانی نمی‌کند.
+    nativeFocus.call(trigger);
 
     expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+});
+
+/** عنصرهای نمونه‌ی پس‌زمینه که باید هنگام باز بودن پنجره inert باشند. */
+const backgroundSamples = (): HTMLElement[] => {
+  const samples = ['header', 'main', 'footer'].map((selector) => document.querySelector<HTMLElement>(selector));
+  samples.push(screen.getByRole('button', { name: 'مشاور هوشمند نظافت', hidden: true }));
+  samples.forEach((element) => expect(element, 'عنصر نمونه‌ی پس‌زمینه پیدا نشد').toBeTruthy());
+  return samples as HTMLElement[];
+};
+
+const isInert = (element: Element): boolean => element.closest('[inert]') !== null;
+
+describe.each(DIALOGS)('پنجره $label — پس‌زمینه‌ی inert', (dialogCase) => {
+  it('تا وقتی پنجره باز است، پس‌زمینه inert است و خود پنجره نه؛ پس از Escape پس‌زمینه دوباره فعال است', () => {
+    render(<App />);
+    backgroundSamples().forEach((element) => expect(isInert(element)).toBe(false));
+
+    const { trigger, dialog } = openWithKeyboardFocus(dialogCase);
+
+    backgroundSamples().forEach((element) => expect(isInert(element)).toBe(true));
+    expect(isInert(trigger)).toBe(true);
+    expect(isInert(dialog)).toBe(false);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    backgroundSamples().forEach((element) => expect(isInert(element)).toBe(false));
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('inertی که از قبل روی عنصری بوده، پس از بستن پنجره دقیقاً باقی می‌ماند', () => {
+    render(<App />);
+    const footer = document.querySelector('footer') as HTMLElement;
+    footer.setAttribute('inert', '');
+
+    openWithKeyboardFocus(dialogCase);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    expect(footer.hasAttribute('inert')).toBe(true);
+    expect(isInert(document.querySelector('header') as HTMLElement)).toBe(false);
+    expect(document.querySelectorAll('[inert]')).toHaveLength(1);
   });
 });
 
@@ -153,15 +216,24 @@ describe('انتقال از مشاور تخمین زمان به فرم رزرو'
       { name: /انتقال این مشخصات به فرم آزمایشی رزرو/ },
       { timeout: 3000 },
     );
+    // هر تغییری در ویژگی inert هنگام انتقال ثبت می‌شود؛ پس‌زمینه نباید حتی یک لحظه فعال شود.
+    const inertChanges = new MutationObserver(() => undefined);
+    inertChanges.observe(document.body, { attributes: true, attributeFilter: ['inert'], subtree: true });
     fireEvent.click(applyButton);
+    const inertRecords = inertChanges.takeRecords();
+    inertChanges.disconnect();
 
     const bookingDialog = screen.getByRole('dialog', { name: DIALOGS[0].title });
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(bookingDialog.contains(document.activeElement)).toBe(true);
+    expect(inertRecords).toHaveLength(0);
+    backgroundSamples().forEach((element) => expect(isInert(element)).toBe(true));
+    expect(isInert(bookingDialog)).toBe(false);
 
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(aiTrigger);
+    backgroundSamples().forEach((element) => expect(isInert(element)).toBe(false));
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 /**
  * رفتار دسترس‌پذیر برای پنجره‌های مودال (الگوی dialog در WAI-ARIA):
@@ -6,6 +6,10 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
  *   • Tab و Shift+Tab داخل پنجره می‌چرخند و به صفحه پشت آن نمی‌روند،
  *   • کلید Escape پنجره را می‌بندد (همان کار دکمه «بستن»)،
  *   • با بسته شدن، فوکوس به دکمه‌ای که پنجره را باز کرده بود برمی‌گردد.
+ *
+ * پنهان‌کردن صفحه‌ی پشت پنجره از صفحه‌خوان و تعامل (`inert`) در App انجام می‌شود،
+ * نه اینجا؛ چون App می‌داند «آیا پنجره‌ای باز است» و در انتقال از یک پنجره به
+ * پنجره‌ی دیگر، پس‌زمینه حتی یک لحظه هم فعال نمی‌شود.
  *
  * ref برگشتی باید روی عنصری قرار بگیرد که `role="dialog"`، `aria-modal="true"`
  * و `tabIndex={-1}` دارد. این هوک باید پیش از هر `return null` زودهنگام
@@ -24,6 +28,13 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]',
 ].join(',');
 
+/**
+ * عنصری که باید پس از بسته شدن پنجره‌ی قبلی فوکوس بگیرد، اما هنوز نمی‌تواند
+ * (مثلاً چون در انتقال «مشاور ← فرم رزرو» پس‌زمینه هنوز inert است). پنجره‌ی
+ * بعدی آن را به‌عنوان مقصد بازگشت فوکوس خودش برمی‌دارد.
+ */
+let pendingReturnFocus: HTMLElement | null = null;
+
 function getTabbableElements(dialog: HTMLElement): HTMLElement[] {
   // در jsdom (آزمون‌ها) چیدمان وجود ندارد؛ فقط وقتی مرورگر واقعاً چیدمان دارد،
   // عناصر پنهان‌شده با CSS (مثلاً display:none) کنار گذاشته می‌شوند.
@@ -35,6 +46,10 @@ function getTabbableElements(dialog: HTMLElement): HTMLElement[] {
     if (hasLayout && element.getClientRects().length === 0) return false;
     return true;
   });
+}
+
+function isOpenModalDialogPresent(): boolean {
+  return document.querySelector('[role="dialog"][aria-modal="true"]') !== null;
 }
 
 export function useDialogA11y<T extends HTMLElement = HTMLDivElement>(
@@ -49,15 +64,20 @@ export function useDialogA11y<T extends HTMLElement = HTMLDivElement>(
     onCloseRef.current = onClose;
   });
 
-  useEffect(() => {
+  // useLayoutEffect (نه useEffect): مقصد بازگشت فوکوس باید در همان commit و پیش از
+  // به‌روزرسانی بعدی مرورگر خوانده شود؛ پس از آن، مرورگر فوکوسِ عنصرِ inert‌شده
+  // (دکمه‌ی بازکننده در پس‌زمینه) را به body منتقل می‌کند.
+  useLayoutEffect(() => {
     if (!isOpen) return;
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement && document.activeElement !== document.body
-        ? document.activeElement
-        : null;
+    const active = document.activeElement;
+    const returnFocusTo =
+      active instanceof HTMLElement && active !== document.body && !dialog.contains(active)
+        ? active
+        : pendingReturnFocus;
+    pendingReturnFocus = null;
 
     if (!dialog.contains(document.activeElement)) {
       dialog.focus();
@@ -82,22 +102,22 @@ export function useDialogA11y<T extends HTMLElement = HTMLDivElement>(
 
       const first = tabbable[0];
       const last = tabbable[tabbable.length - 1];
-      const active = document.activeElement;
-      const focusIsInside = active instanceof Node && dialog.contains(active);
+      const current = document.activeElement;
+      const focusIsInside = current instanceof Node && dialog.contains(current);
 
       if (event.shiftKey) {
-        if (!focusIsInside || active === dialog || active === first) {
+        if (!focusIsInside || current === dialog || current === first) {
           event.preventDefault();
           last.focus();
         }
-      } else if (!focusIsInside || active === last) {
+      } else if (!focusIsInside || current === last) {
         event.preventDefault();
         first.focus();
       }
     };
 
-    // محافظ دوم: اگر فوکوس به هر طریقی (مثلاً با کلیک یا مکان‌نمای صفحه‌خوان) به
-    // صفحه‌ی پشت پنجره برود، به خود پنجره برگردانده می‌شود.
+    // محافظ دوم: اگر فوکوس به هر طریقی به صفحه‌ی پشت پنجره برود، به خود پنجره
+    // برگردانده می‌شود.
     const handleFocusIn = (event: FocusEvent) => {
       const target = event.target;
       if (target instanceof Node && !dialog.contains(target)) {
@@ -111,9 +131,21 @@ export function useDialogA11y<T extends HTMLElement = HTMLDivElement>(
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('focusin', handleFocusIn);
-      if (previouslyFocused && previouslyFocused.isConnected) {
-        previouslyFocused.focus();
-      }
+
+      if (!returnFocusTo || !returnFocusTo.isConnected) return;
+      returnFocusTo.focus();
+      if (document.activeElement === returnFocusTo) return;
+
+      // فوکوس نگرفت؛ یعنی پس‌زمینه هنوز inert است. یا پنجره‌ی دیگری در همین
+      // لحظه باز می‌شود (که این مقصد را برمی‌دارد)، یا inert در ادامه‌ی همین
+      // commit برداشته می‌شود؛ پس یک بار پس از پایان commit دوباره تلاش می‌شود.
+      pendingReturnFocus = returnFocusTo;
+      queueMicrotask(() => {
+        if (pendingReturnFocus !== returnFocusTo) return;
+        if (isOpenModalDialogPresent()) return;
+        pendingReturnFocus = null;
+        if (returnFocusTo.isConnected) returnFocusTo.focus();
+      });
     };
   }, [isOpen]);
 
