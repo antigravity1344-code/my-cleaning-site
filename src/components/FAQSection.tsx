@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { HelpCircle, ChevronDown, Search } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 import { DemoInlineNotice } from './DemoNotice';
@@ -7,6 +7,7 @@ export const FAQSection: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'safety' | 'pricing' | 'booking' | 'services'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqId, setOpenFaqId] = useState<string | null>('faq-1');
+  const faqIdBase = useId();
 
   const filteredFaqs = FAQ_LIST.filter(item => {
     const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
@@ -44,15 +45,16 @@ export const FAQSection: React.FC = () => {
             <input
               type="text"
               placeholder="جستجو در بین سوالات متداول (مثلا: لغو سفارش، شوینده، بیمه)..."
+              aria-label="جستجو در سوالات متداول"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-xs"
             />
-            <Search className="w-5 h-5 text-slate-400 absolute right-3.5 top-3.5" />
+            <Search aria-hidden="true" className="w-5 h-5 text-slate-400 absolute right-3.5 top-3.5" />
           </div>
 
           {/* Category Filter Pills */}
-          <div className="flex flex-wrap justify-center gap-2">
+          <div role="group" aria-label="دسته‌بندی سوالات" className="flex flex-wrap justify-center gap-2">
             {[
               { id: 'all', label: 'همه سوالات' },
               { id: 'safety', label: 'امنیت و احراز هویت' },
@@ -62,6 +64,8 @@ export const FAQSection: React.FC = () => {
             ].map(cat => (
               <button
                 key={cat.id}
+                type="button"
+                aria-pressed={activeCategory === cat.id}
                 onClick={() => setActiveCategory(cat.id as any)}
                 className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                   activeCategory === cat.id
@@ -83,6 +87,7 @@ export const FAQSection: React.FC = () => {
           {filteredFaqs.length > 0 ? (
             filteredFaqs.map((faq) => {
               const isOpen = openFaqId === faq.id;
+              const answerId = `${faqIdBase}-${faq.id}`;
               return (
                 <div
                   key={faq.id}
@@ -93,6 +98,9 @@ export const FAQSection: React.FC = () => {
                   }`}
                 >
                   <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-controls={answerId}
                     onClick={() => toggleFaq(faq.id)}
                     className="w-full p-4 sm:p-5 text-right flex items-center justify-between gap-4 cursor-pointer"
                   >
@@ -100,6 +108,7 @@ export const FAQSection: React.FC = () => {
                       {faq.question}
                     </span>
                     <ChevronDown
+                      aria-hidden="true"
                       className={`w-5 h-5 text-slate-500 shrink-0 transition-transform duration-300 ${
                         isOpen ? 'rotate-180 text-emerald-600' : ''
                       }`}
@@ -107,7 +116,7 @@ export const FAQSection: React.FC = () => {
                   </button>
 
                   {isOpen && (
-                    <div className="px-4 pb-5 sm:px-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-emerald-100/60 pt-3">
+                    <div id={answerId} className="px-4 pb-5 sm:px-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-emerald-100/60 pt-3">
                       {faq.answer}
                     </div>
                   )}
