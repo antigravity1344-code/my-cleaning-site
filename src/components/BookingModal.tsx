@@ -285,6 +285,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
+  // دکمه‌ی «مرحله بعد» و «تأیید نهایی» یک جا دارند؛ اگر Enter نگه داشته شود، تکرار خودکار
+  // کلید نباید از مرحله‌ی فاکتور رد شود و سفارش را ثبت کند.
+  const ignoreAutoRepeat = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.repeat) event.preventDefault();
+  };
+
   const handleFormSubmitWrapper = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep < 4) handleNextStep();
@@ -406,7 +412,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               name={`${fieldId}-gender`}
               checked={cleanerGender === g.id}
               onChange={() => setCleanerGender(g.id as CleanerGender)}
-              className={`block text-center py-2.5 px-2 text-xs font-bold rounded-xl border transition-all ${
+              className={`flex items-center justify-center text-center py-2.5 px-2 text-xs font-bold rounded-xl border transition-all ${
                 cleanerGender === g.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
@@ -725,11 +731,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             placeholder="مثال: PAK1403"
             value={discountCodeInput}
             onChange={(e) => setDiscountCodeInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter در این فیلد باید کد را اعمال کند، نه اینکه فرم (و سفارش) را ثبت کند.
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                handleApplyDiscount();
+              }
+            }}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-none"
           />
           <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
-        {discountMsg && <p role="status" className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
+        {/* ناحیه‌ی اعلام همیشه حاضر است تا صفحه‌خوان همان پیام اول را هم اعلام کند. */}
+        <p
+          role="status"
+          className={discountMsg ? `text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}` : 'sr-only'}
+        >
+          {discountMsg?.text ?? ''}
+        </p>
         {appliedPromoCode && (
           <button
             type="button"
@@ -888,6 +907,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       event.preventDefault();
                       handleNextStep();
                     }}
+                    onKeyDown={ignoreAutoRepeat}
                     className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
                   >
                     <span>مرحله بعد</span>
@@ -897,6 +917,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <button
                     type="submit"
                     disabled={isSubmitting}
+                    onClick={(event) => {
+                      // کلیک دوم یک دوبار-کلیک (مثلاً روی «مرحله بعد» که همین‌جا بود) ثبت نمی‌کند؛
+                      // ثبت فقط با یک کلیک جداگانه روی دکمه‌ی تأیید نهایی.
+                      if (event.detail > 1) event.preventDefault();
+                    }}
+                    onKeyDown={ignoreAutoRepeat}
                     className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
                   >
                     <span>{isSubmitting ? 'در حال ثبت...' : 'تایید نهایی و ثبت سفارش'}</span>

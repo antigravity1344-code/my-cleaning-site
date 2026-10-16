@@ -195,6 +195,53 @@ describe('رفتن از مرحله ۳ به ۴ نباید سفارش را فور�
   });
 });
 
+describe('مرحله‌ی فاکتور با فشار تکراری یا Enter در کد تخفیف رد نمی‌شود', () => {
+  const toInvoice = (dialog: HTMLElement): HTMLElement => {
+    nextStep(dialog);
+    nextStep(dialog);
+    fillContactAndContinue(dialog);
+    return within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ });
+  };
+
+  it('کلیک دوم یک دوبار-کلیک روی همان جای دکمه سفارش را ثبت نمی‌کند؛ کلیک جداگانه ثبت می‌کند', async () => {
+    const dialog = openBooking();
+    const confirm = toInvoice(dialog);
+
+    fireEvent.click(confirm, { detail: 2 });
+    expect(within(dialog).getByRole('radiogroup', { name: 'نحوه پرداخت:' })).toBeTruthy();
+    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+
+    fireEvent.click(confirm, { detail: 1 });
+    expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
+  });
+
+  it('تکرار خودکار Enter روی دکمه‌های «مرحله بعد» و «تأیید نهایی» لغو می‌شود', () => {
+    const dialog = openBooking();
+    const next = within(dialog).getByRole('button', { name: /مرحله بعد/ });
+    expect(fireEvent.keyDown(next, { key: 'Enter', repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(next, { key: 'Enter', repeat: false })).toBe(true);
+
+    const confirm = toInvoice(dialog);
+    expect(fireEvent.keyDown(confirm, { key: 'Enter', repeat: true })).toBe(false);
+    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+  });
+
+  it('Enter در فیلد کد تخفیف کد را اعمال می‌کند و فرم را ثبت نمی‌کند؛ ناحیه‌ی اعلام از قبل حاضر است', () => {
+    const dialog = openBooking();
+    toInvoice(dialog);
+    const status = within(dialog).getByRole('status');
+    expect(status.textContent).toBe('');
+
+    const promo = within(dialog).getByLabelText(/کد تخفیف دارید/);
+    fireEvent.change(promo, { target: { value: 'PAK1403' } });
+    expect(fireEvent.keyDown(promo, { key: 'Enter' })).toBe(false);
+
+    expect(status.textContent).toContain('PAK1403');
+    expect(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeTruthy();
+    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+  });
+});
+
 describe('مرحله ۳ و ۴ — برچسب فیلدها، خطا، پرداخت، کد تخفیف', () => {
   it('همه‌ی فیلدهای مرحله ۳ برچسبِ وصل‌شده دارند و خطای اعتبارسنجی اعلام می‌شود', () => {
     const dialog = openBooking();
