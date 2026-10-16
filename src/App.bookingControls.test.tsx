@@ -150,6 +150,26 @@ describe('مرحله ۲ — روز، بازه‌ی زمانی، متخصص', () 
   });
 });
 
+describe('بازه‌ی زمانی پیش‌فرض', () => {
+  it('بازه‌ی پیش‌فرض یکی از گزینه‌های فرم است، انتخاب‌شده دیده می‌شود و همان در سفارش ثبت می‌شود', async () => {
+    const dialog = openBooking();
+    nextStep(dialog);
+    const slot = within(dialog).getByRole('radiogroup', { name: 'بازه زمانی شروع کار:' });
+    const checked = checkedIn(slot);
+    expect(checked).toHaveLength(1);
+    const defaultSlotLabel = (checked[0].closest('label')?.textContent ?? '').replace('✓', '').trim();
+
+    nextStep(dialog);
+    fillContactAndContinue(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' });
+
+    const stored = JSON.parse(localStorage.getItem('paksho_demo_orders_v2') ?? '[]') as Array<{ timeSlot: string }>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0].timeSlot).toBe(defaultSlotLabel);
+  });
+});
+
 describe('مرحله ۳ و ۴ — برچسب فیلدها، خطا، پرداخت، کد تخفیف', () => {
   it('همه‌ی فیلدهای مرحله ۳ برچسبِ وصل‌شده دارند و خطای اعتبارسنجی اعلام می‌شود', () => {
     const dialog = openBooking();

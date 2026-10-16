@@ -60,7 +60,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Date & Time & Cleaner
   const [selectedDate, setSelectedDate] = useState<string>('امروز');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('۰۹:۰۰ الی ۱۳:۰۰ (صبح)');
+  // پیش‌فرض باید یکی از گزینه‌های واقعی فرم باشد؛ مقدار قبلی (۰۹:۰۰ الی ۱۳:۰۰) در فهرست
+  // نبود، پس هیچ گزینه‌ای انتخاب‌شده دیده نمی‌شد ولی همان مقدارِ نامرئی ثبت می‌شد.
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(TIME_SLOTS[0]);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string>('auto');
 
   // Address & Contact
@@ -127,7 +129,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setSelectedAddons([]);
       setHasDetergentPackage(true);
       setSelectedDate('امروز');
-      setSelectedTimeSlot('۰۹:۰۰ الی ۱۳:۰۰ (صبح)');
+      setSelectedTimeSlot(TIME_SLOTS[0]);
       setSelectedCleanerId('auto');
       setAddress('');
       setUnit('');
