@@ -35,16 +35,30 @@ const FOCUSABLE_SELECTOR = [
  */
 let pendingReturnFocus: HTMLElement | null = null;
 
+/**
+ * از یک گروه radio فقط یک گزینه در ترتیب Tab است (همان رفتار مرورگر): گزینه‌ی
+ * انتخاب‌شده، یا اگر هیچ‌کدام انتخاب نشده، اولین گزینه‌ی فعال گروه.
+ */
+function isRadioTabStop(element: HTMLElement, dialog: HTMLElement): boolean {
+  if (!(element instanceof HTMLInputElement) || element.type !== 'radio' || !element.name) return true;
+  const group = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="radio"]')).filter(
+    (radio) => radio.name === element.name && radio.form === element.form && !radio.disabled,
+  );
+  const checked = group.find((radio) => radio.checked);
+  return checked ? checked === element : group[0] === element;
+}
+
 function getTabbableElements(dialog: HTMLElement): HTMLElement[] {
   // در jsdom (آزمون‌ها) چیدمان وجود ندارد؛ فقط وقتی مرورگر واقعاً چیدمان دارد،
-  // عناصر پنهان‌شده با CSS (مثلاً display:none) کنار گذاشته می‌شوند.
+  // عناصر پنهان‌شده با CSS (مثلاً display:none) کنار گذاشته می‌شوند. input پنهان با
+  // کلاس sr-only هنوز یک جعبه‌ی ۱×۱ پیکسلی دارد، پس کنار گذاشته نمی‌شود.
   const hasLayout = dialog.getClientRects().length > 0;
 
   return Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
     if (element.tabIndex < 0) return false;
     if (element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
     if (hasLayout && element.getClientRects().length === 0) return false;
-    return true;
+    return isRadioTabStop(element, dialog);
   });
 }
 

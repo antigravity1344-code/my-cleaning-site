@@ -11,6 +11,14 @@ import { buildDemoOrderPayload } from '../services/demoOrder';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
+import { ChoiceCard } from './ChoiceCard';
+
+/** بازه‌های زمانی قابل انتخاب در فرم آزمایشی رزرو. */
+const TIME_SLOTS = [
+  '۰۸:۳۰ الی ۱۲:۳۰ (صبح زود)',
+  '۱۲:۳۰ الی ۱۶:۳۰ (ظهر و بعدازظهر)',
+  '۱۶:۳۰ الی ۲۰:۳۰ (عصر و غروب)',
+];
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -52,7 +60,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Date & Time & Cleaner
   const [selectedDate, setSelectedDate] = useState<string>('امروز');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('۰۹:۰۰ الی ۱۳:۰۰ (صبح)');
+  // پیش‌فرض باید یکی از گزینه‌های واقعی فرم باشد؛ مقدار قبلی (۰۹:۰۰ الی ۱۳:۰۰) در فهرست
+  // نبود، پس هیچ گزینه‌ای انتخاب‌شده دیده نمی‌شد ولی همان مقدارِ نامرئی ثبت می‌شد.
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(TIME_SLOTS[0]);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string>('auto');
 
   // Address & Contact
@@ -119,7 +129,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setSelectedAddons([]);
       setHasDetergentPackage(true);
       setSelectedDate('امروز');
-      setSelectedTimeSlot('۰۹:۰۰ الی ۱۳:۰۰ (صبح)');
+      setSelectedTimeSlot(TIME_SLOTS[0]);
       setSelectedCleanerId('auto');
       setAddress('');
       setUnit('');
@@ -167,6 +177,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
   const dialogRef = useDialogA11y(isOpen, onClose);
   const titleId = useId();
+  // پیشوند یکتا برای id برچسب‌ها و name گروه‌های گزینه (چند نمونه از فرم با هم تداخل نکنند).
+  const fieldId = useId();
 
   // بازگشت زودهنگام باید **بعد از همه هوک‌ها** باشد؛ در غیر این صورت وقتی مودال
   // بسته رندر و سپس باز می‌شود، تعداد هوک‌ها تغییر می‌کند و React خطای
@@ -273,6 +285,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
+  // دکمه‌ی «مرحله بعد» و «تأیید نهایی» یک جا دارند؛ اگر Enter نگه داشته شود، تکرار خودکار
+  // کلید نباید از مرحله‌ی فاکتور رد شود و سفارش را ثبت کند.
+  const ignoreAutoRepeat = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.repeat) event.preventDefault();
+  };
+
   const handleFormSubmitWrapper = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep < 4) handleNextStep();
@@ -308,6 +326,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <button
               type="button"
               onClick={handleCopyTrackingCode}
+              aria-label={copiedCode ? 'کد پیگیری کپی شد' : 'کپی کد پیگیری'}
               className="p-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -341,32 +360,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const renderStep1 = () => (
     <div className="space-y-6">
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-2">نوع خدمت نظافت مورد نظر:</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <span id={`${fieldId}-service`} className="block text-xs font-bold text-slate-700 mb-2">نوع خدمت نظافت مورد نظر:</span>
+        <div role="radiogroup" aria-labelledby={`${fieldId}-service`} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {SERVICES_LIST.map((srv) => (
-            <div
+            <ChoiceCard
               key={srv.id}
-              onClick={() => {
+              type="radio"
+              name={`${fieldId}-service`}
+              checked={serviceId === srv.id}
+              onChange={() => {
                 setServiceId(srv.id);
                 if (hours < srv.minHours) setHours(srv.minHours);
               }}
-              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
                 serviceId === srv.id ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <div>
+              <span className="block">
                 <span className="text-xs font-bold text-slate-900 block">{srv.title}</span>
                 <span className="text-[11px] text-slate-500 font-mono">{srv.baseHourlyRate.toLocaleString('fa-IR')} ت / ساعت</span>
-              </div>
-              {serviceId === srv.id && <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">✓</span>}
-            </div>
+              </span>
+              {serviceId === srv.id && <span aria-hidden="true" className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">✓</span>}
+            </ChoiceCard>
           ))}
         </div>
       </div>
       <div>
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
-          <span>تعداد ساعت کار نیرو:</span>
-          <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">{hours} ساعت</span>
+          <span id={`${fieldId}-hours`}>تعداد ساعت کار نیرو:</span>
+          <span aria-hidden="true" className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">{hours} ساعت</span>
         </div>
         <input
           type="range"
@@ -375,69 +397,77 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           step={1}
           value={hours}
           onChange={(e) => setHours(Number(e.target.value))}
+          aria-labelledby={`${fieldId}-hours`}
+          aria-valuetext={`${hours} ساعت`}
           className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
         />
       </div>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-2">اولویت جنسیت متخصص نظافت:</label>
-        <div className="grid grid-cols-3 gap-2">
+        <span id={`${fieldId}-gender`} className="block text-xs font-bold text-slate-700 mb-2">اولویت جنسیت متخصص نظافت:</span>
+        <div role="radiogroup" aria-labelledby={`${fieldId}-gender`} className="grid grid-cols-3 gap-2">
           {[{ id: 'female', label: 'خانم' }, { id: 'male', label: 'آقا' }, { id: 'no-pref', label: 'تفاوتی ندارد' }].map(g => (
-            <button
+            <ChoiceCard
               key={g.id}
-              type="button"
-              onClick={() => setCleanerGender(g.id as CleanerGender)}
-              className={`py-2.5 px-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+              type="radio"
+              name={`${fieldId}-gender`}
+              checked={cleanerGender === g.id}
+              onChange={() => setCleanerGender(g.id as CleanerGender)}
+              className={`flex items-center justify-center text-center py-2.5 px-2 text-xs font-bold rounded-xl border transition-all ${
                 cleanerGender === g.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               نظافتچی {g.label}
-            </button>
+            </ChoiceCard>
           ))}
         </div>
       </div>
-      <div className="space-y-2">
-        <label className="block text-xs font-bold text-slate-700 mb-1">خدمات جانبی (اختیاری):</label>
+      <div role="group" aria-labelledby={`${fieldId}-addons`} className="space-y-2">
+        <span id={`${fieldId}-addons`} className="block text-xs font-bold text-slate-700 mb-1">خدمات جانبی (اختیاری):</span>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
             const checked = selectedAddons.includes(addon.id);
             return (
-              <div
+              <ChoiceCard
                 key={addon.id}
-                onClick={() => setSelectedAddons(prev => checked ? prev.filter(x => x !== addon.id) : [...prev, addon.id])}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                type="checkbox"
+                checked={checked}
+                onChange={() => setSelectedAddons(prev => checked ? prev.filter(x => x !== addon.id) : [...prev, addon.id])}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                   checked ? 'bg-emerald-50 border-emerald-500' : 'bg-white border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <div className="space-y-0.5">
+                <span className="block space-y-0.5">
                   <span className="text-xs font-bold text-slate-800 block">{addon.title}</span>
                   <span className="text-[10px] text-slate-500 font-mono">+{addon.price.toLocaleString('fa-IR')} ت</span>
-                </div>
-                <div className={`w-4 h-4 rounded-md flex items-center justify-center border ${checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'}`}>
+                </span>
+                <span aria-hidden="true" className={`w-4 h-4 rounded-md flex items-center justify-center border ${checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'}`}>
                   {checked && <Check className="w-3 h-3" />}
-                </div>
-              </div>
+                </span>
+              </ChoiceCard>
             );
           })}
         </div>
-        <div
-          onClick={() => setHasDetergentPackage(!hasDetergentPackage)}
-          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between mt-2 ${
+        <ChoiceCard
+          type="checkbox"
+          checked={hasDetergentPackage}
+          onChange={() => setHasDetergentPackage(!hasDetergentPackage)}
+          className={`p-3 rounded-2xl border transition-all flex items-center justify-between mt-2 ${
             hasDetergentPackage ? 'bg-teal-50 border-teal-500' : 'bg-white border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <PackageCheck className="w-4 h-4 text-teal-600" />
-            <div className="text-right">
+          <span className="flex items-center gap-2">
+            <PackageCheck aria-hidden="true" className="w-4 h-4 text-teal-600" />
+            <span className="block text-right">
               <span className="text-xs font-bold text-slate-900 block">تامین شوینده‌ها و دستمال نانو توسط متخصص</span>
               <span className="text-[10px] text-slate-500">
                 (+{PRICING_CONFIG.detergentPackagePrice.toLocaleString('fa-IR')} ت - جرم‌گیر، وایتکس، شیشه‌پاک‌کن، دستمال نانو)
               </span>
-            </div>
-          </div>
-          <div className={`w-4 h-4 rounded-md flex items-center justify-center border ${hasDetergentPackage ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300'}`}>
+            </span>
+          </span>
+          <span aria-hidden="true" className={`w-4 h-4 rounded-md flex items-center justify-center border ${hasDetergentPackage ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300'}`}>
             {hasDetergentPackage && <Check className="w-3 h-3" />}
-          </div>
-        </div>
+          </span>
+        </ChoiceCard>
       </div>
     </div>
   );
@@ -450,93 +480,104 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       { id: '۳ روز بعد', label: '۳ روز بعد', sub: 'انتخاب شما' },
       { id: 'هفته آینده', label: 'پایان هفته', sub: 'انتخاب شما' }
     ];
-    const timeSlots = [
-      '۰۸:۳۰ الی ۱۲:۳۰ (صبح زود)',
-      '۱۲:۳۰ الی ۱۶:۳۰ (ظهر و بعدازظهر)',
-      '۱۶:۳۰ الی ۲۰:۳۰ (عصر و غروب)'
-    ];
     return (
       <div className="space-y-6">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">روز مراجعه نیروی خدماتی:</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <span id={`${fieldId}-date`} className="block text-xs font-bold text-slate-700 mb-2">روز مراجعه نیروی خدماتی:</span>
+          <div role="radiogroup" aria-labelledby={`${fieldId}-date`} className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {dates.map((d) => (
-              <button
+              <ChoiceCard
                 key={d.id}
-                type="button"
-                onClick={() => setSelectedDate(d.id)}
-                className={`p-3 text-right rounded-2xl border transition-all cursor-pointer ${
+                type="radio"
+                name={`${fieldId}-date`}
+                checked={selectedDate === d.id}
+                onChange={() => setSelectedDate(d.id)}
+                className={`block p-3 text-right rounded-2xl border transition-all ${
                   selectedDate === d.id ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <span className={`text-xs font-bold block ${selectedDate === d.id ? 'text-emerald-900' : 'text-slate-800'}`}>{d.label}</span>
                 <span className="text-[10px] text-slate-500 mt-0.5 block">{d.sub}</span>
-              </button>
+              </ChoiceCard>
             ))}
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">بازه زمانی شروع کار:</label>
-          <div className="space-y-2">
-            {timeSlots.map((slot) => (
-              <div
+          <span id={`${fieldId}-slot`} className="block text-xs font-bold text-slate-700 mb-2">بازه زمانی شروع کار:</span>
+          <div role="radiogroup" aria-labelledby={`${fieldId}-slot`} className="space-y-2">
+            {TIME_SLOTS.map((slot) => (
+              <ChoiceCard
                 key={slot}
-                onClick={() => setSelectedTimeSlot(slot)}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                type="radio"
+                name={`${fieldId}-slot`}
+                checked={selectedTimeSlot === slot}
+                onChange={() => setSelectedTimeSlot(slot)}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                   selectedTimeSlot === slot ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <span className="text-xs font-bold text-slate-800">{slot}</span>
-                {selectedTimeSlot === slot && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
-              </div>
+                {selectedTimeSlot === slot && <span aria-hidden="true" className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
+              </ChoiceCard>
             ))}
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">انتخاب متخصص (فهرست نمونه):</label>
-          <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
+          <span id={`${fieldId}-cleaner`} className="block text-xs font-bold text-slate-700 mb-1">انتخاب متخصص (فهرست نمونه):</span>
+          <p id={`${fieldId}-cleaner-note`} className="text-[11px] text-slate-500 mb-2 leading-relaxed">
             {CLEANER_ASSIGNMENT_AVAILABLE
               ? 'انتخاب شما به موتور تخصیص سرور پاک‌شو ارسال می‌شود.'
               : 'پروفایل‌های زیر نمونه هستند. در نسخه آزمایشی هیچ متخصصی تخصیص داده نمی‌شود؛ انتخاب شما فقط به‌عنوان «درخواست» ثبت می‌شود.'}
           </p>
-          <div className="space-y-2">
-            <div
-              onClick={() => setSelectedCleanerId('auto')}
-              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+          <div
+            role="radiogroup"
+            aria-labelledby={`${fieldId}-cleaner`}
+            aria-describedby={`${fieldId}-cleaner-note`}
+            className="space-y-2"
+          >
+            <ChoiceCard
+              type="radio"
+              name={`${fieldId}-cleaner`}
+              checked={selectedCleanerId === 'auto'}
+              onChange={() => setSelectedCleanerId('auto')}
+              className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                 selectedCleanerId === 'auto' ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+              <span className="flex items-center gap-3">
+                <span aria-hidden="true" className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
                   <Sparkles className="w-5 h-5" />
-                </div>
-                <div className="text-right">
+                </span>
+                <span className="block text-right">
                   <span className="text-xs font-bold text-slate-900 block">بدون اولویت خاص (پیشنهادی)</span>
                   <span className="text-[11px] text-slate-500">در نسخه آزمایشی هیچ تخصیص یا اعزامی انجام نمی‌شود</span>
-                </div>
-              </div>
-              {selectedCleanerId === 'auto' && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
-            </div>
+                </span>
+              </span>
+              {selectedCleanerId === 'auto' && <span aria-hidden="true" className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
+            </ChoiceCard>
             {CLEANERS_LIST.slice(0, 3).map((cl) => (
-              <div
+              <ChoiceCard
                 key={cl.id}
-                onClick={() => setSelectedCleanerId(cl.id)}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                type="radio"
+                name={`${fieldId}-cleaner`}
+                checked={selectedCleanerId === cl.id}
+                onChange={() => setSelectedCleanerId(cl.id)}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                   selectedCleanerId === cl.id ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <span className="flex items-center gap-3">
                   <img src={cl.avatar} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
-                  <div className="text-right">
+                  <span className="block text-right">
                     <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       {cl.name}
                       <DemoSampleBadge />
                     </span>
                     <span className="text-[11px] text-slate-500">{cl.badge}</span>
-                  </div>
-                </div>
-                {selectedCleanerId === cl.id && <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
-              </div>
+                  </span>
+                </span>
+                {selectedCleanerId === cl.id && <span aria-hidden="true" className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
+              </ChoiceCard>
             ))}
           </div>
         </div>
@@ -548,8 +589,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     <div className="space-y-4 text-right">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">شهر:</label>
+          <label htmlFor={`${fieldId}-city`} className="block text-xs font-bold text-slate-700 mb-1">شهر:</label>
           <select
+            id={`${fieldId}-city`}
             value={cityName}
             onChange={(e) => setCityName(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none"
@@ -558,8 +600,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">منطقه / محله:</label>
+          <label htmlFor={`${fieldId}-district`} className="block text-xs font-bold text-slate-700 mb-1">منطقه / محله:</label>
           <select
+            id={`${fieldId}-district`}
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none"
@@ -571,8 +614,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
       </div>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1">آدرس دقیق (خیابان، کوچه، پلاک):</label>
+        <label htmlFor={`${fieldId}-address`} className="block text-xs font-bold text-slate-700 mb-1">آدرس دقیق (خیابان، کوچه، پلاک):</label>
         <input
+          id={`${fieldId}-address`}
           type="text"
           placeholder="مثال: بلوار دریا، خ صرافها، کوچه ۳۱، پلاک ۱۴"
           value={address}
@@ -581,8 +625,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         />
       </div>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1">طبقه و واحد:</label>
+        <label htmlFor={`${fieldId}-unit`} className="block text-xs font-bold text-slate-700 mb-1">طبقه و واحد:</label>
         <input
+          id={`${fieldId}-unit`}
           type="text"
           placeholder="مثال: طبقه ۳، واحد ۸ (زنگ غربی)"
           value={unit}
@@ -592,8 +637,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">نام و نام خانوادگی متقاضی:</label>
+          <label htmlFor={`${fieldId}-name`} className="block text-xs font-bold text-slate-700 mb-1">نام و نام خانوادگی متقاضی:</label>
           <input
+            id={`${fieldId}-name`}
             type="text"
             placeholder="مثال: سارا محمدی"
             value={customerName}
@@ -602,8 +648,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">شماره همراه (تماس/هماهنگی در نسخه واقعی):</label>
+          <label htmlFor={`${fieldId}-phone`} className="block text-xs font-bold text-slate-700 mb-1">شماره همراه (تماس/هماهنگی در نسخه واقعی):</label>
           <input
+            id={`${fieldId}-phone`}
             type="tel"
             dir="ltr"
             placeholder="0912xxxxxxx"
@@ -614,8 +661,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
       </div>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1">توضیحات و نکات خاص برای نیرو (اختیاری):</label>
+        <label htmlFor={`${fieldId}-notes`} className="block text-xs font-bold text-slate-700 mb-1">توضیحات و نکات خاص برای نیرو (اختیاری):</label>
         <textarea
+          id={`${fieldId}-notes`}
           rows={2}
           placeholder="مثلا: دارای حیوان خانگی، تاکید روی تمیزکاری..."
           value={notes}
@@ -672,21 +720,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
       </div>
       <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
-        <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-          <Tag className="w-3.5 h-3.5 text-emerald-600" />
+        <label htmlFor={`${fieldId}-promo`} className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <Tag aria-hidden="true" className="w-3.5 h-3.5 text-emerald-600" />
           کد تخفیف دارید؟
         </label>
         <div className="flex gap-2">
           <input
+            id={`${fieldId}-promo`}
             type="text"
             placeholder="مثال: PAK1403"
             value={discountCodeInput}
             onChange={(e) => setDiscountCodeInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter در این فیلد باید کد را اعمال کند، نه اینکه فرم (و سفارش) را ثبت کند.
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                handleApplyDiscount();
+              }
+            }}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-none"
           />
           <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
-        {discountMsg && <p className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
+        {/* متن دیداری؛ اعلام برای صفحه‌خوان در ناحیه‌ی status زیر کارت است (تکرار نشود). */}
+        {discountMsg && <p aria-hidden="true" className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
         {appliedPromoCode && (
           <button
             type="button"
@@ -697,31 +754,44 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </button>
         )}
       </div>
+      {/*
+        ناحیه‌ی اعلام پیام کد تخفیف: همیشه حاضر است تا صفحه‌خوان همان پیام اول را هم اعلام کند.
+        بیرون از کارت کد تخفیف و با sr-only (موقعیت absolute) است تا فاصله‌ها و چیدمان دیداری
+        تغییر نکنند.
+      */}
+      <p role="status" className="sr-only">{discountMsg?.text ?? ''}</p>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-2">نحوه پرداخت:</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div
-            onClick={() => setPaymentMethod('cash_on_site')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${paymentMethod === 'cash_on_site' ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+        <span id={`${fieldId}-payment`} className="block text-xs font-bold text-slate-700 mb-2">نحوه پرداخت:</span>
+        <div role="radiogroup" aria-labelledby={`${fieldId}-payment`} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ChoiceCard
+            type="radio"
+            name={`${fieldId}-payment`}
+            checked={paymentMethod === 'cash_on_site'}
+            onChange={() => setPaymentMethod('cash_on_site')}
+            className={`block p-4 rounded-2xl border transition-all ${paymentMethod === 'cash_on_site' ? 'bg-emerald-50 border-emerald-600 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
           >
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center">
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center">
                 {paymentMethod === 'cash_on_site' && <span className="w-2 h-2 bg-emerald-600 rounded-full" />}
               </span>
               <span className="text-xs font-bold text-slate-900">پرداخت در محل (نمایشی)</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentCashNotice}</p>
-          </div>
-          <div
-            aria-disabled={!ONLINE_PAYMENT_AVAILABLE}
-            className="p-4 rounded-2xl border border-slate-200 bg-slate-100/70 opacity-70 cursor-not-allowed"
+            </span>
+            <span className="block text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentCashNotice}</span>
+          </ChoiceCard>
+          <ChoiceCard
+            type="radio"
+            name={`${fieldId}-payment`}
+            checked={paymentMethod === 'online'}
+            onChange={() => { if (ONLINE_PAYMENT_AVAILABLE) setPaymentMethod('online'); }}
+            disabled={!ONLINE_PAYMENT_AVAILABLE}
+            className="block p-4 rounded-2xl border border-slate-200 bg-slate-100/70 opacity-70"
           >
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center" />
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center" />
               <span className="text-xs font-bold text-slate-500">پرداخت اینترنتی</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentOnlineDisabled}</p>
-          </div>
+            </span>
+            <span className="block text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentOnlineDisabled}</span>
+          </ChoiceCard>
         </div>
       </div>
     </div>
@@ -779,6 +849,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               ].map((s) => (
                 <div
                   key={s.step}
+                  aria-current={currentStep === s.step ? 'step' : undefined}
                   className={`flex items-center gap-1.5 pb-2 border-b-2 transition-all ${
                     currentStep === s.step ? 'border-emerald-600 text-emerald-700' : currentStep > s.step ? 'border-emerald-300 text-emerald-900' : 'border-transparent text-slate-400'
                   }`}
@@ -809,7 +880,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           {!createdOrder && (
             <div className="p-4 sm:px-8 border-t border-slate-200/80 bg-slate-50 flex flex-col gap-3 shrink-0">
               {formError && (
-                <div className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right animate-pulse">
+                <div role="alert" className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right animate-pulse">
                   ⚠️ {formError}
                 </div>
               )}
@@ -829,7 +900,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 {currentStep < 4 ? (
                   <button
                     type="button"
-                    onClick={handleNextStep}
+                    onClick={(event) => {
+                      // React همین گره‌ی DOM را در مرحله ۴ به دکمه‌ی type="submit" تبدیل می‌کند.
+                      // مرورگر پس از اجرای همین کلیک «رفتار فعال‌سازی» دکمه را با type جدید
+                      // اجرا می‌کرد و فرم را فوراً ثبت می‌کرد؛ یعنی مرحله‌ی فاکتور (کد تخفیف،
+                      // روش پرداخت، تأیید نهایی) هرگز دیده نمی‌شد. preventDefault آن را لغو می‌کند.
+                      event.preventDefault();
+                      handleNextStep();
+                    }}
+                    onKeyDown={ignoreAutoRepeat}
                     className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
                   >
                     <span>مرحله بعد</span>
@@ -839,6 +918,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <button
                     type="submit"
                     disabled={isSubmitting}
+                    onClick={(event) => {
+                      // کلیک دوم یک دوبار-کلیک (مثلاً روی «مرحله بعد» که همین‌جا بود) ثبت نمی‌کند؛
+                      // ثبت فقط با یک کلیک جداگانه روی دکمه‌ی تأیید نهایی.
+                      if (event.detail > 1) event.preventDefault();
+                    }}
+                    onKeyDown={ignoreAutoRepeat}
                     className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
                   >
                     <span>{isSubmitting ? 'در حال ثبت...' : 'تایید نهایی و ثبت سفارش'}</span>

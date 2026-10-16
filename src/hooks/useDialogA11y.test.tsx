@@ -69,3 +69,35 @@ describe('useDialogA11y — بازگشت فوکوس وقتی inert دیرتر ب
     await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });
+
+function DialogEndingWithRadioGroup() {
+  const [choice, setChoice] = useState('b');
+  const dialogRef = useDialogA11y(true, () => undefined);
+  return (
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="پنجره گروه گزینه" tabIndex={-1}>
+      <button type="button">دکمه اول</button>
+      {['a', 'b', 'c'].map((value) => (
+        <label key={value}>
+          <input type="radio" name="choice" checked={choice === value} onChange={() => setChoice(value)} />
+          گزینه {value}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+describe('useDialogA11y — گروه radio در مرز پنجره', () => {
+  it('از گروه radio فقط گزینه‌ی انتخاب‌شده توقف Tab است؛ Tab از آن به اولین عنصر می‌چرخد و برعکس', () => {
+    render(<DialogEndingWithRadioGroup />);
+    const first = screen.getByRole('button', { name: 'دکمه اول' });
+    const checked = screen.getByRole('radio', { name: 'گزینه b' });
+
+    checked.focus();
+    fireEvent.keyDown(checked, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(checked);
+  });
+});
+
