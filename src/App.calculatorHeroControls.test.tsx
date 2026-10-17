@@ -80,6 +80,25 @@ describe('محاسبه‌گر هزینه', () => {
     expect(detergent.checked).toBe(false);
   });
 
+  it('انتخاب تعداد سرویس و جنسیت ثبت می‌شود و جنسیت به فرم رزرو منتقل می‌شود', () => {
+    render(<App />);
+    const section = calculator();
+    const baths = within(section).getByRole('radiogroup', { name: 'تعداد سرویس بهداشتی / حمام:' });
+    const threeBaths = within(baths).getByRole('radio', { name: '3' });
+    fireEvent.click(threeBaths);
+    expect(checkedIn(baths)).toEqual([threeBaths]);
+
+    const gender = within(section).getByRole('radiogroup', { name: '۳. اولویت جنسیت متخصص:' });
+    const female = within(gender).getByRole('radio', { name: 'نظافتچی خانم' });
+    fireEvent.click(female);
+    expect(checkedIn(gender)).toEqual([female]);
+
+    fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
+    const booking = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+    const bookingGender = within(booking).getByRole('radiogroup', { name: 'اولویت جنسیت متخصص نظافت:' });
+    expect((within(bookingGender).getByRole('radio', { name: 'نظافتچی خانم' }) as HTMLInputElement).checked).toBe(true);
+  });
+
   it('اسلایدر متراژ نام و مقدار خوانا دارد', () => {
     render(<App />);
     const slider = within(calculator()).getByRole('slider', { name: '۲. متراژ تقریبی فضا:' });
@@ -95,6 +114,25 @@ describe('فرم سریع بالای صفحه', () => {
     expect(within(form).getByLabelText('نوع خدمت نظافت').tagName).toBe('SELECT');
     const slider = within(form).getByRole('slider', { name: 'مدت زمان مورد نیاز:' });
     expect(slider.getAttribute('aria-valuetext')).toMatch(/^\d+ ساعت$/);
+  });
+
+  it('شهر، نوع خدمت و ساعتِ انتخاب‌شده به فرم رزرو منتقل می‌شوند', () => {
+    render(<App />);
+    const form = heroForm();
+    const deep = SERVICES_LIST[1];
+    fireEvent.change(within(form).getByLabelText('نوع خدمت نظافت'), { target: { value: deep.id } });
+    fireEvent.change(within(form).getByRole('slider', { name: 'مدت زمان مورد نیاز:' }), { target: { value: '8' } });
+    fireEvent.change(within(form).getByLabelText('انتخاب شهر'), { target: { value: 'اصفهان' } });
+    fireEvent.click(within(form).getByRole('button', { name: /ادامه و انتخاب تاریخ و آدرس/ }));
+
+    const booking = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+    const service = within(booking).getByRole('radiogroup', { name: 'نوع خدمت نظافت مورد نظر:' });
+    expect((within(service).getByRole('radio', { name: new RegExp(deep.title.replace(/[()]/g, '\\$&')) }) as HTMLInputElement).checked).toBe(true);
+    expect((within(booking).getByRole('slider', { name: 'تعداد ساعت کار نیرو:' }) as HTMLInputElement).value).toBe('8');
+
+    fireEvent.click(within(booking).getByRole('button', { name: /مرحله بعد/ }));
+    fireEvent.click(within(booking).getByRole('button', { name: /مرحله بعد/ }));
+    expect((within(booking).getByLabelText(/^شهر:$/) as HTMLSelectElement).value).toBe('اصفهان');
   });
 
   it('جنسیت یک گروه radio است و انتخاب آن به فرم رزرو منتقل می‌شود', () => {

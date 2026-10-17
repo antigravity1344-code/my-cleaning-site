@@ -113,7 +113,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     name={`${fieldId}-service`}
                     checked={serviceId === s.id}
                     onChange={() => setServiceId(s.id)}
-                    className={`block p-3 text-right rounded-2xl border transition-all ${
+                    className={`flex flex-col justify-center p-3 text-right rounded-2xl border transition-all ${
                       serviceId === s.id
                         ? 'bg-emerald-50 border-emerald-600 shadow-xs'
                         : 'bg-white border-slate-200 hover:bg-slate-100'
