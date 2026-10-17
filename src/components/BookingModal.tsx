@@ -348,7 +348,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 text-sm transition-colors cursor-pointer"
+            className="px-8 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 text-sm transition-colors cursor-pointer"
           >
             بستن و بازگشت به سایت
           </button>
@@ -413,7 +413,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               checked={cleanerGender === g.id}
               onChange={() => setCleanerGender(g.id as CleanerGender)}
               className={`flex items-center justify-center text-center py-2.5 px-2 text-xs font-bold rounded-xl border transition-all ${
-                cleanerGender === g.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                cleanerGender === g.id ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               نظافتچی {g.label}
@@ -594,7 +594,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             id={`${fieldId}-city`}
             value={cityName}
             onChange={(e) => setCityName(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           >
             {CITIES_DATA.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
@@ -605,7 +605,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             id={`${fieldId}-district`}
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           >
             {(CITIES_DATA.find(c => c.name === cityName)?.districts || []).map(d => (
               <option key={d} value={d}>{d}</option>
@@ -621,7 +621,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           placeholder="مثال: بلوار دریا، خ صرافها، کوچه ۳۱، پلاک ۱۴"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
         />
       </div>
       <div>
@@ -632,7 +632,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           placeholder="مثال: طبقه ۳، واحد ۸ (زنگ غربی)"
           value={unit}
           onChange={(e) => setUnit(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -644,7 +644,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             placeholder="مثال: سارا محمدی"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
         </div>
         <div>
@@ -656,7 +656,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             placeholder="0912xxxxxxx"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 text-left focus:outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 text-left focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
         </div>
       </div>
@@ -668,7 +668,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           placeholder="مثلا: دارای حیوان خانگی، تاکید روی تمیزکاری..."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
         />
       </div>
     </div>
@@ -738,7 +738,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 handleApplyDiscount();
               }
             }}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-none"
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
           <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
@@ -851,11 +851,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   key={s.step}
                   aria-current={currentStep === s.step ? 'step' : undefined}
                   className={`flex items-center gap-1.5 pb-2 border-b-2 transition-all ${
-                    currentStep === s.step ? 'border-emerald-600 text-emerald-700' : currentStep > s.step ? 'border-emerald-300 text-emerald-900' : 'border-transparent text-slate-400'
+                    currentStep === s.step ? 'border-emerald-600 text-emerald-700' : currentStep > s.step ? 'border-emerald-300 text-emerald-900' : 'border-transparent text-slate-500'
                   }`}
                 >
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                    currentStep === s.step ? 'bg-emerald-600 text-white' : currentStep > s.step ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'
+                    currentStep === s.step ? 'bg-emerald-700 text-white' : currentStep > s.step ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {currentStep > s.step ? '✓' : s.step}
                   </span>
@@ -909,7 +909,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       handleNextStep();
                     }}
                     onKeyDown={ignoreAutoRepeat}
-                    className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
                   >
                     <span>مرحله بعد</span>
                     <ArrowLeft className="w-4 h-4" />

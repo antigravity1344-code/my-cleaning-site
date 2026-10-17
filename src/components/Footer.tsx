@@ -169,7 +169,7 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
         {/* Bottom Copyright */}
-        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
           <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد. نسخه فعلی، نسخه آزمایشی و غیرعملیاتی است.</p>
           <p>طراحی شده با React 19، TypeScript و Tailwind CSS</p>
         </div>

@@ -245,7 +245,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </div>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shrink-0"
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shrink-0"
             >
               جستجو
             </button>
@@ -367,17 +367,17 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                           <div key={idx} className="space-y-1.5 flex flex-col items-center">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                               isCurrent
-                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md'
+                                ? 'bg-emerald-700 text-white ring-4 ring-emerald-100 shadow-md'
                                 : isDone
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-slate-200 text-slate-500'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-slate-200 text-slate-600'
                             }`}>
                               {isDone && !isCurrent ? '✓' : idx + 1}
                             </div>
-                            <span className={`text-[11px] font-bold block ${isCurrent ? 'text-emerald-800' : isDone ? 'text-slate-800' : 'text-slate-400'}`}>
+                            <span className={`text-[11px] font-bold block ${isCurrent ? 'text-emerald-800' : isDone ? 'text-slate-800' : 'text-slate-500'}`}>
                               {step.title}
                             </span>
-                            <span className="hidden sm:block text-[9px] text-slate-400 leading-tight">
+                            <span className="hidden sm:block text-[9px] text-slate-500 leading-tight">
                               {step.desc}
                             </span>
                           </div>

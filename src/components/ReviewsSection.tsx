@@ -145,7 +145,7 @@ export const ReviewsSection: React.FC = () => {
               </div>
 
               {/* Card Footer */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <span>{rev.date}</span>
                 {rev.cleanerName && (
                   <span className="text-emerald-700 font-medium">
@@ -268,7 +268,7 @@ export const ReviewsSection: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 text-sm transition-all cursor-pointer"
+                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-md shadow-emerald-600/30 text-sm transition-all cursor-pointer"
                 >
                   ارسال و ثبت نظر
                 </button>
