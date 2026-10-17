@@ -589,7 +589,8 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
       );
       // کارت باید واقعاً در DOM رندر شده باشد (نه فقط در داده).
       expect(titleEl, `add-on card not rendered: ${addon.id}`).toBeTruthy();
-      const card = titleEl!.closest('div.rounded-2xl') as HTMLElement;
+      // کارت افزونه (اکنون label یک checkbox است، نه div).
+      const card = titleEl!.closest('.rounded-2xl') as HTMLElement;
       expect(card, `add-on card container not found: ${addon.id}`).toBeTruthy();
       expect(card.textContent).toContain(addon.description);
 
