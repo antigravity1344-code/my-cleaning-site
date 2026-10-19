@@ -134,7 +134,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
             <div>
               <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
                 <span id={`${fieldId}-area`}>۲. متراژ تقریبی فضا:</span>
-                <span aria-hidden="true" className="bg-emerald-600 text-white font-mono text-sm px-3 py-0.5 rounded-lg shadow-xs">
+                <span aria-hidden="true" className="bg-emerald-700 text-white font-mono text-sm px-3 py-0.5 rounded-lg shadow-xs">
                   {squareMeters} متر مربع
                 </span>
               </div>
@@ -149,7 +149,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                 aria-valuetext={`${squareMeters} متر مربع`}
                 className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
               />
-              <div aria-hidden="true" className="flex justify-between text-[11px] text-slate-400 mt-1.5">
+              <div aria-hidden="true" className="flex justify-between text-[11px] text-slate-500 mt-1.5">
                 <span>کوچک (۴۰ تا ۷۰ متر)</span>
                 <span>متوسط (۸۰ تا ۱۲۰ متر)</span>
                 <span>بزرگ (۱۳۰ تا ۳۰۰+ متر)</span>
@@ -173,7 +173,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                       onChange={() => setRoomsCount(num)}
                       className={`flex items-center justify-center w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all ${
                         roomsCount === num
-                          ? 'bg-emerald-600 text-white shadow-md'
+                          ? 'bg-emerald-700 text-white shadow-md'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
@@ -198,7 +198,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                       onChange={() => setBathroomsCount(num)}
                       className={`flex items-center justify-center w-9 h-9 rounded-xl font-bold font-mono text-sm transition-all ${
                         bathroomsCount === num
-                          ? 'bg-emerald-600 text-white shadow-md'
+                          ? 'bg-emerald-700 text-white shadow-md'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
