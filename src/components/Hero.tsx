@@ -251,7 +251,7 @@ export const Hero: React.FC<HeroProps> = ({
                     aria-valuetext={`${selectedHours} ساعت`}
                     className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                   />
-                  <div aria-hidden="true" className="flex justify-between text-[10px] text-slate-400 mt-1">
+                  <div aria-hidden="true" className="flex justify-between text-[10px] text-slate-500 mt-1">
                     <span>حداقل {currentServiceObj.minHours} ساعت</span>
                     <span>۸ ساعت (یک روز کاری کامل)</span>
                     <span>۱۲ ساعت</span>
@@ -286,7 +286,7 @@ export const Hero: React.FC<HeroProps> = ({
                   <ArrowLeft className="w-5 h-5" />
                 </button>
 
-                <p className="text-center text-[11px] text-slate-400">
+                <p className="text-center text-[11px] text-slate-500">
                   نسخه آزمایشی — هیچ پرداخت یا اعزام واقعی انجام نمی‌شود
                 </p>
 
