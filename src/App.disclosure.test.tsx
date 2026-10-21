@@ -111,7 +111,7 @@ describe('منوی موبایل — تغییر عرض صفحه', () => {
     vi.restoreAllMocks();
   });
 
-  it('اگر صفحه آن‌قدر پهن شود که دکمه‌ی منو پنهان شود (مثلاً گوشی افقی)، منوی باز بسته می‌شود', () => {
+  it('اگر صفحه آن‌قدر پهن شود که منوی دسکتاپ جای دکمه‌ی منو را بگیرد، منوی باز بسته می‌شود', () => {
     const listeners: Array<(event: { matches: boolean }) => void> = [];
     const removed: unknown[] = [];
     const queries: string[] = [];
@@ -129,7 +129,7 @@ describe('منوی موبایل — تغییر عرض صفحه', () => {
     fireEvent.click(toggle);
     const menuId = toggle.getAttribute('aria-controls') ?? '';
     expect(document.getElementById(menuId)).not.toBeNull();
-    expect(queries).toContain('(min-width: 40rem)');
+    expect(queries).toContain('(min-width: 80rem)');
     expect(listeners).toHaveLength(1);
 
     // هنوز عرض موبایل: منو باز می‌ماند
@@ -140,6 +140,69 @@ describe('منوی موبایل — تغییر عرض صفحه', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(document.getElementById(menuId)).toBeNull();
     expect(removed).toContain(listeners[0]);
+  });
+});
+
+describe('منوی موبایل — هماهنگی breakpointها و ارتفاع کم', () => {
+  // jsdom چیدمان و media query ندارد؛ آزمون breakpoint فقط هماهنگی کلاس‌ها را نگه می‌دارد.
+  // نمایش واقعی در هر عرض در مرورگر (Chromium) بررسی شده است.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const tokens = (element: Element | null) => (element?.getAttribute('class') ?? '').split(/\s+/);
+
+  it('دکمه‌ی منو، خود منو و منوی دسکتاپ در یک breakpoint (xl) جابه‌جا می‌شوند؛ هیچ عرضی بدون ناوبری نمی‌ماند', () => {
+    render(<App />);
+    const header = document.querySelector('header') as HTMLElement;
+    const toggle = screen.getByRole('button', { name: 'باز کردن منو' });
+    const nav = header.querySelector('nav');
+    fireEvent.click(toggle);
+    const drawer = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+
+    expect(tokens(nav)).toEqual(expect.arrayContaining(['hidden', 'xl:flex']));
+    expect(tokens(toggle.parentElement)).toContain('xl:hidden');
+    expect(tokens(drawer)).toContain('xl:hidden');
+    for (const element of [nav, toggle.parentElement, drawer]) {
+      expect(tokens(element).filter((token) => /^(sm|md|lg):(hidden|flex)$/.test(token))).toEqual([]);
+    }
+    // دکمه‌ی آیکنی پیگیری فقط وقتی دیده می‌شود که دکمه‌های اصلی هدر (از sm به بالا) پنهان‌اند.
+    expect(tokens(within(toggle.parentElement as HTMLElement).getByRole('button', { name: 'درخواست‌های آزمایشی' }))).toContain('sm:hidden');
+  });
+
+  it('منوی باز به فضای زیر خودش محدود می‌شود و با اسکرول و تغییر ارتفاع صفحه دوباره اندازه می‌گیرد', () => {
+    let drawerTop = 195;
+    let viewportHeight = 375;
+    vi.spyOn(window, 'innerHeight', 'get').mockImplementation(() => viewportHeight);
+    const nativeRect = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.id && this.id === document.querySelector('header button[aria-controls]')?.getAttribute('aria-controls')) {
+        return { top: drawerTop, bottom: drawerTop + 448, left: 0, right: 812, width: 812, height: 448, x: 0, y: drawerTop, toJSON: () => ({}) } as DOMRect;
+      }
+      return nativeRect.call(this);
+    });
+    render(<App />);
+    const toggle = screen.getByRole('button', { name: 'باز کردن منو' });
+    fireEvent.click(toggle);
+    const drawer = document.getElementById(toggle.getAttribute('aria-controls') ?? '') as HTMLElement;
+
+    // گوشی افقی، صفحه در بالاترین نقطه: منو از ۱۹۵ پیکسل شروع می‌شود و فقط ۱۸۰ پیکسل جا دارد.
+    expect(tokens(drawer)).toContain('overflow-y-auto');
+    expect(drawer.style.maxHeight).toBe('180px');
+
+    // با اسکرول، هدر به بالای صفحه می‌چسبد و منو جای بیشتری پیدا می‌کند.
+    drawerTop = 132;
+    fireEvent.scroll(window);
+    expect(drawer.style.maxHeight).toBe('243px');
+
+    // برگشت به حالت عمودی
+    viewportHeight = 812;
+    fireEvent(window, new Event('resize'));
+    expect(drawer.style.maxHeight).toBe('680px');
+
+    fireEvent.click(toggle);
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toBeNull();
+    expect(() => fireEvent.scroll(window)).not.toThrow();
   });
 });
 

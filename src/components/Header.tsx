@@ -1,11 +1,15 @@
-import React, { useState, useId, useRef, useEffect } from 'react';
+import React, { useState, useId, useRef, useEffect, useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { Sparkles, PhoneCall, Search, CalendarCheck, Menu, X, ShieldCheck, Bot, FlaskConical } from 'lucide-react';
 import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 import { scrollToSection as scrollPageToSection } from '../utils/scrollToSection';
 
-/** از این عرض به بالا دکمه‌ی منوی موبایل پنهان است (`sm:hidden`، یعنی 40rem در Tailwind). */
-const MENU_BUTTON_HIDDEN_QUERY = '(min-width: 40rem)';
+/**
+ * یک breakpoint برای هر سه بخش ناوبری: از این عرض به بالا منوی دسکتاپ دیده می‌شود و دکمه‌ی
+ * منو و خود منو پنهان‌اند (`xl:flex` / `xl:hidden`، یعنی 80rem در Tailwind). منوی دسکتاپ
+ * کنار دکمه‌های اصلی فقط از حدود ۱۱۰۰ پیکسل جا می‌شود؛ زیر این عرض دکمه‌ی منو نمایش داده می‌شود.
+ */
+const DESKTOP_NAV_QUERY = '(min-width: 80rem)';
 
 interface HeaderProps {
   onOpenBooking: (serviceId?: string) => void;
@@ -23,13 +27,36 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuId = useId();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-  // اگر منو باز باشد و صفحه پهن شود (مثلاً چرخاندن گوشی به حالت افقی)، دکمه‌ی منو پنهان
-  // می‌شود ولی خود منو تا عرض lg دیده می‌ماند؛ کاربر راهی برای بستنش ندارد و در گوشیِ افقی
-  // هدر چسبان با منو از ارتفاع صفحه بلندتر می‌شود. پس در این حالت منو بسته می‌شود.
+  // منوی باز هیچ‌وقت از پایین صفحه بیرون نمی‌زند: ارتفاعش به فضای واقعیِ زیر خودش محدود
+  // می‌شود و بقیه‌ی گزینه‌ها داخل خود منو اسکرول می‌خورند. در ارتفاع کم (مثلاً گوشی افقی)
+  // هدر چسبان با منو بلندتر از صفحه بود؛ تا وقتی صفحه بالاست، اطلاعیه‌ی آزمایشیِ بالای هدر
+  // هم هدر را پایین‌تر می‌آورد، پس اندازه با هر اسکرول و تغییر اندازه‌ی صفحه دوباره حساب می‌شود.
+  useLayoutEffect(() => {
+    const drawer = drawerRef.current;
+    if (!mobileMenuOpen || !drawer) return;
+    const fitToViewport = () => {
+      // موقعیت از روی چیدمان (offsetTop نسبت به هدر) خوانده می‌شود، نه getBoundingClientRect
+      // خود منو؛ انیمیشن ورود منو (slide-in) جابه‌جایی موقت دارد و اندازه را چند پیکسل خراب می‌کرد.
+      const parent = drawer.offsetParent;
+      const top = parent ? parent.getBoundingClientRect().top + drawer.offsetTop : drawer.getBoundingClientRect().top;
+      drawer.style.maxHeight = `${Math.max(0, Math.floor(window.innerHeight - top))}px`;
+    };
+    fitToViewport();
+    window.addEventListener('resize', fitToViewport);
+    window.addEventListener('scroll', fitToViewport, { passive: true });
+    return () => {
+      window.removeEventListener('resize', fitToViewport);
+      window.removeEventListener('scroll', fitToViewport);
+    };
+  }, [mobileMenuOpen]);
+
+  // اگر منو باز باشد و صفحه آن‌قدر پهن شود که منوی دسکتاپ جایش را بگیرد، منوی باز بسته
+  // می‌شود؛ وگرنه با برگشتن به عرض کم، منویی که کاربر رهایش کرده دوباره باز ظاهر می‌شد.
   useEffect(() => {
     if (!mobileMenuOpen || typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia(MENU_BUTTON_HIDDEN_QUERY);
+    const query = window.matchMedia(DESKTOP_NAV_QUERY);
     if (query.matches) {
       setMobileMenuOpen(false);
       return;
@@ -119,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
             </a>
 
             {/* Desktop Nav Items */}
-            <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-700">
+            <nav className="hidden xl:flex items-center gap-7 text-sm font-semibold text-slate-700">
               <button 
                 onClick={() => scrollToSection('services')}
                 className="hover:text-emerald-600 transition-colors cursor-pointer"
@@ -202,10 +229,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Mobile Hamburger Button */}
-          <div className="flex sm:hidden items-center gap-2">
+          <div className="flex xl:hidden items-center gap-2">
             <button
               onClick={onOpenTracker}
-              className="p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+              className="sm:hidden p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
               aria-label="درخواست‌های آزمایشی"
             >
               <Search className="w-5 h-5" />
@@ -227,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div id={mobileMenuId} className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl animate-in slide-in-from-top-2">
+        <div ref={drawerRef} id={mobileMenuId} className="xl:hidden overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl animate-in slide-in-from-top-2">
           <div className="grid grid-cols-2 gap-2 pb-2">
             <button
               onClick={() => {
