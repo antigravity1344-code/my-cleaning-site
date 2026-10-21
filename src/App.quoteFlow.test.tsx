@@ -1,0 +1,372 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import App from './App';
+import { DEMO_STORAGE_KEY } from './services/pii';
+import {
+  OrderGatewayError,
+  type CustomerOrderGateway,
+  type OrderBackend,
+  type OrderReceipt,
+  type OrderRequest,
+  type Quote,
+  type QuoteRequest,
+} from './services/customerOrders';
+import { waitForInvoice } from './testing/invoice';
+
+/**
+ * فاکتور فرم از پیش‌فاکتور gateway و ثبت گره‌خورده به پیش‌فاکتور تأییدشده — روی مسیر واقعی
+ * `<App />`.
+ *
+ * ⚠️ adapter این آزمون‌ها **ساختگی** (در حافظه) است و اتصال واقعی به بک‌اند سایت یا اپ موبایل
+ * نیست. هدف فقط این است که نشان دهد فرم بدون دانستن adapter:
+ *   • مبلغ را از پیش‌فاکتور همان adapter نشان می‌دهد، نه از محاسبهٔ مرورگر؛
+ *   • کد تخفیف را با همان adapter می‌سنجد؛
+ *   • ثبت را با مرجع و مبلغ همان پیش‌فاکتورِ دیده‌شده می‌فرستد؛
+ *   • در انقضا یا تغییر قیمت، پیش‌فاکتور تازه می‌گیرد و ثبت خودکار انجام نمی‌دهد.
+ */
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
+
+const RECEIPT: OrderReceipt = {
+  trackingCode: 'QUOTE-DOUBLE-0001',
+  status: 'new',
+  createdAt: '2026-10-21T10:00:00.000Z',
+  total: 0,
+  isProvisional: false,
+};
+
+/** کد تخفیفی که فقط adapter ساختگی می‌شناسد (در فهرست نمونهٔ سایت نیست). */
+const DOUBLE_PROMO = 'ONLYDOUBLE';
+const DOUBLE_PROMO_AMOUNT = 321_000;
+
+interface DoubleOptions {
+  /** مبلغ پایهٔ هر پیش‌فاکتور، به ترتیب صدور (آخرین مقدار تکرار می‌شود). */
+  totals?: number[];
+  /** مهلت هر پیش‌فاکتور به میلی‌ثانیه، به ترتیب صدور (آخرین مقدار تکرار می‌شود). */
+  ttls?: number[];
+  /**
+   * پاسخ ثبت. پیش‌فرض مثل بک‌اند واقعی است: انقضای پیش‌فاکتور را با **ساعت خودِ سرور** می‌سنجد
+   * (`quote_expired`) و در غیر این صورت رسید می‌دهد.
+   */
+  submit?: (request: OrderRequest, index: number) => Promise<OrderReceipt>;
+  /** اختلاف ساعت سرور با ساعت مرورگر (میلی‌ثانیه)؛ منفی یعنی سرور عقب‌تر است. */
+  serverClockOffsetMs?: number;
+  /** پاسخ پیش‌فاکتور؛ برای شبیه‌سازی خطا. */
+  quoteFailure?: (index: number) => OrderGatewayError | null;
+}
+
+const pick = <T,>(values: T[], index: number): T => values[Math.min(index, values.length - 1)];
+
+const createQuoteDouble = ({
+  totals = [4_000_000],
+  ttls = [60_000],
+  submit,
+  quoteFailure,
+  serverClockOffsetMs = 0,
+}: DoubleOptions = {}) => {
+  const serverNow = () => Date.now() + serverClockOffsetMs;
+  const quotes: Array<{ request: QuoteRequest; quote: Quote }> = [];
+  /** هر درخواست ثبتی که به بک‌اند رسید (پذیرفته یا ردشده). */
+  const submitted: OrderRequest[] = [];
+  /** فقط ثبت‌هایی که بک‌اند پذیرفت. */
+  const accepted: OrderRequest[] = [];
+  let quoteCalls = 0;
+  const gateway: CustomerOrderGateway = {
+    getQuote: async (request) => {
+      const index = quoteCalls;
+      quoteCalls += 1;
+      const failure = quoteFailure?.(index);
+      if (failure) throw failure;
+      if (request.promoCode && request.promoCode !== DOUBLE_PROMO) {
+        throw new OrderGatewayError('validation', 'کد تخفیف معتبر نیست.', 'promoCode');
+      }
+      const base = pick(totals, quotes.length);
+      const discount = request.promoCode === DOUBLE_PROMO ? DOUBLE_PROMO_AMOUNT : 0;
+      const quote: Quote = {
+        serviceTitle: 'خدمت adapter ساختگی',
+        hours: request.hours,
+        hourlyRate: Math.round(base / request.hours),
+        serviceBase: base,
+        addonLines: [],
+        addonsTotal: 0,
+        detergentCost: 0,
+        subtotal: base,
+        discountLines: discount ? [{ id: `promo:${DOUBLE_PROMO}`, title: `کد تخفیف ${DOUBLE_PROMO}`, amount: discount }] : [],
+        discountsTotal: discount,
+        total: base - discount,
+        isProvisional: false,
+        reference: `DOUBLE-Q-${quotes.length + 1}`,
+        expiresAt: new Date(serverNow() + pick(ttls, quotes.length)).toISOString(),
+      };
+      quotes.push({ request: structuredClone(request), quote });
+      return quote;
+    },
+    submitOrderRequest: async (request) => {
+      submitted.push(structuredClone(request));
+      if (submit) {
+        const receipt = await submit(request, submitted.length - 1);
+        accepted.push(structuredClone(request));
+        return receipt;
+      }
+      const issued = quotes.find((item) => item.quote.reference === request.acceptedQuote.reference);
+      if (!issued || serverNow() >= Date.parse(issued.quote.expiresAt as string)) {
+        throw new OrderGatewayError('quote_expired', 'اعتبار پیش‌فاکتور تمام شده است.');
+      }
+      accepted.push(structuredClone(request));
+      return { ...RECEIPT, total: request.acceptedQuote.total };
+    },
+    trackOrder: async () => null,
+  };
+  const backend: OrderBackend = { mode: 'standalone', gateway, demoLedger: null };
+  return { backend, quotes, submitted, accepted, quoteCalls: () => quoteCalls };
+};
+
+const fa = (value: number): string => value.toLocaleString('fa-IR');
+
+const openToInvoice = (backend: OrderBackend): HTMLElement => {
+  render(<App orderBackend={backend} />);
+  fireEvent.click(screen.getAllByRole('button', { name: /رزرو آنلاین نظافت/ })[0]);
+  const dialog = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+  const next = () => fireEvent.click(within(dialog).getByRole('button', { name: /مرحله بعد/ }));
+  next();
+  next();
+  fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+  fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+  fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: '09121234567' } });
+  next();
+  return dialog;
+};
+
+const invoiceTotal = (dialog: HTMLElement): string => dialog.querySelector('.text-2xl')?.textContent?.trim() ?? '';
+
+describe('فاکتور از پیش‌فاکتور gateway (adapter ساختگی، نه اتصال واقعی)', () => {
+  it('تا رسیدن پیش‌فاکتور تأیید ممکن نیست؛ بعد مبلغ همان adapter نمایش داده و با ثبت فرستاده می‌شود', async () => {
+    const double = createQuoteDouble({ totals: [4_000_000] });
+    const dialog = openToInvoice(double.backend);
+
+    const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }) as HTMLButtonElement;
+    // تا رسیدن پیش‌فاکتور فقط aria-disabled است، نه disabled: غیرفعال‌کردن واقعی همان دکمه‌ای که
+    // فوکوس دارد، فوکوس صفحه‌کلید را از پنجره بیرون می‌انداخت (یافتهٔ بازبینی PR #26).
+    expect(confirm.getAttribute('aria-disabled')).toBe('true');
+    expect(confirm.disabled).toBe(false);
+    expect(confirm.getAttribute('aria-describedby')).toBeTruthy();
+
+    await waitForInvoice(dialog);
+    expect(invoiceTotal(dialog)).toBe(fa(4_000_000));
+    expect(dialog.textContent).toContain('خدمت adapter ساختگی');
+
+    fireEvent.click(confirm);
+    expect(await within(dialog).findByText(RECEIPT.trackingCode)).toBeTruthy();
+    expect(double.submitted).toHaveLength(1);
+    expect(double.submitted[0].acceptedQuote).toEqual({ reference: 'DOUBLE-Q-1', total: 4_000_000 });
+    // ورودی پیش‌فاکتور همان انتخاب‌های ثبت است.
+    expect(double.quotes[0].request.hours).toBe(double.submitted[0].hours);
+    expect(double.quotes[0].request.serviceId).toBe(double.submitted[0].serviceId);
+  });
+
+  it('کد تخفیف را همان adapter می‌سنجد: کد نمونهٔ سایت رد و کد adapter پذیرفته می‌شود', async () => {
+    const double = createQuoteDouble({ totals: [4_000_000] });
+    const dialog = openToInvoice(double.backend);
+    await waitForInvoice(dialog);
+    const promo = within(dialog).getByLabelText(/کد تخفیف دارید/);
+    const status = within(dialog).getByRole('status');
+
+    // کدی که در فهرست نمونهٔ سایت هست ولی adapter نمی‌شناسد.
+    fireEvent.change(promo, { target: { value: 'PAK1403' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'اعمال' }));
+    await waitFor(() => expect(status.textContent).toBe('کد تخفیف معتبر نیست.'));
+    expect(invoiceTotal(dialog)).toBe(fa(4_000_000));
+
+    fireEvent.change(promo, { target: { value: DOUBLE_PROMO.toLowerCase() } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'اعمال' }));
+    await waitFor(() => expect(status.textContent).toContain(fa(DOUBLE_PROMO_AMOUNT)));
+    await waitFor(() => expect(invoiceTotal(dialog)).toBe(fa(4_000_000 - DOUBLE_PROMO_AMOUNT)));
+
+    fireEvent.click(await waitForInvoice(dialog));
+    await within(dialog).findByText(RECEIPT.trackingCode);
+    const [request] = double.submitted;
+    expect(request.promoCode).toBe(DOUBLE_PROMO);
+    const accepted = double.quotes.find((item) => item.quote.reference === request.acceptedQuote.reference);
+    expect(accepted?.request.promoCode).toBe(DOUBLE_PROMO);
+    expect(request.acceptedQuote.total).toBe(4_000_000 - DOUBLE_PROMO_AMOUNT);
+  });
+
+  it('پیش‌فاکتورِ منقضی را بک‌اند رد می‌کند؛ سفارشی ساخته نمی‌شود، پیش‌فاکتور تازه گرفته می‌شود و تأیید دوباره لازم است', async () => {
+    const double = createQuoteDouble({ totals: [4_000_000, 4_200_000], ttls: [40, 60_000] });
+    const dialog = openToInvoice(double.backend);
+    const confirm = await waitForInvoice(dialog);
+    expect(invoiceTotal(dialog)).toBe(fa(4_000_000));
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    fireEvent.click(confirm);
+
+    expect((await within(dialog).findByRole('alert')).textContent).toContain('اعتبار پیش‌فاکتور تمام شد');
+    expect(double.accepted).toHaveLength(0);
+    await waitFor(() => expect(invoiceTotal(dialog)).toBe(fa(4_200_000)));
+    expect(double.quotes).toHaveLength(2);
+    // ثبت خودکار انجام نشده است: فقط پس از تأیید دوبارهٔ مشتری.
+    expect(double.submitted).toHaveLength(1);
+
+    fireEvent.click(await waitForInvoice(dialog));
+    await within(dialog).findByText(RECEIPT.trackingCode);
+    expect(double.accepted).toHaveLength(1);
+    expect(double.accepted[0].acceptedQuote).toEqual({ reference: 'DOUBLE-Q-2', total: 4_200_000 });
+  });
+
+  it('اگر ساعت مرورگر از ساعت سرور جلوتر باشد، مرورگر خودش پیش‌فاکتور را «منقضی» نمی‌داند و ثبت به بک‌اند می‌رسد', async () => {
+    // سرور ۲۰ دقیقه عقب‌تر است؛ مهلت پیش‌فاکتور ۱۵ دقیقه. با ساعت مرورگر، هر پیش‌فاکتور از همان
+    // لحظهٔ رسیدن «منقضی» به نظر می‌رسد، ولی برای خودِ سرور معتبر است (یافتهٔ بازبینی PR #26).
+    const double = createQuoteDouble({
+      totals: [4_000_000],
+      ttls: [15 * 60 * 1000],
+      serverClockOffsetMs: -20 * 60 * 1000,
+    });
+    const dialog = openToInvoice(double.backend);
+    fireEvent.click(await waitForInvoice(dialog));
+
+    await within(dialog).findByText(RECEIPT.trackingCode);
+    expect(Date.parse(double.quotes[0].quote.expiresAt as string)).toBeLessThan(Date.now());
+    expect(double.quotes).toHaveLength(1);
+    expect(double.accepted).toHaveLength(1);
+  });
+
+  it('اگر بک‌اند هنگام ثبت بگوید قیمت عوض شده، سفارشی ساخته نمی‌شود و مبلغ تازه برای تأیید دوباره نمایش داده می‌شود', async () => {
+    const double = createQuoteDouble({
+      totals: [4_000_000, 4_500_000],
+      submit: async (request, index) => {
+        if (index === 0) throw new OrderGatewayError('price_changed', 'قیمت تغییر کرده است.');
+        return { ...RECEIPT, total: request.acceptedQuote.total };
+      },
+    });
+    const dialog = openToInvoice(double.backend);
+    fireEvent.click(await waitForInvoice(dialog));
+
+    expect((await within(dialog).findByRole('alert')).textContent).toContain('مبلغ تغییر کرده است');
+    expect(within(dialog).queryByText(RECEIPT.trackingCode)).toBeNull();
+    await waitFor(() => expect(invoiceTotal(dialog)).toBe(fa(4_500_000)));
+
+    // ثبت خودکار انجام نشده است: فقط پس از تأیید دوبارهٔ مشتری.
+    expect(double.submitted).toHaveLength(1);
+    fireEvent.click(await waitForInvoice(dialog));
+    await within(dialog).findByText(RECEIPT.trackingCode);
+    expect(double.submitted).toHaveLength(2);
+    expect(double.submitted[1].acceptedQuote).toEqual({ reference: 'DOUBLE-Q-2', total: 4_500_000 });
+  });
+
+  it('اگر پیش‌فاکتور نرسد، مبلغی نمایش داده نمی‌شود، تأیید غیرفعال است و دریافت دوباره ممکن است', async () => {
+    const double = createQuoteDouble({
+      totals: [4_000_000],
+      quoteFailure: (index) => (index === 0 ? new OrderGatewayError('unavailable', 'سرور در دسترس نیست.') : null),
+    });
+    const dialog = openToInvoice(double.backend);
+
+    expect(await within(dialog).findByText(/پیش‌فاکتور دریافت نشد/)).toBeTruthy();
+    expect(invoiceTotal(dialog)).toBe('');
+    const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }) as HTMLButtonElement;
+    expect(confirm.getAttribute('aria-disabled')).toBe('true');
+    // کلیک روی دکمه‌ای که فقط aria-disabled است هم ثبتی نمی‌فرستد.
+    fireEvent.click(confirm);
+    expect((await within(dialog).findByRole('alert')).textContent).toContain('پیش‌فاکتور هنوز آماده نیست');
+    expect(double.submitted).toHaveLength(0);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'دریافت دوبارهٔ پیش‌فاکتور' }));
+    await waitForInvoice(dialog);
+    expect(invoiceTotal(dialog)).toBe(fa(4_000_000));
+    expect(double.submitted).toHaveLength(0);
+    expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBeNull();
+  });
+});
+
+describe('نسخهٔ نمایشی: همان مبالغ، این بار از پیش‌فاکتور adapter نمایشی', () => {
+  it('ثبت نمایشی با پیش‌فاکتور همان adapter انجام می‌شود و مبلغ ذخیره‌شده همان مبلغ فاکتور است', async () => {
+    render(<App />);
+    fireEvent.click(screen.getAllByRole('button', { name: /رزرو آنلاین نظافت/ })[0]);
+    const dialog = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+    const next = () => fireEvent.click(within(dialog).getByRole('button', { name: /مرحله بعد/ }));
+    next();
+    next();
+    fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+    fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+    fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: '09121234567' } });
+    next();
+
+    const confirm = await waitForInvoice(dialog);
+    const shown = invoiceTotal(dialog);
+    fireEvent.click(confirm);
+    await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' });
+
+    const [stored] = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) ?? '[]') as Array<{ totalPrice: number }>;
+    expect(fa(stored.totalPrice)).toBe(shown);
+  });
+});
+
+describe('یافته‌های بازبینی PR #26 — آزمون رگرسیون (adapter ساختگی، نه اتصال واقعی)', () => {
+  it('پاسخ دیررسیدهٔ بررسی کد تخفیف پس از بستن پنجره، کد را در باز کردن بعدی بی‌صدا اعمال نمی‌کند', async () => {
+    let releasePromo: (() => void) | null = null;
+    const base = createQuoteDouble({ totals: [4_000_000] });
+    const slowGetQuote: CustomerOrderGateway['getQuote'] = async (request) => {
+      if (request.promoCode) {
+        await new Promise<void>((resolve) => {
+          releasePromo = resolve;
+        });
+      }
+      return base.backend.gateway.getQuote(request);
+    };
+    const backend: OrderBackend = { ...base.backend, gateway: { ...base.backend.gateway, getQuote: slowGetQuote } };
+    const dialog = openToInvoice(backend);
+    await waitForInvoice(dialog);
+
+    fireEvent.change(within(dialog).getByLabelText(/کد تخفیف دارید/), { target: { value: DOUBLE_PROMO } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'اعمال' }));
+    await waitFor(() => expect(releasePromo).not.toBeNull());
+
+    // بستن پنجره پیش از رسیدن پاسخ، بعد رسیدن پاسخ، بعد باز کردن دوباره.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'بستن' }));
+    await act(async () => releasePromo?.());
+    fireEvent.click(screen.getAllByRole('button', { name: /رزرو آنلاین نظافت/ })[0]);
+    const reopened = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+    const next = () => fireEvent.click(within(reopened).getByRole('button', { name: /مرحله بعد/ }));
+    next();
+    next();
+    fireEvent.change(within(reopened).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+    fireEvent.change(within(reopened).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+    fireEvent.change(within(reopened).getByLabelText(/شماره همراه/), { target: { value: '09121234567' } });
+    next();
+    const confirm = await waitForInvoice(reopened);
+
+    expect(within(reopened).queryByRole('button', { name: new RegExp(`حذف کد تخفیف ${DOUBLE_PROMO}`) })).toBeNull();
+    expect(invoiceTotal(reopened)).toBe(fa(4_000_000));
+    fireEvent.click(confirm);
+    await within(reopened).findByText(RECEIPT.trackingCode);
+    expect(base.accepted[0].promoCode).toBeUndefined();
+    expect(base.accepted[0].acceptedQuote.total).toBe(4_000_000);
+  });
+
+  it('اگر بررسی دوبارهٔ درخواست نامشخص پس از بازکردن دوباره quote_expired بگیرد، وعدهٔ «پیش‌فاکتور تازه دریافت می‌شود» داده نمی‌شود', async () => {
+    const double = createQuoteDouble({
+      totals: [4_000_000],
+      submit: async (_request, index) => {
+        if (index === 0) throw new OrderGatewayError('outcome_unknown', 'پاسخ گم شد.');
+        throw new OrderGatewayError('quote_expired', 'منقضی.');
+      },
+    });
+    const dialog = openToInvoice(double.backend);
+    fireEvent.click(await waitForInvoice(dialog));
+    await within(dialog).findByText('نتیجهٔ ثبت درخواست قبلی معلوم نیست');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'بستن' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /رزرو آنلاین نظافت/ })[0]);
+    const reopened = screen.getByRole('dialog', { name: 'ثبت درخواست خدمات نظافت' });
+    fireEvent.click(within(reopened).getByRole('button', { name: /بررسی دوبارهٔ همان درخواست/ }));
+
+    const alert = await within(reopened).findByRole('alert');
+    expect(alert.textContent).toContain('درخواست ثبت نشد');
+    expect(alert.textContent).not.toContain('پیش‌فاکتور تازه دریافت می‌شود');
+    expect(double.accepted).toHaveLength(0);
+  });
+});

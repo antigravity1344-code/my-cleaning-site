@@ -4,10 +4,16 @@ import {
   Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
 } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
-import { ServiceType, CleanerGender, BookingOrder } from '../types';
-import { CreateOrderDTO } from '../services/orderService.types';
-import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
-import { buildDemoOrderPayload } from '../services/demoOrder';
+import { ServiceType, CleanerGender } from '../types';
+import {
+  isOrderGatewayError,
+  type OrderReceipt,
+  type OrderRequest,
+  type Quote,
+  type QuoteRequest,
+} from '../services/customerOrders/contract';
+import { useGatewayQuote } from '../hooks/useGatewayQuote';
+import { PRICING_CONFIG } from '../pricing/pricingEngine';
 import { toLatinDigits } from '../services/pii';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
@@ -20,6 +26,38 @@ const TIME_SLOTS = [
   '۱۲:۳۰ الی ۱۶:۳۰ (ظهر و بعدازظهر)',
   '۱۶:۳۰ الی ۲۰:۳۰ (عصر و غروب)',
 ];
+
+const UNCERTAIN_OUTCOME_TEXT =
+  'نتیجهٔ ثبت معلوم نیست؛ ممکن است درخواست ثبت شده باشد ولی پاسخ به این صفحه نرسیده باشد. «بررسی دوباره» همان درخواست را با همان شناسه می‌فرستد و سفارش تکراری ساخته نمی‌شود.';
+
+/**
+ * متن خطای ثبت بر اساس «نوع» خطای قرارداد، نه متن پیام adapter.
+ * هیچ حالتی به ذخیرهٔ نمایشی برنمی‌گردد؛ خطا فقط نمایش داده می‌شود.
+ * «ثبت نشد» فقط برای خطای قطعی گفته می‌شود؛ خطای ناشناخته نامشخص حساب می‌شود.
+ */
+const submitErrorText = (error: unknown): string => {
+  if (!isOrderGatewayError(error)) return UNCERTAIN_OUTCOME_TEXT;
+  switch (error.kind) {
+    case 'local_storage':
+      return 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.';
+    case 'not_implemented':
+      return error.message;
+    case 'conflict':
+      return 'این درخواست قبلاً با اطلاعات دیگری ثبت شده است؛ فرم را ببندید و دوباره تلاش کنید.';
+    case 'validation':
+      return 'برخی اطلاعات درخواست معتبر نیست؛ لطفاً فرم را بررسی کنید.';
+    case 'price_changed':
+      return 'مبلغ تغییر کرده است؛ پیش‌فاکتور تازه دریافت می‌شود. لطفاً مبلغ را بررسی و دوباره تأیید کنید.';
+    case 'quote_expired':
+      return 'اعتبار پیش‌فاکتور تمام شد؛ پیش‌فاکتور تازه دریافت می‌شود. لطفاً مبلغ را بررسی و دوباره تأیید کنید.';
+    case 'rate_limited':
+      return 'تعداد درخواست‌ها زیاد بود؛ چند دقیقه بعد دوباره تلاش کنید.';
+    case 'unavailable':
+      return 'ارتباط با سرور برقرار نشد و درخواست ارسال نشد. مجدداً تلاش فرمایید.';
+    case 'outcome_unknown':
+      return UNCERTAIN_OUTCOME_TEXT;
+  }
+};
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -36,8 +74,25 @@ interface BookingModalProps {
     cityName?: string;
     cleanerId?: string;
   };
-  onOrderCreated: (order: BookingOrder) => void;
-  createOrderService?: (orderData: CreateOrderDTO) => Promise<BookingOrder>;
+  onOrderCreated: (receipt: OrderReceipt) => void;
+  /**
+   * پیش‌فاکتور از راه قرارداد (همان adapter فعال). فاکتور مرحلهٔ ۴ و اعتبار کد تخفیف فقط از
+   * همین می‌آیند؛ بدون آن، تأیید نهایی ممکن نیست.
+   */
+  getQuote?: (request: QuoteRequest) => Promise<Quote>;
+  /**
+   * ثبت درخواست از راه لایهٔ اتصال. فرم هیچ مبلغ، وضعیت، روش پرداخت یا متخصص
+   * تخصیص‌یافته‌ای نمی‌فرستد و نمی‌داند کدام adapter پشت این تابع است. کلید تکرار را هم
+   * لایهٔ اتصال می‌سازد و نگه می‌دارد.
+   */
+  submitOrderRequest?: (request: OrderRequest) => Promise<OrderReceipt>;
+  /**
+   * درخواستی که نتیجهٔ ثبتش معلوم نیست. تا وقتی مقدار دارد، فرم به‌جای مراحل فقط وضعیت همان
+   * درخواست و دکمهٔ «بررسی دوباره» را نشان می‌دهد؛ پس تغییر فرم یا بستن و بازکردن پنجره
+   * نمی‌تواند آن را بی‌صدا به سفارش تازه تبدیل کند.
+   */
+  unresolvedSubmission?: OrderRequest | null;
+  retryUnresolvedSubmission?: () => Promise<OrderReceipt>;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
@@ -46,7 +101,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialServiceId = 'home-standard',
   initialParams,
   onOrderCreated,
-  createOrderService
+  getQuote,
+  submitOrderRequest,
+  unresolvedSubmission = null,
+  retryUnresolvedSubmission,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -90,7 +148,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const submitLockRef = useRef(false);
 
   // Success screen state
-  const [createdOrder, setCreatedOrder] = useState<BookingOrder | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<{ receipt: OrderReceipt; requestedCleanerName?: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Reset & Hydrate States
@@ -157,25 +215,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const currentService = SERVICES_LIST.find(s => s.id === serviceId) || SERVICES_LIST[0];
 
-  // محاسبه قیمت از موتور مشترک قیمت‌گذاری — دقیقاً همان تابعی که محاسبه‌گر
-  // هزینه استفاده می‌کند، بنابراین مبلغ فاکتور با مبلغ نمایش‌داده‌شده در
-  // محاسبه‌گر همیشه یکسان است.
-  const pricing = useMemo(
-    () =>
-      calculatePrice({
-        serviceId,
-        hours,
-        addonIds: selectedAddons,
-        hasDetergentPackage,
-        promoCode: appliedPromoCode || undefined,
-      }),
+  // انتخاب‌هایی که پیش‌فاکتور برایشان گرفته می‌شود. مبلغ در مرورگر حساب نمی‌شود: پیش‌فاکتور
+  // را adapter فعال (نمایشی، مستقل یا هماهنگ) از راه قرارداد می‌دهد.
+  const quoteSelection = useMemo<QuoteRequest>(
+    () => ({
+      serviceId,
+      hours,
+      addonIds: selectedAddons,
+      hasDetergentPackage,
+      promoCode: appliedPromoCode || undefined,
+    }),
     [serviceId, hours, selectedAddons, hasDetergentPackage, appliedPromoCode],
   );
-
-  const addonsPrice = pricing.addonsTotal;
-  const detergentPrice = pricing.detergentCost;
-  const baseServicePrice = pricing.serviceBase;
-  const totalPrice = pricing.total;
+  // پیش‌فاکتور فقط در مرحلهٔ فاکتور و وقتی درخواستی با نتیجهٔ نامشخص در کار نیست گرفته می‌شود.
+  const invoiceQuote = useGatewayQuote(
+    getQuote,
+    quoteSelection,
+    isOpen && currentStep === 4 && !createdOrder && unresolvedSubmission === null,
+  );
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  /**
+   * شمارهٔ آخرین بررسی کد تخفیف. با باز/بسته‌شدن پنجره یا تغییر انتخاب‌های پایه زیاد می‌شود تا
+   * پاسخ دیررسیدهٔ یک بررسی قدیمی، کد را بی‌صدا روی پنجرهٔ تازه یا انتخاب‌های دیگر اعمال نکند.
+   */
+  const promoTicketRef = useRef(0);
+  useEffect(() => {
+    promoTicketRef.current += 1;
+  }, [isOpen, serviceId, hours, selectedAddons, hasDetergentPackage]);
 
   // دسترس‌پذیری پنجره: نقش dialog، Escape برای بستن، نگه‌داشتن فوکوس داخل پنجره
   // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
@@ -189,25 +255,45 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // «Rendered more hooks than during the previous render» می‌دهد.
   if (!isOpen) return null;
 
-  // Handlers
-  const handleApplyDiscount = () => {
-    const code = discountCodeInput.trim().toUpperCase();
-    if (!code) return;
+  // درخواستی با نتیجهٔ نامشخص، جای مراحل فرم را می‌گیرد تا روشن شود.
+  const showUnresolved = !createdOrder && unresolvedSubmission !== null;
 
-    const result = validatePromoCode(code);
-    if (!result.valid) {
-      setAppliedPromoCode('');
-      setDiscountMsg({ type: 'error', text: 'کد تخفیف معتبر نیست.' });
+  // Handlers
+  // اعتبار کد تخفیف را بک‌اندِ همان حالت می‌سنجد (از راه پیش‌فاکتور)، نه فهرستی در مرورگر.
+  const handleApplyDiscount = async () => {
+    const code = discountCodeInput.trim().toUpperCase();
+    if (!code || isApplyingPromo) return;
+    if (!getQuote) {
+      setDiscountMsg({ type: 'error', text: 'بررسی کد تخفیف در دسترس نیست.' });
       return;
     }
 
-    // تخفیف هرگز دوباره اعمال نمی‌شود: تنها یک کد در هر سفارش نگه داشته می‌شود
-    // و موتور قیمت‌گذاری خودش سقف تخفیف را با جمع اقلام محدود می‌کند.
-    setAppliedPromoCode(result.code);
-    setDiscountMsg({
-      type: 'success',
-      text: `کد تخفیف ${result.code} ثبت شد (${result.amount.toLocaleString('fa-IR')} تومان). اعتبارسنجی نهایی به‌عهده سرور پاک‌شو است.`,
-    });
+    const ticket = ++promoTicketRef.current;
+    setIsApplyingPromo(true);
+    try {
+      const quote = await getQuote({ ...quoteSelection, promoCode: code });
+      if (ticket !== promoTicketRef.current) return;
+      const line = quote.discountLines.find((item) => item.id === `promo:${code}`);
+      // تخفیف هرگز دوباره اعمال نمی‌شود: تنها یک کد در هر سفارش نگه داشته می‌شود
+      // و بک‌اند خودش سقف تخفیف را با جمع اقلام محدود می‌کند.
+      setAppliedPromoCode(code);
+      setDiscountMsg({
+        type: 'success',
+        text: line
+          ? `کد تخفیف ${code} ثبت شد (${line.amount.toLocaleString('fa-IR')} تومان). اعتبارسنجی نهایی به‌عهده سرور پاک‌شو است.`
+          : `کد تخفیف ${code} ثبت شد. اعتبارسنجی نهایی به‌عهده سرور پاک‌شو است.`,
+      });
+    } catch (error) {
+      if (ticket !== promoTicketRef.current) return;
+      if (isOrderGatewayError(error) && error.kind === 'validation' && error.field === 'promoCode') {
+        setAppliedPromoCode('');
+        setDiscountMsg({ type: 'error', text: 'کد تخفیف معتبر نیست.' });
+      } else {
+        setDiscountMsg({ type: 'error', text: 'بررسی کد تخفیف انجام نشد؛ دوباره تلاش کنید.' });
+      }
+    } finally {
+      setIsApplyingPromo(false);
+    }
   };
 
   const handleRemoveDiscount = () => {
@@ -240,6 +326,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleFinalSubmit = async () => {
     if (isSubmitting || submitLockRef.current) return;
+
+    // ثبت فقط با پیش‌فاکتوری که مشتری همین الان برای همین انتخاب‌ها می‌بیند.
+    const shownQuote = invoiceQuote.quote;
+    if (!shownQuote) {
+      setFormError('پیش‌فاکتور هنوز آماده نیست؛ پس از نمایش مبلغ دوباره تأیید کنید.');
+      return;
+    }
+    // انقضا را فقط بک‌اند می‌سنجد (`quote_expired`). ساعت مرورگر ممکن است با ساعت سرور یکی نباشد
+    // و نباید ثبتی را پیش از رسیدن به بک‌اند مسدود کند.
+
     submitLockRef.current = true;
     setIsSubmitting(true);
     setFormError('');
@@ -248,15 +344,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     // نه متخصصی انتخاب می‌شود، نه شماره تماسی ساخته می‌شود.
     const requestedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
 
-    const orderPayload: CreateOrderDTO = buildDemoOrderPayload({
+    // فقط ورودی‌های انتخاب و اطلاعات تماس؛ مبلغ، وضعیت و پرداخت را بک‌اند تعیین می‌کند.
+    const request: OrderRequest = {
       serviceId,
-      serviceTitle: currentService.title,
-      cleanerGender,
       hours,
+      addonIds: selectedAddons,
+      hasDetergentPackage,
+      promoCode: appliedPromoCode || undefined,
+      cleanerGender,
+      requestedCleanerId: requestedCleaner?.id,
       squareMeters,
       roomsCount,
-      selectedAddons,
-      hasDetergentPackage,
       date: selectedDate,
       timeSlot: selectedTimeSlot,
       cityName,
@@ -266,26 +364,52 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       customerName: customerName.trim(),
       customerPhone: toLatinDigits(customerPhone.trim()),
       notes: notes.trim(),
-      totalPrice,
-      discountApplied: pricing.discountsTotal,
-      requestedCleanerId: requestedCleaner?.id,
-      requestedCleanerName: requestedCleaner?.name,
-      paymentMethod,
-    });
+      acceptedQuote: { reference: shownQuote.reference, total: shownQuote.total },
+    };
+
+    if (!submitOrderRequest) {
+      setFormError('سرویس ثبت سفارش در دسترس نیست؛ درخواستی ارسال نشد.');
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      if (!createOrderService) {
-        throw new Error('سرویس ثبت سفارش در دسترس نیست.');
-      }
-      const created = await createOrderService(orderPayload);
-      setCreatedOrder(created);
-      onOrderCreated(created);
+      const receipt = await submitOrderRequest(request);
+      setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
+      onOrderCreated(receipt);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '';
+      // قیمت عوض شده یا پیش‌فاکتور منقضی شده: پیش‌فاکتور تازه گرفته می‌شود و مشتری باید
+      // مبلغ تازه را ببیند و دوباره تأیید کند؛ ثبت خودکار انجام نمی‌شود.
+      if (isOrderGatewayError(err) && (err.kind === 'price_changed' || err.kind === 'quote_expired')) {
+        invoiceQuote.refresh();
+      }
+      setFormError(submitErrorText(err));
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  /** روشن کردن نتیجهٔ درخواست نامشخص: همان درخواست، با همان کلید، از راه لایهٔ اتصال. */
+  const handleRetryUnresolved = async () => {
+    if (!unresolvedSubmission || isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+    setFormError('');
+    const requestedCleaner = CLEANERS_LIST.find(c => c.id === unresolvedSubmission.requestedCleanerId);
+    try {
+      if (!retryUnresolvedSubmission) throw new Error('بررسی دوباره در دسترس نیست.');
+      const receipt = await retryUnresolvedSubmission();
+      setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
+      onOrderCreated(receipt);
+    } catch (err) {
+      // این‌جا ممکن است پنجره در این فاصله بسته و باز شده و فرم از نو باشد؛ پس وعدهٔ «پیش‌فاکتور
+      // تازه دریافت می‌شود» داده نمی‌شود.
       setFormError(
-        message.includes('حافظه') || message.includes('ذخیره‌سازی')
-          ? 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.'
-          : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
+        isOrderGatewayError(err) && (err.kind === 'price_changed' || err.kind === 'quote_expired')
+          ? 'مبلغ یا اعتبار پیش‌فاکتور آن درخواست تغییر کرده است و درخواست ثبت نشد. لطفاً انتخاب‌ها را بررسی و مبلغ تازه را تأیید کنید.'
+          : submitErrorText(err),
       );
     } finally {
       submitLockRef.current = false;
@@ -301,17 +425,52 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleFormSubmitWrapper = (e: React.FormEvent) => {
     e.preventDefault();
+    if (showUnresolved) return;
     if (currentStep < 4) handleNextStep();
     else handleFinalSubmit();
   };
 
   const handleCopyTrackingCode = () => {
     if (createdOrder) {
-      navigator.clipboard?.writeText(createdOrder.trackingCode);
+      navigator.clipboard?.writeText(createdOrder.receipt.trackingCode);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     }
   };// --- Sub-Render Helpers ---
+
+  const renderUnresolved = () => {
+    if (!unresolvedSubmission) return null;
+    const service = SERVICES_LIST.find((item) => item.id === unresolvedSubmission.serviceId);
+    return (
+      <div className="space-y-4 text-right">
+        <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-950">
+          <h4 className="font-black text-sm">نتیجهٔ ثبت درخواست قبلی معلوم نیست</h4>
+          <p className="text-xs leading-6 mt-2">
+            ممکن است این درخواست ثبت شده باشد ولی پاسخ به این صفحه نرسیده باشد. برای جلوگیری از
+            سفارش تکراری، تا روشن‌شدن نتیجه درخواست تازه‌ای فرستاده نمی‌شود و فرم قابل ویرایش نیست.
+          </p>
+          <p className="text-xs leading-6 mt-2">
+            «بررسی دوباره» همان درخواست را با همان شناسه می‌فرستد. اگر قبلاً ثبت شده باشد، همان
+            سفارش برگردانده می‌شود و سفارش دومی ساخته نمی‌شود.
+          </p>
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">خدمت</dt>
+            <dd className="font-bold text-slate-900 mt-1">{service?.title ?? unresolvedSubmission.serviceId}</dd>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">تاریخ</dt>
+            <dd className="font-bold text-slate-900 mt-1">{unresolvedSubmission.date}</dd>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">بازهٔ زمانی</dt>
+            <dd className="font-bold text-slate-900 mt-1">{unresolvedSubmission.timeSlot}</dd>
+          </div>
+        </dl>
+      </div>
+    );
+  };
 
   const renderSuccessScreen = () => {
     if (!createdOrder) return null;
@@ -330,7 +489,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
           <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
-            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
+            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.receipt.trackingCode}</span>
             <button
               type="button"
               onClick={handleCopyTrackingCode}
@@ -682,34 +841,54 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     </div>
   );
 
-  const renderStep4 = () => (
-    <div className="space-y-6 text-right">
-      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-3.5">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-            <Receipt className="w-4 h-4 text-emerald-600" />
-            ریز پیش‌فاکتور رسمی پاک‌شو
-          </span>
-          <DemoBadge />
+  /** بدنهٔ فاکتور: فقط از پیش‌فاکتورِ gateway برای همین انتخاب‌ها؛ هیچ مبلغی در مرورگر حساب نمی‌شود. */
+  const renderInvoiceBody = () => {
+    const { state } = invoiceQuote;
+    if (state.status !== 'ready') {
+      const failed = state.status === 'error';
+      return (
+        <div className="space-y-3 text-xs text-slate-700">
+          <p id={`${fieldId}-quote-status`} role="status" className={failed ? 'text-rose-700 font-bold' : 'text-slate-600'}>
+            {failed
+              ? isOrderGatewayError(state.error) && state.error.kind === 'not_implemented'
+                ? `${state.error.message} پیش‌فاکتور دریافت نشد.`
+                : 'پیش‌فاکتور دریافت نشد؛ تا نمایش مبلغ، تأیید نهایی ممکن نیست.'
+              : 'در حال دریافت پیش‌فاکتور…'}
+          </p>
+          {failed && (
+            <button
+              type="button"
+              onClick={invoiceQuote.refresh}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            >
+              دریافت دوبارهٔ پیش‌فاکتور
+            </button>
+          )}
         </div>
+      );
+    }
+
+    const quote = state.quote;
+    return (
+      <>
         <div className="space-y-2 text-xs text-slate-700">
           <div className="flex justify-between">
-            <span>{currentService.title} ({hours} ساعت):</span>
-            <span className="font-mono">{baseServicePrice.toLocaleString('fa-IR')} ت</span>
+            <span>{quote.serviceTitle} ({quote.hours} ساعت):</span>
+            <span className="font-mono">{quote.serviceBase.toLocaleString('fa-IR')} ت</span>
           </div>
-          {addonsPrice > 0 && (
+          {quote.addonsTotal > 0 && (
             <div className="flex justify-between text-amber-800">
               <span>خدمات جانبی انتخابی:</span>
-              <span className="font-mono">+{addonsPrice.toLocaleString('fa-IR')} ت</span>
+              <span className="font-mono">+{quote.addonsTotal.toLocaleString('fa-IR')} ت</span>
             </div>
           )}
-          {hasDetergentPackage && (
+          {quote.detergentCost > 0 && (
             <div className="flex justify-between text-teal-800">
               <span>پکیج مواد شوینده و دستمال نانو:</span>
-              <span className="font-mono">+{detergentPrice.toLocaleString('fa-IR')} ت</span>
+              <span className="font-mono">+{quote.detergentCost.toLocaleString('fa-IR')} ت</span>
             </div>
           )}
-          {pricing.discountLines.map((line) => (
+          {quote.discountLines.map((line) => (
             <div key={line.id} className="flex justify-between text-emerald-600 font-bold border-t border-slate-200 pt-2">
               <span>{line.title}:</span>
               <span className="font-mono">-{line.amount.toLocaleString('fa-IR')} ت</span>
@@ -720,12 +899,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="flex items-center justify-between">
           <span className="font-bold text-slate-900 text-sm">{DEMO_COPY.provisionalPriceLabel}:</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-emerald-600 font-mono">{totalPrice.toLocaleString('fa-IR')}</span>
+            <span className="text-2xl font-black text-emerald-600 font-mono">{quote.total.toLocaleString('fa-IR')}</span>
             <span className="text-xs text-slate-600">تومان</span>
           </div>
           </div>
-          <ProvisionalPriceNote />
+          {quote.isProvisional && <ProvisionalPriceNote />}
         </div>
+      </>
+    );
+  };
+
+  const renderStep4 = () => (
+    <div className="space-y-6 text-right">
+      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-3.5">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+            <Receipt className="w-4 h-4 text-emerald-600" />
+            ریز پیش‌فاکتور رسمی پاک‌شو
+          </span>
+          <DemoBadge />
+        </div>
+        {renderInvoiceBody()}
       </div>
       <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
         <label htmlFor={`${fieldId}-promo`} className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -748,7 +942,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             }}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
-          <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
+          <button type="button" onClick={handleApplyDiscount} disabled={isApplyingPromo} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
         </div>
         {/* متن دیداری؛ اعلام برای صفحه‌خوان در ناحیه‌ی status زیر کارت است (تکرار نشود). */}
         {discountMsg && <p aria-hidden="true" className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
@@ -846,7 +1040,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
 
         {/* Wizard Steps Indicator */}
-        {!createdOrder && (
+        {!createdOrder && !showUnresolved && (
           <div className="px-5 sm:px-8 pt-4 pb-2 bg-white border-b border-slate-100 shrink-0">
             <div className="flex items-center justify-between text-xs font-bold">
               {[
@@ -876,7 +1070,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
         <form onSubmit={handleFormSubmitWrapper} className="flex-1 overflow-hidden flex flex-col">
           <div className="p-5 sm:p-8 overflow-y-auto flex-1 text-slate-800">
-            {createdOrder ? renderSuccessScreen() : (
+            {createdOrder ? renderSuccessScreen() : showUnresolved ? renderUnresolved() : (
               <>
                 <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} className="mb-5" />
                 {renderStepContent()}
@@ -884,8 +1078,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             )}
           </div>
 
+          {/* درخواست با نتیجهٔ نامشخص: فقط بررسی دوبارهٔ همان درخواست */}
+          {showUnresolved && (
+            <div className="p-4 sm:px-8 border-t border-slate-200/80 bg-slate-50 flex flex-col gap-3 shrink-0">
+              {formError && (
+                <div role="alert" className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right">
+                  ⚠️ {formError}
+                </div>
+              )}
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={(event) => {
+                    if (event.detail > 1) return;
+                    handleRetryUnresolved();
+                  }}
+                  onKeyDown={ignoreAutoRepeat}
+                  className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-md transition-all cursor-pointer"
+                >
+                  <span>{isSubmitting ? 'در حال بررسی...' : 'بررسی دوبارهٔ همان درخواست'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Bottom Nav / Error Banner */}
-          {!createdOrder && (
+          {!createdOrder && !showUnresolved && (
             <div className="p-4 sm:px-8 border-t border-slate-200/80 bg-slate-50 flex flex-col gap-3 shrink-0">
               {formError && (
                 <div role="alert" className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right animate-pulse">
@@ -925,14 +1144,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 ) : (
                   <button
                     type="submit"
+                    // تا رسیدن پیش‌فاکتور فقط aria-disabled (نه disabled): غیرفعال‌کردن واقعی همان
+                    // گره‌ای که فوکوس دارد (دکمهٔ «مرحله بعد» مرحلهٔ ۳) فوکوس را از پنجره بیرون
+                    // می‌انداخت. ثبت بدون پیش‌فاکتور را خودِ handleFinalSubmit مسدود می‌کند.
                     disabled={isSubmitting}
+                    aria-disabled={!invoiceQuote.quote || undefined}
+                    aria-describedby={invoiceQuote.quote ? undefined : `${fieldId}-quote-status`}
                     onClick={(event) => {
                       // کلیک دوم یک دوبار-کلیک (مثلاً روی «مرحله بعد» که همین‌جا بود) ثبت نمی‌کند؛
                       // ثبت فقط با یک کلیک جداگانه روی دکمه‌ی تأیید نهایی.
                       if (event.detail > 1) event.preventDefault();
                     }}
                     onKeyDown={ignoreAutoRepeat}
-                    className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
+                    className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 aria-disabled:opacity-60 aria-disabled:cursor-not-allowed text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
                   >
                     <span>{isSubmitting ? 'در حال ثبت...' : 'تایید نهایی و ثبت سفارش'}</span>
                     <Check className="w-4 h-4" />

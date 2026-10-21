@@ -1,5 +1,13 @@
 import { BookingOrder, OrderStatus, PaymentStatus, RecordType } from '../types';
 
+/**
+ * شکل رکورد ذخیرهٔ **نسخهٔ نمایشی** در حافظهٔ مرورگر.
+ *
+ * ⚠️ این نوع قرارداد API نیست و نباید از مرورگرِ مشتری به سرور فرستاده شود: مبلغ، تخفیف،
+ * وضعیت، وضعیت پرداخت و فیلدهای متخصص در آن هست. فرم‌ها از قرارداد عمومی مشتری
+ * (`src/services/customerOrders/contract.ts` ← `OrderRequest`) استفاده می‌کنند و فقط adapter
+ * نمایشی این رکورد را می‌سازد.
+ */
 export interface CreateOrderDTO {
   serviceId: BookingOrder['serviceId'];
   serviceTitle: BookingOrder['serviceTitle'];
@@ -45,11 +53,14 @@ export interface UpdateOrderRatingDTO {
 }
 
 /**
- * قرارداد سرویس سفارش.
+ * قرارداد ذخیرهٔ محلی **نسخهٔ نمایشی** (حافظهٔ همین مرورگر).
+ *
+ * ⚠️ این قرارداد عمومی مشتری نیست و جانشین HTTP نخواهد داشت: `getOrders` (فهرست سفارش‌ها) و
+ * لغو و امتیاز مستقیم فقط برای رکوردهای همین مرورگر معنا دارند. اتصال‌های عملیاتی از
+ * `CustomerOrderGateway` در `src/services/customerOrders/contract.ts` پیروی می‌کنند.
  *
  * توجه: متد تغییر وضعیت عملیاتی سفارش (`updateOrderStatus`) عمداً حذف شده است.
- * مشتری مجاز به جابه‌جایی وضعیت عملیاتی سفارش نیست؛ این کار در معماری نهایی
- * توسط سرور و بر اساس قواعد اعزام انجام می‌شود.
+ * مشتری مجاز به جابه‌جایی وضعیت عملیاتی سفارش نیست.
  */
 export interface IOrderService {
   getOrders(): Promise<BookingOrder[]>;

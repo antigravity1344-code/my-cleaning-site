@@ -5,6 +5,12 @@ import { CostCalculator } from './CostCalculator';
 import { BookingModal } from './BookingModal';
 import type { ServiceType, CleanerGender } from '../types';
 import { calculatePrice } from '../pricing/pricingEngine';
+import { createDemoOrderBackend } from '../services/customerOrders/demoGateway';
+import { orderService } from '../services/orderService';
+import { waitForInvoice } from '../testing/invoice';
+
+/** پیش‌فاکتور همان adapter نمایشی که App در حالت پیش‌فرض به کار می‌برد. */
+const demoGetQuote = createDemoOrderBackend(orderService).gateway.getQuote;
 
 /**
  * آزمون یکپارچگی DOM برای سناریوی پذیرش مأموریت:
@@ -70,7 +76,7 @@ const goToInvoiceStep = (): void => {
 };
 
 describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبلغ', () => {
-  it('مبلغ نمایش‌داده‌شده در محاسبه‌گر با مبلغ فاکتور رزرو برابر است (حالت پیش‌فرض)', () => {
+  it('مبلغ نمایش‌داده‌شده در محاسبه‌گر با مبلغ فاکتور رزرو برابر است (حالت پیش‌فرض)', async () => {
     const onProceed = vi.fn();
     const calculator = render(<CostCalculator onProceedToBooking={onProceed} />);
 
@@ -89,19 +95,21 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
         onClose={() => undefined}
         initialParams={transferred}
         onOrderCreated={() => undefined}
-        createOrderService={async () => {
+        getQuote={demoGetQuote}
+        submitOrderRequest={async () => {
           throw new Error('در این آزمون ثبت سفارش انجام نمی‌شود.');
         }}
       />,
     );
 
     goToInvoiceStep();
+    await waitForInvoice(booking.container);
     const invoiceTotal = readInvoiceTotal(booking.container);
 
     expect(invoiceTotal).toBe(calculatorTotal);
   });
 
-  it('برای ورودی‌های متفاوت (متراژ، اتاق، افزودنی‌ها) نیز دو مبلغ یکسان می‌مانند', () => {
+  it('برای ورودی‌های متفاوت (متراژ، اتاق، افزودنی‌ها) نیز دو مبلغ یکسان می‌مانند', async () => {
     const onProceed = vi.fn();
     const { container } = render(<CostCalculator onProceedToBooking={onProceed} />);
 
@@ -125,13 +133,15 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
         onClose={() => undefined}
         initialParams={transferred}
         onOrderCreated={() => undefined}
-        createOrderService={async () => {
+        getQuote={demoGetQuote}
+        submitOrderRequest={async () => {
           throw new Error('در این آزمون ثبت سفارش انجام نمی‌شود.');
         }}
       />,
     );
 
     goToInvoiceStep();
+    await waitForInvoice(booking.container);
     expect(readInvoiceTotal(booking.container)).toBe(calculatorTotal);
 
     // و مبلغ با موتور قیمت‌گذاری مشترک هم مطابقت دارد
@@ -156,11 +166,18 @@ describe('صفحه فاکتور و موفقیت: بدون ادعای عملیا�
     cleanerGender: 'no-pref',
   };
 
-  it('مبلغ در فاکتور به‌عنوان «پیشنهادی (آزمایشی)» برچسب خورده است', () => {
+  it('مبلغ در فاکتور به‌عنوان «پیشنهادی (آزمایشی)» برچسب خورده است', async () => {
     const { container } = render(
-      <BookingModal isOpen onClose={() => undefined} initialParams={baseParams} onOrderCreated={() => undefined} />,
+      <BookingModal
+        isOpen
+        onClose={() => undefined}
+        initialParams={baseParams}
+        onOrderCreated={() => undefined}
+        getQuote={demoGetQuote}
+      />,
     );
     goToInvoiceStep();
+    await waitForInvoice(container);
 
     expect(container.textContent).toContain('مبلغ پیشنهادی (آزمایشی)');
     expect(container.textContent).not.toContain('مبلغ کل نهایی');
@@ -178,11 +195,20 @@ describe('صفحه فاکتور و موفقیت: بدون ادعای عملیا�
     expect(container.textContent).toContain('در نسخه آزمایشی غیرفعال است');
   });
 
-  it('هیچ تعهد گارانتی یا بیمه‌ای در فاکتور نمایش داده نمی‌شود', () => {
+  it('هیچ تعهد گارانتی یا بیمه‌ای در فاکتور نمایش داده نمی‌شود', async () => {
     const { container } = render(
-      <BookingModal isOpen onClose={() => undefined} initialParams={baseParams} onOrderCreated={() => undefined} />,
+      <BookingModal
+        isOpen
+        onClose={() => undefined}
+        initialParams={baseParams}
+        onOrderCreated={() => undefined}
+        getQuote={demoGetQuote}
+      />,
     );
     goToInvoiceStep();
+    // بدنهٔ فاکتور فقط پس از رسیدن پیش‌فاکتور رندر می‌شود؛ بدون این صبر، آزمون تهی می‌ماند
+    // (یافتهٔ بازبینی PR #26).
+    await waitForInvoice(container);
 
     expect(container.textContent).not.toContain('گارانتی رضایت ۱۰۰٪');
     expect(container.textContent).not.toContain('تضمین');
