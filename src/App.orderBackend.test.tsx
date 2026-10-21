@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { SERVICES_LIST } from './data/mockData';
 import { DEMO_STORAGE_KEY } from './services/pii';
@@ -11,9 +11,11 @@ import {
   type OrderBackend,
   type OrderReceipt,
   type OrderRequest,
+  type Quote,
   type SubmitOrderOptions,
 } from './services/customerOrders';
 import { IDEMPOTENCY_KEY_PATTERN } from './services/customerOrders/idempotency';
+import { waitForInvoice } from './testing/invoice';
 
 /**
  * انتخاب اتصال سفارش بدون تغییر فرم‌ها — روی مسیر واقعی `<App />`.
@@ -50,6 +52,7 @@ const ALLOWED_REQUEST_KEYS = new Set<keyof OrderRequest>([
   'customerName',
   'customerPhone',
   'notes',
+  'acceptedQuote',
 ]);
 
 const FORBIDDEN_REQUEST_KEYS = [
@@ -70,15 +73,43 @@ interface SubmitCall {
   options: SubmitOrderOptions;
 }
 
+/** مبلغی که فقط adapter ساختگی می‌سازد؛ موتور نمایشی هرگز به آن نمی‌رسد. */
+const TEST_QUOTE_TOTAL = 4_321_000;
+
+/** پیش‌فاکتورساز adapter ساختگی: هر بار مرجع تازه با مهلت یک دقیقه. */
+const createTestQuotes = () => {
+  const issued: Quote[] = [];
+  const getQuote = async (): Promise<Quote> => {
+    const quote: Quote = {
+      serviceTitle: 'خدمت adapter ساختگی',
+      hours: 4,
+      hourlyRate: TEST_QUOTE_TOTAL / 4,
+      serviceBase: TEST_QUOTE_TOTAL,
+      addonLines: [],
+      addonsTotal: 0,
+      detergentCost: 0,
+      subtotal: TEST_QUOTE_TOTAL,
+      discountLines: [],
+      discountsTotal: 0,
+      total: TEST_QUOTE_TOTAL,
+      isProvisional: false,
+      reference: `TEST-QUOTE-${issued.length + 1}`,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    issued.push(quote);
+    return quote;
+  };
+  return { issued, getQuote };
+};
+
 /** adapter ساختگی آزمون: درخواست‌ها را ثبت می‌کند و رسیدی با مقدارهای خودش برمی‌گرداند. */
 const createTestDoubleBackend = (
   respond: (call: SubmitCall, index: number) => Promise<OrderReceipt>,
-): { backend: OrderBackend; calls: SubmitCall[] } => {
+): { backend: OrderBackend; calls: SubmitCall[]; quotes: Quote[] } => {
   const calls: SubmitCall[] = [];
+  const quotes = createTestQuotes();
   const gateway: CustomerOrderGateway = {
-    getQuote: async () => {
-      throw new OrderGatewayError('not_implemented', 'در این آزمون پیش‌فاکتور لازم نیست.');
-    },
+    getQuote: quotes.getQuote,
     submitOrderRequest: async (request, options) => {
       const call = { request: structuredClone(request), options: { ...options } };
       calls.push(call);
@@ -87,7 +118,7 @@ const createTestDoubleBackend = (
     trackOrder: async () => null,
   };
   // `mode` فقط برچسب است؛ این adapter اتصال واقعی «مستقل» نیست.
-  return { backend: { mode: 'standalone', gateway, demoLedger: null }, calls };
+  return { backend: { mode: 'standalone', gateway, demoLedger: null }, calls, quotes: quotes.issued };
 };
 
 const TEST_RECEIPT: OrderReceipt = {
@@ -108,23 +139,34 @@ const nextStep = (dialog: HTMLElement): void => {
   fireEvent.click(within(dialog).getByRole('button', { name: /مرحله بعد/ }));
 };
 
-/** همان مسیر کاربر در آزمون‌های دیگر: دو مرحلهٔ اول با پیش‌فرض‌ها، مرحلهٔ ۳ با اطلاعات تماس. */
-const toInvoice = (dialog: HTMLElement): HTMLElement => {
+/** مرحلهٔ ۴ بدون صبر برای پیش‌فاکتور (برای حالت‌هایی که پیش‌فاکتور نمی‌رسد). */
+const toInvoiceStep = (dialog: HTMLElement): void => {
   nextStep(dialog);
   nextStep(dialog);
   fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
   fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
   fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: '۰۹۱۲۱۲۳۴۵۶۷' } });
   nextStep(dialog);
-  return within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ });
+};
+
+/**
+ * همان مسیر کاربر در آزمون‌های دیگر: دو مرحلهٔ اول با پیش‌فرض‌ها، مرحلهٔ ۳ با اطلاعات تماس، و
+ * صبر تا نمایش پیش‌فاکتورِ adapter.
+ */
+const toInvoice = async (dialog: HTMLElement): Promise<HTMLButtonElement> => {
+  toInvoiceStep(dialog);
+  return waitForInvoice(dialog);
 };
 
 describe('همان فرم رزرو با adapterِ دیگر — بدون تغییر فرم (adapter ساختگی، نه اتصال واقعی)', () => {
   it('فقط فیلدهای مجاز قرارداد و یک کلید تکرار معتبر به adapter می‌رسد و رسید همان adapter نمایش داده می‌شود', async () => {
-    const { backend, calls } = createTestDoubleBackend(async () => TEST_RECEIPT);
+    const { backend, calls, quotes } = createTestDoubleBackend(async () => TEST_RECEIPT);
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    const confirm = await toInvoice(dialog);
+    // فاکتور همان مبلغ adapter است، نه برآورد مرورگر.
+    expect(dialog.textContent).toContain(TEST_QUOTE_TOTAL.toLocaleString('fa-IR'));
+    fireEvent.click(confirm);
 
     expect(await within(dialog).findByText(TEST_RECEIPT.trackingCode)).toBeTruthy();
     expect(calls).toHaveLength(1);
@@ -140,6 +182,9 @@ describe('همان فرم رزرو با adapterِ دیگر — بدون تغیی
     expect(request.customerPhone).toBe('09121234567');
     expect(request.customerName).toBe('کاربر آزمایشی');
     expect(options.idempotencyKey).toMatch(IDEMPOTENCY_KEY_PATTERN);
+    // ثبت به همان پیش‌فاکتوری گره خورده که مشتری دیده است.
+    expect(quotes).toHaveLength(1);
+    expect(request.acceptedQuote).toEqual({ reference: quotes[0].reference, total: TEST_QUOTE_TOTAL });
 
     // هیچ نسخهٔ نمایشی‌ای در کار نیست: چیزی در حافظهٔ مرورگر نوشته نشده است.
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBeNull();
@@ -151,7 +196,7 @@ describe('همان فرم رزرو با adapterِ دیگر — بدون تغیی
       return TEST_RECEIPT;
     });
     const dialog = openBooking(backend);
-    const confirm = toInvoice(dialog);
+    const confirm = await toInvoice(dialog);
 
     fireEvent.click(confirm);
     const alert = await within(dialog).findByRole('alert');
@@ -173,14 +218,14 @@ describe('همان فرم رزرو با adapterِ دیگر — بدون تغیی
     });
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
     expect((await within(dialog).findByRole('alert')).textContent).toContain('تعداد درخواست‌ها زیاد بود');
 
     // بازگشت به مرحلهٔ ۳ و تغییر توضیحات، سپس ثبت دوباره.
     fireEvent.click(within(dialog).getByRole('button', { name: /مرحله قبل/ }));
     fireEvent.change(within(dialog).getByLabelText(/توضیحات/), { target: { value: 'زنگ دوم' } });
     nextStep(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    fireEvent.click(await waitForInvoice(dialog));
     expect(await within(dialog).findByText(TEST_RECEIPT.trackingCode)).toBeTruthy();
 
     expect(calls).toHaveLength(2);
@@ -198,9 +243,7 @@ const createLostResponseBackend = (lose: (index: number) => OrderGatewayError | 
   const ordersByKey = new Map<string, { request: OrderRequest; receipt: OrderReceipt }>();
   const calls: SubmitCall[] = [];
   const gateway: CustomerOrderGateway = {
-    getQuote: async () => {
-      throw new OrderGatewayError('not_implemented', 'در این آزمون پیش‌فاکتور لازم نیست.');
-    },
+    getQuote: createTestQuotes().getQuote,
     submitOrderRequest: async (request, options) => {
       calls.push({ request: structuredClone(request), options: { ...options } });
       const index = calls.length - 1;
@@ -238,7 +281,7 @@ describe('نتیجهٔ نامشخص: «ذخیرهٔ موفق، پاسخ گم‌�
     );
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
 
     const alert = await within(dialog).findByRole('alert');
     expect(alert.textContent).toContain('نتیجهٔ ثبت معلوم نیست');
@@ -275,7 +318,7 @@ describe('نتیجهٔ نامشخص: «ذخیرهٔ موفق، پاسخ گم‌�
     const { backend } = createLostResponseBackend(() => new OrderGatewayError('outcome_unknown', 'گم شد.'));
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
     await within(dialog).findByText('نتیجهٔ ثبت درخواست قبلی معلوم نیست');
 
     const written = setItem.mock.calls.map(([key, value]) => `${key}=${value}`).join('\n');
@@ -290,7 +333,7 @@ describe('نتیجهٔ نامشخص: «ذخیرهٔ موفق، پاسخ گم‌�
     const { backend } = createLostResponseBackend((index) => (index === 0 ? new Error('خطای ناشناخته') : null));
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
     const alert = await within(dialog).findByRole('alert');
     expect(alert.textContent).toContain('نتیجهٔ ثبت معلوم نیست');
     expect(within(dialog).getByText('نتیجهٔ ثبت درخواست قبلی معلوم نیست')).toBeTruthy();
@@ -304,7 +347,7 @@ describe('نتیجهٔ نامشخص: «ذخیرهٔ موفق، پاسخ گم‌�
     });
     const dialog = openBooking(backend);
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
     await within(dialog).findByText('نتیجهٔ ثبت درخواست قبلی معلوم نیست');
 
     fireEvent.click(within(dialog).getByRole('button', { name: /بررسی دوبارهٔ همان درخواست/ }));
@@ -314,7 +357,7 @@ describe('نتیجهٔ نامشخص: «ذخیرهٔ موفق، پاسخ گم‌�
     fireEvent.click(within(dialog).getByRole('button', { name: /مرحله قبل/ }));
     fireEvent.change(within(dialog).getByLabelText(/توضیحات/), { target: { value: 'زنگ دوم' } });
     nextStep(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    fireEvent.click(await waitForInvoice(dialog));
     expect(await within(dialog).findByText(/^LOST-/)).toBeTruthy();
 
     expect(calls).toHaveLength(3);
@@ -331,7 +374,7 @@ describe('نسخهٔ نمایشی: شکست قطعی ذخیره و تلاش دو
     });
     const dialog = openBooking();
 
-    fireEvent.click(toInvoice(dialog));
+    fireEvent.click(await toInvoice(dialog));
     expect((await within(dialog).findByRole('alert')).textContent).toContain('ذخیره‌سازی محلی مرورگر ناموفق بود');
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBeNull();
 
@@ -350,11 +393,16 @@ describe('حالت‌های پیاده‌سازی‌نشده — خطای روش
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     const dialog = openBooking(createOrderBackend(mode));
 
-    fireEvent.click(toInvoice(dialog));
+    toInvoiceStep(dialog);
 
-    const alert = await within(dialog).findByRole('alert');
-    expect(alert.textContent).toContain(expectedText);
-    expect(alert.textContent).toContain('درخواستی ثبت نشد');
+    // پیش‌فاکتور هم از همان adapter است؛ پس بدون اتصال، مبلغی نمایش داده نمی‌شود و تأیید ممکن نیست.
+    const notice = await within(dialog).findByText(new RegExp(expectedText.replace(/[.]/g, '\\.')));
+    expect(notice.textContent).toContain('درخواستی ثبت نشد');
+    expect(notice.textContent).toContain('پیش‌فاکتور دریافت نشد');
+    const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(within(dialog).queryByRole('button', { name: 'کپی کد پیگیری' })).toBeNull());
     expect(within(dialog).queryByRole('button', { name: 'کپی کد پیگیری' })).toBeNull();
     expect(setItem.mock.calls.filter(([key]) => key === DEMO_STORAGE_KEY)).toHaveLength(0);
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBeNull();

@@ -49,6 +49,25 @@ export interface Quote {
   isProvisional: boolean;
   /** نسخهٔ قیمت‌گذاری بک‌اند؛ برای تشخیص تغییر قیمت میان پیش‌فاکتور و ثبت. */
   pricingVersion?: string;
+  /**
+   * مرجع کدر همین پیش‌فاکتور که بک‌اند صادر کرده است (در بک‌اند اپ: `quoteToken`). مرورگر آن را
+   * تفسیر نمی‌کند و فقط هنگام ثبت پس می‌فرستد.
+   */
+  reference: string;
+  /** پایان اعتبار پیش‌فاکتور (ISO 8601)؛ نبودنش یعنی بک‌اند مهلتی اعلام نکرده است. */
+  expiresAt?: string;
+}
+
+/**
+ * پیش‌فاکتوری که مشتری دیده و تأیید کرده است.
+ *
+ * `total` مبلغ **دیده‌شده** است، نه مبلغ معتبر: بک‌اند هرگز آن را مبنای قیمت نمی‌گیرد و فقط
+ * بررسی می‌کند که با محاسبهٔ خودش برای همان `reference` یکی باشد (در بک‌اند اپ:
+ * `confirmedTotal`). ناهمخوانی، انقضا یا تغییر انتخاب‌ها ← `price_changed` یا `quote_expired`.
+ */
+export interface AcceptedQuote {
+  reference: string;
+  total: number;
 }
 
 /**
@@ -72,6 +91,8 @@ export interface OrderRequest extends QuoteRequest {
   /** با ارقام لاتین. */
   customerPhone: string;
   notes?: string;
+  /** پیش‌فاکتوری که مشتری پیش از «تأیید نهایی» دیده است؛ ثبت بدون آن معتبر نیست. */
+  acceptedQuote: AcceptedQuote;
 }
 
 /** فقط فیلدهای مجاز قرارداد؛ هر چیز دیگری (مبلغ، وضعیت، متخصص) دور ریخته می‌شود. */
@@ -94,13 +115,24 @@ export const pickOrderRequest = (request: OrderRequest): OrderRequest => ({
   customerName: request.customerName,
   customerPhone: request.customerPhone,
   notes: request.notes,
+  // ورودی نامطمئن ممکن است این فیلد را نداشته باشد؛ adapter چنین درخواستی را رد می‌کند.
+  acceptedQuote: request.acceptedQuote
+    ? { reference: request.acceptedQuote.reference, total: request.acceptedQuote.total }
+    : (undefined as unknown as AcceptedQuote),
+});
+
+/** فقط ورودی‌های پیش‌فاکتور یک درخواست ثبت. */
+export const quoteRequestOf = (request: QuoteRequest): QuoteRequest => ({
+  serviceId: request.serviceId,
+  hours: request.hours,
+  addonIds: [...request.addonIds],
+  hasDetergentPackage: request.hasDetergentPackage,
+  promoCode: request.promoCode,
 });
 
 /**
- * ⚠️ هنوز ناقص برای حالت‌های عملیاتی: ثبت باید به پیش‌فاکتوری که مشتری دیده و تأیید کرده
- * گره بخورد (بک‌اند اپ موبایل در حالت قیمت سرور `quoteToken` و `confirmedTotal` را الزامی
- * می‌داند). این پیوند همراه با گرفتن فاکتور فرم از `getQuote` در گام بعد اضافه می‌شود؛ نسخهٔ
- * نمایشی به آن نیاز ندارد.
+ * پیوند ثبت به پیش‌فاکتور در خود درخواست است (`OrderRequest.acceptedQuote`)، نه این‌جا؛ پس
+ * کلید تکرار همیشه به همان پیش‌فاکتور گره می‌خورد و پیش‌فاکتور تازه یعنی درخواست تازه.
  */
 export interface SubmitOrderOptions {
   /**
@@ -179,15 +211,20 @@ export type OrderGatewayErrorKind =
   /** اتصال این حالت هنوز پیاده‌سازی نشده یا تنظیمات راه‌اندازی نامعتبر است. */
   | 'not_implemented'
   /** فقط نسخهٔ نمایشی: ذخیره در حافظهٔ همین مرورگر ناموفق بود. */
-  | 'local_storage';
+  | 'local_storage'
+  /** اعتبار پیش‌فاکتور تمام شده یا مرجع آن شناخته نیست؛ پیش‌فاکتور تازه و تأیید دوباره لازم است. */
+  | 'quote_expired';
 
 export class OrderGatewayError extends Error {
   readonly kind: OrderGatewayErrorKind;
+  /** فیلد مربوط به خطای اعتبارسنجی، اگر adapter بداند (مثلاً `promoCode`). */
+  readonly field?: string;
 
-  constructor(kind: OrderGatewayErrorKind, message: string) {
+  constructor(kind: OrderGatewayErrorKind, message: string, field?: string) {
     super(message);
     this.name = 'OrderGatewayError';
     this.kind = kind;
+    this.field = field;
   }
 }
 

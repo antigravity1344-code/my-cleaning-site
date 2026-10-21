@@ -23,6 +23,7 @@ import { BackgroundInertContext } from './context/BackgroundInertContext';
 function PakshoAppContent() {
   const {
     orders,
+    getQuote,
     submitOrderRequest,
     unresolvedSubmission,
     retryUnresolvedSubmission,
@@ -262,6 +263,7 @@ function PakshoAppContent() {
         onClose={() => setIsBookingOpen(false)}
         initialParams={bookingParams}
         onOrderCreated={handleOrderCreated}
+        getQuote={getQuote}
         submitOrderRequest={submitOrderRequest}
         unresolvedSubmission={unresolvedSubmission}
         retryUnresolvedSubmission={retryUnresolvedSubmission}

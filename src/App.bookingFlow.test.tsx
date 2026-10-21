@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import App from './App';
 import { calculatePrice } from './pricing/pricingEngine';
 import { DEMO_STORAGE_KEY, LEGACY_STORAGE_KEYS } from './services/pii';
+import { waitForInvoice } from './testing/invoice';
 
 /**
  * یافته ۴ مأموریت PAKSHO-WEBSITE-SAFETY-003 — آزمون مسیر واقعی App.
@@ -50,8 +51,11 @@ const readInvoiceTotal = (): string => {
   return node.textContent.trim();
 };
 
-/** کاربر را داخل مودالِ بازشده توسط App تا مرحله فاکتور پیش می‌برد. */
-const goToInvoiceStep = (): void => {
+/**
+ * کاربر را داخل مودالِ بازشده توسط App تا مرحله فاکتور پیش می‌برد و صبر می‌کند تا پیش‌فاکتور
+ * (از adapter فعال، ناهمگام) نمایش داده شود.
+ */
+const goToInvoiceStep = async (): Promise<void> => {
   const modal = getBookingModal();
   for (let step = 0; step < 3; step += 1) {
     fireEvent.click(within(modal, /مرحله بعد/));
@@ -66,6 +70,7 @@ const goToInvoiceStep = (): void => {
     target: { value: 'خیابان نمونه، پلاک ۱' },
   });
   fireEvent.click(within(getBookingModal(), /مرحله بعد/));
+  await waitForInvoice(getBookingModal());
 };
 
 /** دکمه‌ای با نام مشخص را داخل یک ریشه می‌جوید. */
@@ -77,7 +82,7 @@ function within(root: HTMLElement, name: RegExp): HTMLElement {
 }
 
 describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رزرو', () => {
-  it('App با ورودی‌های پیش‌فرض، همان مبلغ محاسبه‌گر را در فاکتور نشان می‌دهد', () => {
+  it('App با ورودی‌های پیش‌فرض، همان مبلغ محاسبه‌گر را در فاکتور نشان می‌دهد', async () => {
     render(<App />);
 
     const calculatorTotal = readCalculatorTotal();
@@ -86,12 +91,12 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
     expect(document.querySelector('div.fixed.inset-0.z-50')).not.toBeNull();
 
-    goToInvoiceStep();
+    await goToInvoiceStep();
 
     expect(readInvoiceTotal()).toBe(calculatorTotal);
   });
 
-  it('برای ورودی‌های تغییر یافته (متراژ، اتاق و افزودنی) در App نیز مبلغ‌ها یکسان می‌مانند', () => {
+  it('برای ورودی‌های تغییر یافته (متراژ، اتاق و افزودنی) در App نیز مبلغ‌ها یکسان می‌مانند', async () => {
     render(<App />);
 
     const section = document.querySelector('#calculator') as HTMLElement;
@@ -121,7 +126,7 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     const recommendedHours = Number(hoursMatch[1]);
 
     fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
-    goToInvoiceStep();
+    await goToInvoiceStep();
 
     const invoiceTotal = readInvoiceTotal();
     expect(invoiceTotal).toBe(calculatorTotal);
@@ -136,11 +141,11 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     expect(invoiceTotal).toBe(toPersianDigits(engineTotal));
   });
 
-  it('هیچ مبلغی از مرورگر به‌عنوان «مبلغ قابل پرداخت» ذخیره یا منتقل نمی‌شود', () => {
+  it('هیچ مبلغی از مرورگر به‌عنوان «مبلغ قابل پرداخت» ذخیره یا منتقل نمی‌شود', async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
-    goToInvoiceStep();
+    await goToInvoiceStep();
 
     const modal = getBookingModal();
     expect(modal.textContent).toContain('مبلغ پیشنهادی (آزمایشی)');
@@ -148,11 +153,11 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     expect(modal.textContent).not.toContain('پرداخت اینترنتی امن');
   });
 
-  it('پیش از تأیید نهایی، هیچ سفارشی در حافظه ذخیره نمی‌شود', () => {
+  it('پیش از تأیید نهایی، هیچ سفارشی در حافظه ذخیره نمی‌شود', async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
-    goToInvoiceStep();
+    await goToInvoiceStep();
 
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBeNull();
   });
@@ -168,7 +173,7 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
-    goToInvoiceStep();
+    await goToInvoiceStep();
 
     fireEvent.click(within(getBookingModal(), /تایید نهایی و ثبت سفارش/));
 

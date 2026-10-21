@@ -1,6 +1,6 @@
 import type { BookingOrder, OrderStatus, ServiceType } from '../../types';
 import { CLEANERS_LIST } from '../../data/mockData';
-import { calculatePrice } from '../../pricing/pricingEngine';
+import { calculatePrice, normalizePromoCode, validatePromoCode } from '../../pricing/pricingEngine';
 import { buildDemoOrderPayload } from '../demoOrder';
 import type { IOrderService } from '../orderService.types';
 import {
@@ -47,7 +47,29 @@ const DEMO_STATUS_TO_PUBLIC: Record<OrderStatus, PublicOrderStatus> = {
   cancelled: 'cancelled',
 };
 
-const toQuote = (request: QuoteRequest): Quote => {
+/** مهلت پیش‌فاکتور نمایشی؛ همان مهلت فنی پیش‌فاکتور بک‌اند اپ (۱۵ دقیقه). */
+export const DEMO_QUOTE_TTL_MS = 15 * 60 * 1000;
+
+/** کلید مقایسهٔ «همان انتخاب‌ها»: ترتیب افزودنی‌ها و شکل نوشتن کد تخفیف اثری ندارد. */
+const selectionKey = (request: QuoteRequest): string =>
+  JSON.stringify({
+    serviceId: request.serviceId,
+    hours: request.hours,
+    addonIds: Array.from(new Set(request.addonIds)).sort(),
+    hasDetergentPackage: request.hasDetergentPackage,
+    promoCode: request.promoCode ? normalizePromoCode(request.promoCode) : '',
+  });
+
+const randomReference = (): string => {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  return `DEMO-Q-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+};
+
+/** محاسبهٔ نمایشی؛ کد تخفیف ناشناخته را برخلاف موتور اصلاح‌گر **رد** می‌کند تا فرم بفهمد. */
+const priceSelection = (request: QuoteRequest): Omit<Quote, 'reference' | 'expiresAt'> => {
+  if (request.promoCode && normalizePromoCode(request.promoCode) && !validatePromoCode(request.promoCode).valid) {
+    throw new OrderGatewayError('validation', 'کد تخفیف معتبر نیست.', 'promoCode');
+  }
   const breakdown = calculatePrice({
     serviceId: request.serviceId as ServiceType,
     hours: request.hours,
@@ -70,6 +92,12 @@ const toQuote = (request: QuoteRequest): Quote => {
     isProvisional: true,
   };
 };
+
+export interface DemoOrderBackendOptions {
+  /** ساعت فعلی (میلی‌ثانیه)؛ برای آزمون انقضا قابل جایگزینی است. */
+  now?: () => number;
+  quoteTtlMs?: number;
+}
 
 const toReceipt = (record: BookingOrder): OrderReceipt => ({
   trackingCode: record.trackingCode,
@@ -94,7 +122,16 @@ export interface DemoOrderBackend {
   ledger: DemoOrderLedger;
 }
 
-export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend => {
+export const createDemoOrderBackend = (
+  store: IOrderService,
+  { now = () => Date.now(), quoteTtlMs = DEMO_QUOTE_TTL_MS }: DemoOrderBackendOptions = {},
+): DemoOrderBackend => {
+  /**
+   * پیش‌فاکتورهای صادرشده (فقط در حافظهٔ همین صفحه و فقط انتخاب‌ها، بدون اطلاعات شخصی).
+   * ثبت فقط با مرجع یکی از همین‌ها، برای همان انتخاب‌ها، پیش از انقضا و با همان مبلغ پذیرفته می‌شود.
+   */
+  const issuedQuotes = new Map<string, { selection: string; total: number; expiresAt: number }>();
+
   /**
    * کلید تکرار ← همان تلاش (فقط در حافظهٔ همین صفحه).
    *
@@ -110,7 +147,11 @@ export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend =
 
   const gateway: CustomerOrderGateway = {
     async getQuote(request) {
-      return toQuote(request);
+      const priced = priceSelection(request);
+      const reference = randomReference();
+      const expiresAt = now() + quoteTtlMs;
+      issuedQuotes.set(reference, { selection: selectionKey(request), total: priced.total, expiresAt });
+      return { ...priced, reference, expiresAt: new Date(expiresAt).toISOString() };
     },
 
     submitOrderRequest(rawRequest, options: SubmitOrderOptions) {
@@ -144,8 +185,29 @@ export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend =
   };
 
   /** ساخت و ذخیرهٔ رکورد نمایشی برای درخواستی که از قبل به فیلدهای مجاز محدود شده است. */
+  /** همان قاعدهٔ بک‌اند اپ: مبلغ معتبر را بک‌اند می‌سازد و مبلغ دیده‌شده فقط باید با آن یکی باشد. */
+  function confirmAcceptedQuote(request: OrderRequest): Omit<Quote, 'reference' | 'expiresAt'> {
+    const accepted = request.acceptedQuote;
+    if (!accepted || typeof accepted.reference !== 'string' || typeof accepted.total !== 'number') {
+      throw new OrderGatewayError('validation', 'ثبت بدون پیش‌فاکتور تأییدشده ممکن نیست.');
+    }
+    const issued = issuedQuotes.get(accepted.reference);
+    if (!issued || now() >= issued.expiresAt) {
+      throw new OrderGatewayError('quote_expired', 'اعتبار پیش‌فاکتور تمام شده است.');
+    }
+    const current = priceSelection(request);
+    if (
+      issued.selection !== selectionKey(request) ||
+      issued.total !== current.total ||
+      accepted.total !== issued.total
+    ) {
+      throw new OrderGatewayError('price_changed', 'مبلغ با پیش‌فاکتور تأییدشده یکی نیست.');
+    }
+    return current;
+  }
+
   async function createRecord(request: OrderRequest): Promise<OrderReceipt> {
-    const quote = toQuote(request);
+    const quote = confirmAcceptedQuote(request);
     const requestedCleaner = CLEANERS_LIST.find((cleaner) => cleaner.id === request.requestedCleanerId);
     const payload = buildDemoOrderPayload({
       serviceId: request.serviceId as ServiceType,

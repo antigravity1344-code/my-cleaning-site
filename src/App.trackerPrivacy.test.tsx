@@ -6,6 +6,7 @@ import type { BookingOrder } from './types';
 import App from './App';
 import { DEMO_STORAGE_KEY, LEGACY_DATA_NOTICE, LEGACY_STORAGE_KEYS } from './services/pii';
 import { ADDON_OPTIONS } from './data/mockData';
+import { waitForInvoice } from './testing/invoice';
 
 /**
  * یافته‌های ۱ و ۲ مأموریت PAKSHO-WEBSITE-SAFETY-003 — از مسیر واقعی App.
@@ -57,8 +58,11 @@ const openTracker = (): HTMLElement => {
   return modal;
 };
 
-/** کاربر را داخل App تا مرحله فاکتور می‌برد و سفارش نمایشی را ثبت می‌کند. */
-const createDemoOrderThroughApp = (): void => {
+/**
+ * کاربر را داخل App تا مرحله فاکتور می‌برد، صبر می‌کند تا پیش‌فاکتور (ناهمگام، از adapter فعال)
+ * نمایش داده شود و سفارش نمایشی را ثبت می‌کند.
+ */
+const createDemoOrderThroughApp = async (): Promise<void> => {
   fireEvent.click(screen.getByRole('button', { name: /ادامه در فرم آزمایشی رزرو/ }));
 
   const modal = document.querySelector('div.fixed.inset-0.z-50') as HTMLElement;
@@ -79,9 +83,7 @@ const createDemoOrderThroughApp = (): void => {
   fireEvent.click(
     Array.from(modal.querySelectorAll('button')).find((item) => /مرحله بعد/.test(item.textContent ?? ''))!,
   );
-  fireEvent.click(
-    Array.from(modal.querySelectorAll('button')).find((item) => /تایید نهایی و ثبت سفارش/.test(item.textContent ?? ''))!,
-  );
+  fireEvent.click(await waitForInvoice(modal));
 };
 
 /** پس از ثبت موفق (که غیرهمگام است)، صفحه موفقیت مودال رزرو را می‌بندد. */
@@ -98,7 +100,7 @@ const closeBookingModal = async (): Promise<void> => {
 describe('پنجره درخواست‌های آزمایشی از مسیر App', () => {
   it('متن بازخورد نوشته‌شده در فرم، در مقدار واقعی ذخیره‌شده ظاهر نمی‌شود', async () => {
     render(<App />);
-    createDemoOrderThroughApp();
+    await createDemoOrderThroughApp();
     await closeBookingModal();
 
     const tracker = openTracker();
@@ -181,7 +183,7 @@ describe('SAFETY-005 — actual App storage failures', () => {
       : null;
     try {
       render(<App />);
-      createDemoOrderThroughApp();
+      await createDemoOrderThroughApp();
       await vi.waitFor(() => {
         expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی مرورگر ناموفق بود/);
       });
@@ -212,7 +214,7 @@ describe('SAFETY-008 — corrupted stored demo orders are never overwritten from
   ])('booking with %s shows a visible storage error, no success, and leaves storage byte-for-byte unchanged', async (_label, raw) => {
     localStorage.setItem(DEMO_STORAGE_KEY, raw);
     render(<App />);
-    createDemoOrderThroughApp();
+    await createDemoOrderThroughApp();
     await vi.waitFor(() => {
       expect(getBookingModal().textContent).toMatch(/ذخیره‌سازی محلی مرورگر ناموفق بود/);
     }, { timeout: 5000 });

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
+import { waitForInvoice } from './testing/invoice';
 import { ADDON_OPTIONS, CLEANERS_LIST, SERVICES_LIST } from './data/mockData';
 
 /**
@@ -63,7 +64,7 @@ describe('فرم رزرو — هیچ کنترل کلیک‌پذیرِ غیرقا
 });
 
 describe('مرحله ۱ — نوع خدمت، ساعت، جنسیت، خدمات جانبی، شوینده', () => {
-  it('نوع خدمت یک گروه radio با نام است و انتخاب آن تا فاکتور می‌رسد', () => {
+  it('نوع خدمت یک گروه radio با نام است و انتخاب آن تا فاکتور می‌رسد', async () => {
     const dialog = openBooking();
     const group = within(dialog).getByRole('radiogroup', { name: 'نوع خدمت نظافت مورد نظر:' });
     const radios = within(group).getAllByRole('radio');
@@ -79,6 +80,7 @@ describe('مرحله ۱ — نوع خدمت، ساعت، جنسیت، خدمات
     nextStep(dialog);
     nextStep(dialog);
     fillContactAndContinue(dialog);
+    await waitForInvoice(dialog);
     expect(dialog.textContent).toContain(`${deep.title} (`);
   });
 
@@ -97,7 +99,7 @@ describe('مرحله ۱ — نوع خدمت، ساعت، جنسیت، خدمات
     expect(checkedIn(group)).toEqual([female]);
   });
 
-  it('خدمات جانبی و بسته‌ی شوینده checkbox هستند و روی فاکتور اثر می‌گذارند', () => {
+  it('خدمات جانبی و بسته‌ی شوینده checkbox هستند و روی فاکتور اثر می‌گذارند', async () => {
     const dialog = openBooking();
     const group = within(dialog).getByRole('group', { name: 'خدمات جانبی (اختیاری):' });
     const optional = ADDON_OPTIONS.filter((addon) => addon.id !== 'detergents');
@@ -117,6 +119,7 @@ describe('مرحله ۱ — نوع خدمت، ساعت، جنسیت، خدمات
     nextStep(dialog);
     nextStep(dialog);
     fillContactAndContinue(dialog);
+    await waitForInvoice(dialog);
     expect(dialog.textContent).toContain('خدمات جانبی انتخابی');
     expect(dialog.textContent).not.toContain('پکیج مواد شوینده و دستمال نانو:');
   });
@@ -161,7 +164,7 @@ describe('بازه‌ی زمانی پیش‌فرض', () => {
 
     nextStep(dialog);
     fillContactAndContinue(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    fireEvent.click(await waitForInvoice(dialog));
     await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' });
 
     const stored = JSON.parse(localStorage.getItem('paksho_demo_orders_v2') ?? '[]') as Array<{ timeSlot: string }>;
@@ -205,7 +208,8 @@ describe('مرحله‌ی فاکتور با فشار تکراری یا Enter د�
 
   it('کلیک دوم یک دوبار-کلیک روی همان جای دکمه سفارش را ثبت نمی‌کند؛ کلیک جداگانه ثبت می‌کند', async () => {
     const dialog = openBooking();
-    const confirm = toInvoice(dialog);
+    toInvoice(dialog);
+    const confirm = await waitForInvoice(dialog);
 
     fireEvent.click(confirm, { detail: 2 });
     expect(within(dialog).getByRole('radiogroup', { name: 'نحوه پرداخت:' })).toBeTruthy();
@@ -226,9 +230,10 @@ describe('مرحله‌ی فاکتور با فشار تکراری یا Enter د�
     expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
   });
 
-  it('Enter در فیلد کد تخفیف کد را اعمال می‌کند و فرم را ثبت نمی‌کند؛ ناحیه‌ی اعلام از قبل حاضر است', () => {
+  it('Enter در فیلد کد تخفیف کد را اعمال می‌کند و فرم را ثبت نمی‌کند؛ ناحیه‌ی اعلام از قبل حاضر است', async () => {
     const dialog = openBooking();
     toInvoice(dialog);
+    await waitForInvoice(dialog);
     const status = within(dialog).getByRole('status');
     expect(status.textContent).toBe('');
 
@@ -236,7 +241,8 @@ describe('مرحله‌ی فاکتور با فشار تکراری یا Enter د�
     fireEvent.change(promo, { target: { value: 'PAK1403' } });
     expect(fireEvent.keyDown(promo, { key: 'Enter' })).toBe(false);
 
-    expect(status.textContent).toContain('PAK1403');
+    // کد را بک‌اندِ همان حالت از راه پیش‌فاکتور می‌سنجد؛ پاسخ ناهمگام است.
+    await waitFor(() => expect(status.textContent).toContain('PAK1403'));
     expect(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeTruthy();
     expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
   });
@@ -262,7 +268,7 @@ describe('ثبت سفارش — شماره همراه با ارقام فارسی
     toStep3WithPhone(dialog, phone);
 
     expect(within(dialog).queryByRole('alert')).toBeNull();
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    fireEvent.click(await waitForInvoice(dialog));
     expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
 
     const orders = storedOrders();
@@ -282,7 +288,7 @@ describe('ثبت سفارش — شماره همراه با ارقام فارسی
   it('دو کلیک پشت‌سرهم روی «تأیید نهایی» پیش از به‌روز شدن صفحه فقط یک سفارش ثبت می‌کند', async () => {
     const dialog = openBooking();
     toStep3WithPhone(dialog, '09121234567');
-    const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ });
+    const confirm = await waitForInvoice(dialog);
 
     // هر دو کلیک در یک act: React بین آن‌ها دوباره رندر نمی‌کند (مثل دو رویداد در یک task مرورگر).
     act(() => {
@@ -331,7 +337,7 @@ describe('مرحله ۳ و ۴ — برچسب فیلدها، خطا، پرداخ�
     nextStep(dialog);
     nextStep(dialog);
     fillContactAndContinue(dialog);
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    fireEvent.click(await waitForInvoice(dialog));
 
     expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
   });
