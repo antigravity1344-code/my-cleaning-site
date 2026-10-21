@@ -329,6 +329,27 @@ describe('adapter نمایشی — ثبت فقط با پیش‌فاکتور تأ
     expect(storedOrders()).toHaveLength(0);
   });
 
+  it('پیش‌فاکتورِ انتخاب دیگر، حتی با مبلغ کاملاً یکسان، برای این انتخاب پذیرفته نمی‌شود', async () => {
+    // نظافت استاندارد ۱۱ ساعت و مبل و فرش ۸ ساعت (بدون بستهٔ شوینده) هر دو ۱٬۷۶۰٬۰۰۰ تومان‌اند؛
+    // پس فقط بررسی «همان انتخاب‌ها» می‌تواند جلوی پذیرش را بگیرد (یافتهٔ بازبینی PR #26).
+    const { gateway } = createDemoOrderBackend(orderService);
+    const standard = { ...BASE, serviceId: 'home-standard', hours: 11, addonIds: [], hasDetergentPackage: false, promoCode: undefined };
+    const furniture = { ...standard, serviceId: 'furniture-carpet', hours: 8 };
+    const standardQuote = await gateway.getQuote(standard);
+    const furnitureQuote = await gateway.getQuote(furniture);
+    expect(standardQuote.total).toBe(1_760_000);
+    expect(furnitureQuote.total).toBe(standardQuote.total);
+
+    const mismatched: OrderRequest = {
+      ...furniture,
+      acceptedQuote: { reference: standardQuote.reference, total: standardQuote.total },
+    };
+    await expect(
+      gateway.submitOrderRequest(mismatched, { idempotencyKey: createIdempotencyKey() }),
+    ).rejects.toMatchObject({ kind: 'price_changed' });
+    expect(storedOrders()).toHaveLength(0);
+  });
+
   it('ترتیب افزودنی‌ها یا شکل نوشتن کد تخفیف «انتخاب دیگر» حساب نمی‌شود', async () => {
     const { gateway } = createDemoOrderBackend(orderService);
     const request = await quoted(gateway);

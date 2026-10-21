@@ -12,7 +12,7 @@ import {
   type Quote,
   type QuoteRequest,
 } from '../services/customerOrders/contract';
-import { isQuoteExpired, useGatewayQuote } from '../hooks/useGatewayQuote';
+import { useGatewayQuote } from '../hooks/useGatewayQuote';
 import { PRICING_CONFIG } from '../pricing/pricingEngine';
 import { toLatinDigits } from '../services/pii';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
@@ -234,6 +234,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     isOpen && currentStep === 4 && !createdOrder && unresolvedSubmission === null,
   );
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  /**
+   * شمارهٔ آخرین بررسی کد تخفیف. با باز/بسته‌شدن پنجره یا تغییر انتخاب‌های پایه زیاد می‌شود تا
+   * پاسخ دیررسیدهٔ یک بررسی قدیمی، کد را بی‌صدا روی پنجرهٔ تازه یا انتخاب‌های دیگر اعمال نکند.
+   */
+  const promoTicketRef = useRef(0);
+  useEffect(() => {
+    promoTicketRef.current += 1;
+  }, [isOpen, serviceId, hours, selectedAddons, hasDetergentPackage]);
 
   // دسترس‌پذیری پنجره: نقش dialog، Escape برای بستن، نگه‌داشتن فوکوس داخل پنجره
   // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
@@ -260,9 +268,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       return;
     }
 
+    const ticket = ++promoTicketRef.current;
     setIsApplyingPromo(true);
     try {
       const quote = await getQuote({ ...quoteSelection, promoCode: code });
+      if (ticket !== promoTicketRef.current) return;
       const line = quote.discountLines.find((item) => item.id === `promo:${code}`);
       // تخفیف هرگز دوباره اعمال نمی‌شود: تنها یک کد در هر سفارش نگه داشته می‌شود
       // و بک‌اند خودش سقف تخفیف را با جمع اقلام محدود می‌کند.
@@ -274,6 +284,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           : `کد تخفیف ${code} ثبت شد. اعتبارسنجی نهایی به‌عهده سرور پاک‌شو است.`,
       });
     } catch (error) {
+      if (ticket !== promoTicketRef.current) return;
       if (isOrderGatewayError(error) && error.kind === 'validation' && error.field === 'promoCode') {
         setAppliedPromoCode('');
         setDiscountMsg({ type: 'error', text: 'کد تخفیف معتبر نیست.' });
@@ -322,11 +333,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setFormError('پیش‌فاکتور هنوز آماده نیست؛ پس از نمایش مبلغ دوباره تأیید کنید.');
       return;
     }
-    if (isQuoteExpired(shownQuote)) {
-      invoiceQuote.refresh();
-      setFormError('اعتبار پیش‌فاکتور تمام شد؛ پیش‌فاکتور تازه دریافت می‌شود. لطفاً مبلغ را بررسی و دوباره تأیید کنید.');
-      return;
-    }
+    // انقضا را فقط بک‌اند می‌سنجد (`quote_expired`). ساعت مرورگر ممکن است با ساعت سرور یکی نباشد
+    // و نباید ثبتی را پیش از رسیدن به بک‌اند مسدود کند.
 
     submitLockRef.current = true;
     setIsSubmitting(true);
@@ -396,7 +404,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
       onOrderCreated(receipt);
     } catch (err) {
-      setFormError(submitErrorText(err));
+      // این‌جا ممکن است پنجره در این فاصله بسته و باز شده و فرم از نو باشد؛ پس وعدهٔ «پیش‌فاکتور
+      // تازه دریافت می‌شود» داده نمی‌شود.
+      setFormError(
+        isOrderGatewayError(err) && (err.kind === 'price_changed' || err.kind === 'quote_expired')
+          ? 'مبلغ یا اعتبار پیش‌فاکتور آن درخواست تغییر کرده است و درخواست ثبت نشد. لطفاً انتخاب‌ها را بررسی و مبلغ تازه را تأیید کنید.'
+          : submitErrorText(err),
+      );
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
@@ -834,7 +848,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       const failed = state.status === 'error';
       return (
         <div className="space-y-3 text-xs text-slate-700">
-          <p role="status" className={failed ? 'text-rose-700 font-bold' : 'text-slate-600'}>
+          <p id={`${fieldId}-quote-status`} role="status" className={failed ? 'text-rose-700 font-bold' : 'text-slate-600'}>
             {failed
               ? isOrderGatewayError(state.error) && state.error.kind === 'not_implemented'
                 ? `${state.error.message} پیش‌فاکتور دریافت نشد.`
@@ -1130,14 +1144,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 ) : (
                   <button
                     type="submit"
-                    disabled={isSubmitting || !invoiceQuote.quote}
+                    // تا رسیدن پیش‌فاکتور فقط aria-disabled (نه disabled): غیرفعال‌کردن واقعی همان
+                    // گره‌ای که فوکوس دارد (دکمهٔ «مرحله بعد» مرحلهٔ ۳) فوکوس را از پنجره بیرون
+                    // می‌انداخت. ثبت بدون پیش‌فاکتور را خودِ handleFinalSubmit مسدود می‌کند.
+                    disabled={isSubmitting}
+                    aria-disabled={!invoiceQuote.quote || undefined}
+                    aria-describedby={invoiceQuote.quote ? undefined : `${fieldId}-quote-status`}
                     onClick={(event) => {
                       // کلیک دوم یک دوبار-کلیک (مثلاً روی «مرحله بعد» که همین‌جا بود) ثبت نمی‌کند؛
                       // ثبت فقط با یک کلیک جداگانه روی دکمه‌ی تأیید نهایی.
                       if (event.detail > 1) event.preventDefault();
                     }}
                     onKeyDown={ignoreAutoRepeat}
-                    className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
+                    className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 aria-disabled:opacity-60 aria-disabled:cursor-not-allowed text-white font-black rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
                   >
                     <span>{isSubmitting ? 'در حال ثبت...' : 'تایید نهایی و ثبت سفارش'}</span>
                     <Check className="w-4 h-4" />

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { Quote, QuoteRequest } from '../services/customerOrders/contract';
-import { isQuoteExpired, useGatewayQuote } from './useGatewayQuote';
+import { useGatewayQuote } from './useGatewayQuote';
 
 /** پیش‌فاکتور ساختگی؛ مبلغ و مرجع فقط برای تشخیص پاسخ‌ها از هم است. */
 const quoteFor = (reference: string, total: number): Quote => ({
@@ -111,12 +111,5 @@ describe('useGatewayQuote — پیش‌فاکتور زنده از gateway', () =
     expect(getQuote).not.toHaveBeenCalled();
     expect(result.current.state.status).toBe('idle');
     expect(result.current.quote).toBeNull();
-  });
-
-  it('isQuoteExpired فقط با زمان انقضای اعلام‌شدهٔ بک‌اند می‌سنجد', () => {
-    const quote = { ...quoteFor('Q', 1), expiresAt: '2026-10-21T10:00:00.000Z' };
-    expect(isQuoteExpired(quote, Date.parse('2026-10-21T09:59:59.999Z'))).toBe(false);
-    expect(isQuoteExpired(quote, Date.parse('2026-10-21T10:00:00.000Z'))).toBe(true);
-    expect(isQuoteExpired(quoteFor('NO-EXPIRY', 1), Date.parse('2099-01-01T00:00:00Z'))).toBe(false);
   });
 });

@@ -195,11 +195,20 @@ describe('صفحه فاکتور و موفقیت: بدون ادعای عملیا�
     expect(container.textContent).toContain('در نسخه آزمایشی غیرفعال است');
   });
 
-  it('هیچ تعهد گارانتی یا بیمه‌ای در فاکتور نمایش داده نمی‌شود', () => {
+  it('هیچ تعهد گارانتی یا بیمه‌ای در فاکتور نمایش داده نمی‌شود', async () => {
     const { container } = render(
-      <BookingModal isOpen onClose={() => undefined} initialParams={baseParams} onOrderCreated={() => undefined} />,
+      <BookingModal
+        isOpen
+        onClose={() => undefined}
+        initialParams={baseParams}
+        onOrderCreated={() => undefined}
+        getQuote={demoGetQuote}
+      />,
     );
     goToInvoiceStep();
+    // بدنهٔ فاکتور فقط پس از رسیدن پیش‌فاکتور رندر می‌شود؛ بدون این صبر، آزمون تهی می‌ماند
+    // (یافتهٔ بازبینی PR #26).
+    await waitForInvoice(container);
 
     expect(container.textContent).not.toContain('گارانتی رضایت ۱۰۰٪');
     expect(container.textContent).not.toContain('تضمین');

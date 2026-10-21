@@ -400,7 +400,7 @@ describe('حالت‌های پیاده‌سازی‌نشده — خطای روش
     expect(notice.textContent).toContain('درخواستی ثبت نشد');
     expect(notice.textContent).toContain('پیش‌فاکتور دریافت نشد');
     const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }) as HTMLButtonElement;
-    expect(confirm.disabled).toBe(true);
+    expect(confirm.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(confirm);
     await waitFor(() => expect(within(dialog).queryByRole('button', { name: 'کپی کد پیگیری' })).toBeNull());
     expect(within(dialog).queryByRole('button', { name: 'کپی کد پیگیری' })).toBeNull();

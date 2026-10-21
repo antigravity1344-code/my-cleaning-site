@@ -9,7 +9,8 @@ import type { Quote, QuoteRequest } from '../services/customerOrders/contract';
  *     پیش‌فاکتور قبلی دیگر «جاری» نیست؛
  *   • پاسخ دیررسیدهٔ یک درخواست قدیمی (پاسخ کهنه) نادیده گرفته می‌شود، حتی اگر بعد از پاسخ
  *     تازه برسد؛
- *   • `isExpired` فقط با ساعت مرورگر می‌سنجد؛ تصمیم نهایی دربارهٔ اعتبار با بک‌اند است.
+ *   • انقضا را این هوک نمی‌سنجد: ساعت مرورگر ممکن است با ساعت سرور یکی نباشد، پس تصمیم
+ *     دربارهٔ اعتبار پیش‌فاکتور فقط با بک‌اند است (`quote_expired` هنگام ثبت).
  *
  * هیچ مبلغی در مرورگر حساب نمی‌شود؛ این هوک فقط پاسخ بک‌اند را نگه می‌دارد.
  */
@@ -35,9 +36,6 @@ export const selectionFingerprint = (selection: QuoteRequest): string =>
     hasDetergentPackage: selection.hasDetergentPackage,
     promoCode: selection.promoCode ?? '',
   });
-
-export const isQuoteExpired = (quote: Quote, now: number = Date.now()): boolean =>
-  Boolean(quote.expiresAt) && now >= Date.parse(quote.expiresAt as string);
 
 export function useGatewayQuote(
   getQuote: ((request: QuoteRequest) => Promise<Quote>) | undefined,
