@@ -1,7 +1,11 @@
-import React, { useState, useId, useRef } from 'react';
+import React, { useState, useId, useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { Sparkles, PhoneCall, Search, CalendarCheck, Menu, X, ShieldCheck, Bot, FlaskConical } from 'lucide-react';
 import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { scrollToSection as scrollPageToSection } from '../utils/scrollToSection';
+
+/** از این عرض به بالا دکمه‌ی منوی موبایل پنهان است (`sm:hidden`، یعنی 40rem در Tailwind). */
+const MENU_BUTTON_HIDDEN_QUERY = '(min-width: 40rem)';
 
 interface HeaderProps {
   onOpenBooking: (serviceId?: string) => void;
@@ -18,8 +22,24 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuId = useId();
-  const headerRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // اگر منو باز باشد و صفحه پهن شود (مثلاً چرخاندن گوشی به حالت افقی)، دکمه‌ی منو پنهان
+  // می‌شود ولی خود منو تا عرض lg دیده می‌ماند؛ کاربر راهی برای بستنش ندارد و در گوشیِ افقی
+  // هدر چسبان با منو از ارتفاع صفحه بلندتر می‌شود. پس در این حالت منو بسته می‌شود.
+  useEffect(() => {
+    if (!mobileMenuOpen || typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(MENU_BUTTON_HIDDEN_QUERY);
+    if (query.matches) {
+      setMobileMenuOpen(false);
+      return;
+    }
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileMenuOpen(false);
+    };
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, [mobileMenuOpen]);
 
   // منوی موبایل همین الان (نه در رندر بعدی) بسته می‌شود و فوکوس روی دکمه‌ی منو می‌ماند.
   // دکمه‌های داخل منو با بسته شدن آن از صفحه حذف می‌شوند؛ بدون این کار فوکوس به body
@@ -34,16 +54,11 @@ export const Header: React.FC<HeaderProps> = ({
     // منو باید پیش از اندازه‌گیری بسته شده باشد؛ وگرنه موقعیت با ارتفاع منو حساب می‌شود
     // و پس از بسته شدن آن، صفحه به اندازه‌ی همان ارتفاع از ابتدای بخش جلوتر می‌رود.
     closeMobileMenu();
-    const element = document.getElementById(id);
-    if (!element) return;
-    // هدر چسبان روی بالای صفحه می‌ماند؛ ابتدای بخش زیر آن قرار می‌گیرد، نه پشت آن.
-    const headerHeight = headerRef.current?.offsetHeight ?? 0;
-    const top = element.getBoundingClientRect().top + window.scrollY - headerHeight;
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    scrollPageToSection(id);
   };
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
       {/* Top Banner Notice */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs md:text-sm py-1.5 px-4 font-medium">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
