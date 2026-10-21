@@ -39,9 +39,11 @@ export const Header: React.FC<HeaderProps> = ({
     const fitToViewport = () => {
       // موقعیت از روی چیدمان (offsetTop نسبت به هدر) خوانده می‌شود، نه getBoundingClientRect
       // خود منو؛ انیمیشن ورود منو (slide-in) جابه‌جایی موقت دارد و اندازه را چند پیکسل خراب می‌کرد.
+      // خط پایین هدر هم زیر منو قرار می‌گیرد و باید داخل صفحه بماند.
       const parent = drawer.offsetParent;
       const top = parent ? parent.getBoundingClientRect().top + drawer.offsetTop : drawer.getBoundingClientRect().top;
-      drawer.style.maxHeight = `${Math.max(0, Math.floor(window.innerHeight - top))}px`;
+      const headerBorder = parent ? parseFloat(getComputedStyle(parent).borderBottomWidth) || 0 : 0;
+      drawer.style.maxHeight = `${Math.max(0, Math.floor(window.innerHeight - top - headerBorder))}px`;
     };
     fitToViewport();
     window.addEventListener('resize', fitToViewport);
