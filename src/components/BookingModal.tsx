@@ -4,10 +4,13 @@ import {
   Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
 } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
-import { ServiceType, CleanerGender, BookingOrder } from '../types';
-import { CreateOrderDTO } from '../services/orderService.types';
+import { ServiceType, CleanerGender } from '../types';
+import {
+  isOrderGatewayError,
+  type OrderReceipt,
+  type OrderRequest,
+} from '../services/customerOrders/contract';
 import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
-import { buildDemoOrderPayload } from '../services/demoOrder';
 import { toLatinDigits } from '../services/pii';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
@@ -20,6 +23,36 @@ const TIME_SLOTS = [
   '۱۲:۳۰ الی ۱۶:۳۰ (ظهر و بعدازظهر)',
   '۱۶:۳۰ الی ۲۰:۳۰ (عصر و غروب)',
 ];
+
+const UNCERTAIN_OUTCOME_TEXT =
+  'نتیجهٔ ثبت معلوم نیست؛ ممکن است درخواست ثبت شده باشد ولی پاسخ به این صفحه نرسیده باشد. «بررسی دوباره» همان درخواست را با همان شناسه می‌فرستد و سفارش تکراری ساخته نمی‌شود.';
+
+/**
+ * متن خطای ثبت بر اساس «نوع» خطای قرارداد، نه متن پیام adapter.
+ * هیچ حالتی به ذخیرهٔ نمایشی برنمی‌گردد؛ خطا فقط نمایش داده می‌شود.
+ * «ثبت نشد» فقط برای خطای قطعی گفته می‌شود؛ خطای ناشناخته نامشخص حساب می‌شود.
+ */
+const submitErrorText = (error: unknown): string => {
+  if (!isOrderGatewayError(error)) return UNCERTAIN_OUTCOME_TEXT;
+  switch (error.kind) {
+    case 'local_storage':
+      return 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.';
+    case 'not_implemented':
+      return error.message;
+    case 'conflict':
+      return 'این درخواست قبلاً با اطلاعات دیگری ثبت شده است؛ فرم را ببندید و دوباره تلاش کنید.';
+    case 'validation':
+      return 'برخی اطلاعات درخواست معتبر نیست؛ لطفاً فرم را بررسی کنید.';
+    case 'price_changed':
+      return 'مبلغ تغییر کرده است؛ لطفاً فاکتور را دوباره بررسی و تأیید کنید.';
+    case 'rate_limited':
+      return 'تعداد درخواست‌ها زیاد بود؛ چند دقیقه بعد دوباره تلاش کنید.';
+    case 'unavailable':
+      return 'ارتباط با سرور برقرار نشد و درخواست ارسال نشد. مجدداً تلاش فرمایید.';
+    case 'outcome_unknown':
+      return UNCERTAIN_OUTCOME_TEXT;
+  }
+};
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -36,8 +69,20 @@ interface BookingModalProps {
     cityName?: string;
     cleanerId?: string;
   };
-  onOrderCreated: (order: BookingOrder) => void;
-  createOrderService?: (orderData: CreateOrderDTO) => Promise<BookingOrder>;
+  onOrderCreated: (receipt: OrderReceipt) => void;
+  /**
+   * ثبت درخواست از راه لایهٔ اتصال. فرم هیچ مبلغ، وضعیت، روش پرداخت یا متخصص
+   * تخصیص‌یافته‌ای نمی‌فرستد و نمی‌داند کدام adapter پشت این تابع است. کلید تکرار را هم
+   * لایهٔ اتصال می‌سازد و نگه می‌دارد.
+   */
+  submitOrderRequest?: (request: OrderRequest) => Promise<OrderReceipt>;
+  /**
+   * درخواستی که نتیجهٔ ثبتش معلوم نیست. تا وقتی مقدار دارد، فرم به‌جای مراحل فقط وضعیت همان
+   * درخواست و دکمهٔ «بررسی دوباره» را نشان می‌دهد؛ پس تغییر فرم یا بستن و بازکردن پنجره
+   * نمی‌تواند آن را بی‌صدا به سفارش تازه تبدیل کند.
+   */
+  unresolvedSubmission?: OrderRequest | null;
+  retryUnresolvedSubmission?: () => Promise<OrderReceipt>;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
@@ -46,7 +91,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialServiceId = 'home-standard',
   initialParams,
   onOrderCreated,
-  createOrderService
+  submitOrderRequest,
+  unresolvedSubmission = null,
+  retryUnresolvedSubmission,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -90,7 +137,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const submitLockRef = useRef(false);
 
   // Success screen state
-  const [createdOrder, setCreatedOrder] = useState<BookingOrder | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<{ receipt: OrderReceipt; requestedCleanerName?: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Reset & Hydrate States
@@ -189,6 +236,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // «Rendered more hooks than during the previous render» می‌دهد.
   if (!isOpen) return null;
 
+  // درخواستی با نتیجهٔ نامشخص، جای مراحل فرم را می‌گیرد تا روشن شود.
+  const showUnresolved = !createdOrder && unresolvedSubmission !== null;
+
   // Handlers
   const handleApplyDiscount = () => {
     const code = discountCodeInput.trim().toUpperCase();
@@ -248,15 +298,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     // نه متخصصی انتخاب می‌شود، نه شماره تماسی ساخته می‌شود.
     const requestedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
 
-    const orderPayload: CreateOrderDTO = buildDemoOrderPayload({
+    // فقط ورودی‌های انتخاب و اطلاعات تماس؛ مبلغ، وضعیت و پرداخت را بک‌اند تعیین می‌کند.
+    const request: OrderRequest = {
       serviceId,
-      serviceTitle: currentService.title,
-      cleanerGender,
       hours,
+      addonIds: selectedAddons,
+      hasDetergentPackage,
+      promoCode: appliedPromoCode || undefined,
+      cleanerGender,
+      requestedCleanerId: requestedCleaner?.id,
       squareMeters,
       roomsCount,
-      selectedAddons,
-      hasDetergentPackage,
       date: selectedDate,
       timeSlot: selectedTimeSlot,
       cityName,
@@ -266,27 +318,41 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       customerName: customerName.trim(),
       customerPhone: toLatinDigits(customerPhone.trim()),
       notes: notes.trim(),
-      totalPrice,
-      discountApplied: pricing.discountsTotal,
-      requestedCleanerId: requestedCleaner?.id,
-      requestedCleanerName: requestedCleaner?.name,
-      paymentMethod,
-    });
+    };
+
+    if (!submitOrderRequest) {
+      setFormError('سرویس ثبت سفارش در دسترس نیست؛ درخواستی ارسال نشد.');
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      if (!createOrderService) {
-        throw new Error('سرویس ثبت سفارش در دسترس نیست.');
-      }
-      const created = await createOrderService(orderPayload);
-      setCreatedOrder(created);
-      onOrderCreated(created);
+      const receipt = await submitOrderRequest(request);
+      setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
+      onOrderCreated(receipt);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '';
-      setFormError(
-        message.includes('حافظه') || message.includes('ذخیره‌سازی')
-          ? 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.'
-          : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
-      );
+      setFormError(submitErrorText(err));
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  /** روشن کردن نتیجهٔ درخواست نامشخص: همان درخواست، با همان کلید، از راه لایهٔ اتصال. */
+  const handleRetryUnresolved = async () => {
+    if (!unresolvedSubmission || isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+    setFormError('');
+    const requestedCleaner = CLEANERS_LIST.find(c => c.id === unresolvedSubmission.requestedCleanerId);
+    try {
+      if (!retryUnresolvedSubmission) throw new Error('بررسی دوباره در دسترس نیست.');
+      const receipt = await retryUnresolvedSubmission();
+      setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
+      onOrderCreated(receipt);
+    } catch (err) {
+      setFormError(submitErrorText(err));
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
@@ -301,17 +367,52 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleFormSubmitWrapper = (e: React.FormEvent) => {
     e.preventDefault();
+    if (showUnresolved) return;
     if (currentStep < 4) handleNextStep();
     else handleFinalSubmit();
   };
 
   const handleCopyTrackingCode = () => {
     if (createdOrder) {
-      navigator.clipboard?.writeText(createdOrder.trackingCode);
+      navigator.clipboard?.writeText(createdOrder.receipt.trackingCode);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     }
   };// --- Sub-Render Helpers ---
+
+  const renderUnresolved = () => {
+    if (!unresolvedSubmission) return null;
+    const service = SERVICES_LIST.find((item) => item.id === unresolvedSubmission.serviceId);
+    return (
+      <div className="space-y-4 text-right">
+        <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-950">
+          <h4 className="font-black text-sm">نتیجهٔ ثبت درخواست قبلی معلوم نیست</h4>
+          <p className="text-xs leading-6 mt-2">
+            ممکن است این درخواست ثبت شده باشد ولی پاسخ به این صفحه نرسیده باشد. برای جلوگیری از
+            سفارش تکراری، تا روشن‌شدن نتیجه درخواست تازه‌ای فرستاده نمی‌شود و فرم قابل ویرایش نیست.
+          </p>
+          <p className="text-xs leading-6 mt-2">
+            «بررسی دوباره» همان درخواست را با همان شناسه می‌فرستد. اگر قبلاً ثبت شده باشد، همان
+            سفارش برگردانده می‌شود و سفارش دومی ساخته نمی‌شود.
+          </p>
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">خدمت</dt>
+            <dd className="font-bold text-slate-900 mt-1">{service?.title ?? unresolvedSubmission.serviceId}</dd>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">تاریخ</dt>
+            <dd className="font-bold text-slate-900 mt-1">{unresolvedSubmission.date}</dd>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <dt className="text-slate-600">بازهٔ زمانی</dt>
+            <dd className="font-bold text-slate-900 mt-1">{unresolvedSubmission.timeSlot}</dd>
+          </div>
+        </dl>
+      </div>
+    );
+  };
 
   const renderSuccessScreen = () => {
     if (!createdOrder) return null;
@@ -330,7 +431,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
           <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
-            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
+            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.receipt.trackingCode}</span>
             <button
               type="button"
               onClick={handleCopyTrackingCode}
@@ -846,7 +947,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
 
         {/* Wizard Steps Indicator */}
-        {!createdOrder && (
+        {!createdOrder && !showUnresolved && (
           <div className="px-5 sm:px-8 pt-4 pb-2 bg-white border-b border-slate-100 shrink-0">
             <div className="flex items-center justify-between text-xs font-bold">
               {[
@@ -876,7 +977,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
         <form onSubmit={handleFormSubmitWrapper} className="flex-1 overflow-hidden flex flex-col">
           <div className="p-5 sm:p-8 overflow-y-auto flex-1 text-slate-800">
-            {createdOrder ? renderSuccessScreen() : (
+            {createdOrder ? renderSuccessScreen() : showUnresolved ? renderUnresolved() : (
               <>
                 <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} className="mb-5" />
                 {renderStepContent()}
@@ -884,8 +985,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             )}
           </div>
 
+          {/* درخواست با نتیجهٔ نامشخص: فقط بررسی دوبارهٔ همان درخواست */}
+          {showUnresolved && (
+            <div className="p-4 sm:px-8 border-t border-slate-200/80 bg-slate-50 flex flex-col gap-3 shrink-0">
+              {formError && (
+                <div role="alert" className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right">
+                  ⚠️ {formError}
+                </div>
+              )}
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={(event) => {
+                    if (event.detail > 1) return;
+                    handleRetryUnresolved();
+                  }}
+                  onKeyDown={ignoreAutoRepeat}
+                  className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-black rounded-xl text-sm shadow-md transition-all cursor-pointer"
+                >
+                  <span>{isSubmitting ? 'در حال بررسی...' : 'بررسی دوبارهٔ همان درخواست'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Bottom Nav / Error Banner */}
-          {!createdOrder && (
+          {!createdOrder && !showUnresolved && (
             <div className="p-4 sm:px-8 border-t border-slate-200/80 bg-slate-50 flex flex-col gap-3 shrink-0">
               {formError && (
                 <div role="alert" className="p-3 bg-rose-50 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200 text-right animate-pulse">

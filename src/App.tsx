@@ -13,14 +13,23 @@ import { BookingModal } from './components/BookingModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AiConsultantModal } from './components/AiConsultantModal';
 import { OrderProvider, useOrders } from './context/OrderContext';
-import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './types';
+import type { OrderBackend, OrderReceipt } from './services/customerOrders';
+import { ServiceType, CleanerGender, CleanerSpecialist } from './types';
 import { SERVICES_LIST } from './data/mockData';
 import { Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
 import { BackgroundInertContext } from './context/BackgroundInertContext';
 
 function PakshoAppContent() {
-  const { orders, createOrder, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
+  const {
+    orders,
+    submitOrderRequest,
+    unresolvedSubmission,
+    retryUnresolvedSubmission,
+    submitOrderRating,
+    cancelOrder,
+    hasLegacyStoredData,
+  } = useOrders();
 
   // Modal States
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -142,7 +151,7 @@ function PakshoAppContent() {
   };
 
   // Handle new order added
-  const handleOrderCreated = (_newOrder: BookingOrder) => {
+  const handleOrderCreated = (_receipt: OrderReceipt) => {
     // State is synchronized via OrderContext
   };
 
@@ -253,7 +262,9 @@ function PakshoAppContent() {
         onClose={() => setIsBookingOpen(false)}
         initialParams={bookingParams}
         onOrderCreated={handleOrderCreated}
-        createOrderService={createOrder}
+        submitOrderRequest={submitOrderRequest}
+        unresolvedSubmission={unresolvedSubmission}
+        retryUnresolvedSubmission={retryUnresolvedSubmission}
       />
 
       {/* Order Tracker Modal */}
@@ -277,9 +288,17 @@ function PakshoAppContent() {
   );
 }
 
-export default function App() {
+interface AppProps {
+  /**
+   * فقط برای آزمون: adapter سفارش دیگری به جای adapter تنظیمات راه‌اندازی.
+   * در اجرای واقعی خالی می‌ماند و adapter از `VITE_ORDER_BACKEND` انتخاب می‌شود.
+   */
+  orderBackend?: OrderBackend;
+}
+
+export default function App({ orderBackend }: AppProps = {}) {
   return (
-    <OrderProvider>
+    <OrderProvider backend={orderBackend}>
       <PakshoAppContent />
     </OrderProvider>
   );

@@ -13,8 +13,9 @@ import { DEMO_ORDER_STATUS, DEMO_TRACKING_PREFIX, generateDemoTrackingCode } fro
  *   • اطلاعات هویتی مشتری پیش از ذخیره‌سازی ماسک/حذف می‌شود،
  *   • کد پیگیری با پیشوند DEMO- ساخته می‌شود تا با کد عملیاتی سرور اشتباه نشود.
  *
- * امضای متدها async و مطابق `IOrderService` است تا در مأموریت یکپارچه‌سازی،
- * جانشینی با نسخه HTTP بدون تغییر کامپوننت‌ها انجام شود.
+ * کامپوننت‌ها مستقیماً از این سرویس استفاده نمی‌کنند؛ فقط adapter نمایشی
+ * (`src/services/customerOrders/demoGateway.ts`) آن را صدا می‌زند. اتصال عملیاتی
+ * جانشین این فایل نیست، بلکه adapter دیگری از همان قرارداد عمومی مشتری است.
  */
 const isStoredOrder = (item: unknown): item is BookingOrder =>
   typeof item === 'object' &&
@@ -198,8 +199,7 @@ class DemoLocalOrderService implements IOrderService {
   }
 }
 
-// Export singleton instance as current provider.
-// جانشینی با نسخه HTTP/سرور در مأموریت یکپارچه‌سازی اینجا انجام می‌شود.
+// تنها نمونهٔ ذخیرهٔ نمایشی؛ فقط adapter نمایشی از آن استفاده می‌کند.
 export const orderService: IOrderService = new DemoLocalOrderService();
 
 export { DEMO_MODE, DEMO_TRACKING_PREFIX };
