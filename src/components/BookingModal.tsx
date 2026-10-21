@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useId } from 'react';
+import React, { useState, useEffect, useMemo, useId, useRef } from 'react';
 import {
   X, Check, ArrowLeft, ArrowRight,
   Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
@@ -8,6 +8,7 @@ import { ServiceType, CleanerGender, BookingOrder } from '../types';
 import { CreateOrderDTO } from '../services/orderService.types';
 import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
 import { buildDemoOrderPayload } from '../services/demoOrder';
+import { toLatinDigits } from '../services/pii';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
@@ -84,6 +85,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // Error & Submission States
   const [formError, setFormError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // قفل هم‌زمان ثبت: state تا رندر بعدی به‌روز نمی‌شود؛ دو رویداد ثبت پیش از آن رندر
+  // (مثلاً دو کلیک در یک task مرورگر) هر دو isSubmitting=false می‌دیدند و دو سفارش ثبت می‌شد.
+  const submitLockRef = useRef(false);
 
   // Success screen state
   const [createdOrder, setCreatedOrder] = useState<BookingOrder | null>(null);
@@ -218,8 +222,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setFormError('لطفاً آدرس دقیق، نام و شماره همراه را تکمیل فرمایید.');
       return false;
     }
+    // همان قاعده (۱۱ رقم، شروع با 09)؛ ارقام فارسی/عربی فقط به لاتین تبدیل می‌شوند،
+    // چون \d در JavaScript فقط ارقام لاتین را می‌شناسد.
     const phoneRegex = /^09\d{9}$/;
-    if (!phoneRegex.test(customerPhone.trim())) {
+    if (!phoneRegex.test(toLatinDigits(customerPhone.trim()))) {
       setFormError('لطفاً شماره همراه معتبر ۱۱ رقمی (مثال: 09123456789) وارد کنید.');
       return false;
     }
@@ -233,7 +239,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleFinalSubmit = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
     setIsSubmitting(true);
     setFormError('');
 
@@ -257,7 +264,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       address: address.trim(),
       unit: unit.trim(),
       customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
+      customerPhone: toLatinDigits(customerPhone.trim()),
       notes: notes.trim(),
       totalPrice,
       discountApplied: pricing.discountsTotal,
@@ -281,6 +288,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
       );
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
 import { ADDON_OPTIONS, CLEANERS_LIST, SERVICES_LIST } from './data/mockData';
 
@@ -239,6 +239,59 @@ describe('مرحله‌ی فاکتور با فشار تکراری یا Enter د�
     expect(status.textContent).toContain('PAK1403');
     expect(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeTruthy();
     expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+  });
+});
+
+describe('ثبت سفارش — شماره همراه با ارقام فارسی و جلوگیری از ثبت دوباره', () => {
+  const storedOrders = (): Array<Record<string, unknown>> => JSON.parse(localStorage.getItem('paksho_demo_orders_v2') ?? '[]');
+
+  const toStep3WithPhone = (dialog: HTMLElement, phone: string): void => {
+    nextStep(dialog);
+    nextStep(dialog);
+    fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+    fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+    fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: phone } });
+    nextStep(dialog);
+  };
+
+  it.each([
+    ['ارقام فارسی', '۰۹۱۲۱۲۳۴۵۶۷'],
+    ['ارقام عربی', '٠٩١٢١٢٣٤٥٦٧'],
+  ])('همان شماره‌ی معتبر ۱۱ رقمی با %s پذیرفته و ماسک‌شده‌اش ذخیره می‌شود', async (_label, phone) => {
+    const dialog = openBooking();
+    toStep3WithPhone(dialog, phone);
+
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
+    expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
+
+    const orders = storedOrders();
+    expect(orders).toHaveLength(1);
+    expect(orders[0].customerPhone).toBe('0912***567');
+  });
+
+  it('شماره‌ی نامعتبر با ارقام فارسی (۱۰ رقم) همچنان رد می‌شود', () => {
+    const dialog = openBooking();
+    toStep3WithPhone(dialog, '۰۹۱۲۱۲۳۴۵۶');
+
+    expect(within(dialog).getByRole('alert').textContent).toContain('شماره همراه معتبر');
+    expect(within(dialog).queryByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeNull();
+    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
+  });
+
+  it('دو کلیک پشت‌سرهم روی «تأیید نهایی» پیش از به‌روز شدن صفحه فقط یک سفارش ثبت می‌کند', async () => {
+    const dialog = openBooking();
+    toStep3WithPhone(dialog, '09121234567');
+    const confirm = within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ });
+
+    // هر دو کلیک در یک act: React بین آن‌ها دوباره رندر نمی‌کند (مثل دو رویداد در یک task مرورگر).
+    act(() => {
+      confirm.click();
+      confirm.click();
+    });
+
+    expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
+    expect(storedOrders()).toHaveLength(1);
   });
 });
 
