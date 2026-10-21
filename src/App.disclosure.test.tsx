@@ -166,8 +166,13 @@ describe('منوی موبایل — هماهنگی breakpointها و ارتفا�
     for (const element of [nav, toggle.parentElement, drawer]) {
       expect(tokens(element).filter((token) => /^(sm|md|lg):(hidden|flex)$/.test(token))).toEqual([]);
     }
-    // دکمه‌ی آیکنی پیگیری فقط وقتی دیده می‌شود که دکمه‌های اصلی هدر (از sm به بالا) پنهان‌اند.
-    expect(tokens(within(toggle.parentElement as HTMLElement).getByRole('button', { name: 'درخواست‌های آزمایشی' }))).toContain('sm:hidden');
+    // زیر lg دکمه‌های متنی مشاور و پیگیری جای خود را به دکمه‌ی آیکنی پیگیری (و گزینه‌ی مشاور در منو)
+    // می‌دهند تا کنار دکمه‌ی منو جا شوند؛ پیگیری در هر عرض دقیقاً یک دکمه‌ی قابل‌مشاهده دارد.
+    expect(tokens(within(toggle.parentElement as HTMLElement).getByRole('button', { name: 'درخواست‌های آزمایشی' }))).toContain('lg:hidden');
+    expect(tokens(screen.getByRole('button', { name: /درخواست‌های آزمایشی \(نمایشی\)/ }))).toEqual(expect.arrayContaining(['hidden', 'lg:flex']));
+    const headerAdvisor = within(header).getAllByRole('button', { name: 'مشاور هوشمند' }).find((button) => !drawer?.contains(button));
+    expect(tokens(headerAdvisor ?? null)).toEqual(expect.arrayContaining(['hidden', 'lg:flex']));
+    expect(within(drawer as HTMLElement).getByRole('button', { name: 'مشاور هوشمند' })).toBeTruthy();
   });
 
   it('منوی باز به فضای زیر خودش محدود می‌شود و با اسکرول و تغییر ارتفاع صفحه دوباره اندازه می‌گیرد', () => {

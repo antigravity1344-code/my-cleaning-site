@@ -195,11 +195,13 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Action Buttons */}
+          {/* زیر lg فقط دکمه‌ی رزرو اینجا می‌ماند تا کنار دکمه‌ی منو جا شود و متن‌ها دو خطی نشوند؛
+              مشاور در منو هست و پیگیری با دکمه‌ی آیکنی کنار دکمه‌ی منو در دسترس است. */}
           <div className="hidden sm:flex items-center gap-3">
             {/* AI Advisor Button */}
             <button
               onClick={onOpenAiConsultant}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-xl transition-all shadow-xs cursor-pointer"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-xl transition-all shadow-xs cursor-pointer"
               title="مشاور هوشمند تخمین زمان و نوع نظافت"
             >
               <Bot className="w-4 h-4 text-teal-600 animate-bounce" />
@@ -209,7 +211,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Order Tracking Button */}
             <button
               onClick={onOpenTracker}
-              className="relative flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+              className="relative hidden lg:flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
             >
               <Search className="w-4 h-4 text-slate-500" />
               <span>درخواست‌های آزمایشی{DEMO_MODE ? ' (نمایشی)' : ''}</span>
@@ -234,7 +236,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex xl:hidden items-center gap-2">
             <button
               onClick={onOpenTracker}
-              className="sm:hidden p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+              className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
               aria-label="درخواست‌های آزمایشی"
             >
               <Search className="w-5 h-5" />
