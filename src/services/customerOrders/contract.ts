@@ -74,6 +74,28 @@ export interface OrderRequest extends QuoteRequest {
   notes?: string;
 }
 
+/** فقط فیلدهای مجاز قرارداد؛ هر چیز دیگری (مبلغ، وضعیت، متخصص) دور ریخته می‌شود. */
+export const pickOrderRequest = (request: OrderRequest): OrderRequest => ({
+  serviceId: request.serviceId,
+  hours: request.hours,
+  addonIds: [...request.addonIds],
+  hasDetergentPackage: request.hasDetergentPackage,
+  promoCode: request.promoCode,
+  cleanerGender: request.cleanerGender,
+  requestedCleanerId: request.requestedCleanerId,
+  squareMeters: request.squareMeters,
+  roomsCount: request.roomsCount,
+  date: request.date,
+  timeSlot: request.timeSlot,
+  cityName: request.cityName,
+  district: request.district,
+  address: request.address,
+  unit: request.unit,
+  customerName: request.customerName,
+  customerPhone: request.customerPhone,
+  notes: request.notes,
+});
+
 /**
  * ⚠️ هنوز ناقص برای حالت‌های عملیاتی: ثبت باید به پیش‌فاکتوری که مشتری دیده و تأیید کرده
  * گره بخورد (بک‌اند اپ موبایل در حالت قیمت سرور `quoteToken` و `confirmedTotal` را الزامی
@@ -142,8 +164,18 @@ export type OrderGatewayErrorKind =
   /** کلید یکسان با محتوای متفاوت. */
   | 'conflict'
   | 'rate_limited'
-  /** بک‌اند در دسترس نیست (شبکه یا خطای سرور). */
+  /**
+   * درخواست **قطعاً** پردازش نشده است؛ مثلاً مرورگر پیش از ارسال آفلاین بود یا بک‌اند صریحاً
+   * اعلام کرد چیزی ثبت نکرده است. فقط وقتی به‌کار می‌رود که adapter از ثبت‌نشدن مطمئن باشد.
+   */
   | 'unavailable'
+  /**
+   * نتیجهٔ ثبت **معلوم نیست**: درخواست ممکن است به بک‌اند رسیده و ثبت شده باشد ولی پاسخ به
+   * مرورگر نرسیده باشد (قطع ارتباط پس از ارسال، پایان مهلت، پاسخ ناقص یا خطای میانی).
+   * adapter در هر تردیدی همین نوع را برمی‌گرداند، نه `unavailable`. لایهٔ اتصال در این حالت
+   * همان درخواست و همان کلید را نگه می‌دارد تا نتیجه روشن شود.
+   */
+  | 'outcome_unknown'
   /** اتصال این حالت هنوز پیاده‌سازی نشده یا تنظیمات راه‌اندازی نامعتبر است. */
   | 'not_implemented'
   /** فقط نسخهٔ نمایشی: ذخیره در حافظهٔ همین مرورگر ناموفق بود. */
@@ -161,3 +193,11 @@ export class OrderGatewayError extends Error {
 
 export const isOrderGatewayError = (error: unknown): error is OrderGatewayError =>
   error instanceof OrderGatewayError;
+
+/**
+ * آیا خطای ثبت ممکن است با ثبت موفق در بک‌اند همراه بوده باشد؟
+ * هر خطایی که از قرارداد نیامده (مثلاً استثنای پیش‌بینی‌نشده در adapter) هم نامشخص حساب
+ * می‌شود؛ ثبت‌نشدن فقط با خطای قطعیِ صریح اعلام می‌شود.
+ */
+export const isUncertainSubmitOutcome = (error: unknown): boolean =>
+  !isOrderGatewayError(error) || error.kind === 'outcome_unknown';

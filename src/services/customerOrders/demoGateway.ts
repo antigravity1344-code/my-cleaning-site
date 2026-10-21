@@ -5,6 +5,7 @@ import { buildDemoOrderPayload } from '../demoOrder';
 import type { IOrderService } from '../orderService.types';
 import {
   OrderGatewayError,
+  pickOrderRequest,
   type CustomerOrderGateway,
   type OrderReceipt,
   type OrderRequest,
@@ -45,28 +46,6 @@ const DEMO_STATUS_TO_PUBLIC: Record<OrderStatus, PublicOrderStatus> = {
   completed: 'completed',
   cancelled: 'cancelled',
 };
-
-/** فقط فیلدهای مجاز قرارداد؛ هر چیز دیگری (مبلغ، وضعیت، متخصص) دور ریخته می‌شود. */
-export const pickOrderRequest = (request: OrderRequest): OrderRequest => ({
-  serviceId: request.serviceId,
-  hours: request.hours,
-  addonIds: [...request.addonIds],
-  hasDetergentPackage: request.hasDetergentPackage,
-  promoCode: request.promoCode,
-  cleanerGender: request.cleanerGender,
-  requestedCleanerId: request.requestedCleanerId,
-  squareMeters: request.squareMeters,
-  roomsCount: request.roomsCount,
-  date: request.date,
-  timeSlot: request.timeSlot,
-  cityName: request.cityName,
-  district: request.district,
-  address: request.address,
-  unit: request.unit,
-  customerName: request.customerName,
-  customerPhone: request.customerPhone,
-  notes: request.notes,
-});
 
 const toQuote = (request: QuoteRequest): Quote => {
   const breakdown = calculatePrice({
@@ -116,8 +95,16 @@ export interface DemoOrderBackend {
 }
 
 export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend => {
-  /** کلید تکرار ← نتیجهٔ همان تلاش (فقط در حافظهٔ همین صفحه). */
-  const submissions = new Map<string, { fingerprint: string; receipt: OrderReceipt }>();
+  /**
+   * کلید تکرار ← همان تلاش (فقط در حافظهٔ همین صفحه).
+   *
+   * کلید و اثرانگشت درخواست **پیش از اولین انتظار** ثبت می‌شوند و خودِ عملیات در جریان
+   * (Promise) نگه داشته می‌شود؛ پس درخواست هم‌زمانی که همان کلید را بیاورد:
+   *   • با همان محتوا ← نتیجهٔ همان عملیات را می‌گیرد (سفارش دوم ساخته نمی‌شود)؛
+   *   • با محتوای دیگر ← `conflict` می‌گیرد.
+   * اگر ذخیره قطعاً شکست بخورد، کلید آزاد می‌شود تا تلاش دوبارهٔ معتبر ممکن بماند.
+   */
+  const submissions = new Map<string, { fingerprint: string; result: Promise<OrderReceipt> }>();
   /** نسخهٔ کامل سفارش‌های همین نشست؛ روی دیسک فقط نسخهٔ ماسک‌شده می‌ماند. */
   const sessionRecords = new Map<string, BookingOrder>();
 
@@ -126,57 +113,28 @@ export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend =
       return toQuote(request);
     },
 
-    async submitOrderRequest(rawRequest, options: SubmitOrderOptions) {
+    submitOrderRequest(rawRequest, options: SubmitOrderOptions) {
       const request = pickOrderRequest(rawRequest);
       const fingerprint = JSON.stringify(request);
-      const previous = submissions.get(options.idempotencyKey);
+      const key = options.idempotencyKey;
+      const previous = submissions.get(key);
       if (previous) {
         if (previous.fingerprint !== fingerprint) {
-          throw new OrderGatewayError('conflict', 'این درخواست قبلاً با اطلاعات دیگری ثبت شده است.');
+          return Promise.reject(
+            new OrderGatewayError('conflict', 'این درخواست قبلاً با اطلاعات دیگری ثبت شده است.'),
+          );
         }
-        return previous.receipt;
+        return previous.result;
       }
 
-      const quote = toQuote(request);
-      const requestedCleaner = CLEANERS_LIST.find((cleaner) => cleaner.id === request.requestedCleanerId);
-      const payload = buildDemoOrderPayload({
-        serviceId: request.serviceId as ServiceType,
-        serviceTitle: quote.serviceTitle,
-        cleanerGender: request.cleanerGender,
-        hours: request.hours,
-        squareMeters: request.squareMeters,
-        roomsCount: request.roomsCount,
-        selectedAddons: request.addonIds,
-        hasDetergentPackage: request.hasDetergentPackage,
-        date: request.date,
-        timeSlot: request.timeSlot,
-        cityName: request.cityName,
-        district: request.district,
-        address: request.address,
-        unit: request.unit,
-        customerName: request.customerName,
-        customerPhone: request.customerPhone,
-        notes: request.notes,
-        totalPrice: quote.total,
-        discountApplied: quote.discountsTotal,
-        requestedCleanerId: requestedCleaner?.id,
-        requestedCleanerName: requestedCleaner?.name,
-        // درگاه آنلاین وجود ندارد؛ روش پرداخت را adapter تعیین می‌کند، نه مرورگرِ مشتری.
-        paymentMethod: 'cash_on_site',
+      // ثبت هم‌زمان، پیش از هر انتظاری: درخواست بعدی با همین کلید همین Promise را می‌بیند.
+      const result = createRecord(request);
+      submissions.set(key, { fingerprint, result });
+      result.catch(() => {
+        // شکست قطعی: هیچ سفارشی ساخته نشده، پس کلید آزاد می‌شود تا تلاش دوباره ممکن باشد.
+        if (submissions.get(key)?.result === result) submissions.delete(key);
       });
-
-      let record: BookingOrder;
-      try {
-        record = await store.createOrder(payload);
-      } catch (error) {
-        const message = error instanceof Error && error.message ? error.message : 'ذخیره‌سازی محلی ناموفق بود.';
-        throw new OrderGatewayError('local_storage', message);
-      }
-
-      const receipt = toReceipt(record);
-      submissions.set(options.idempotencyKey, { fingerprint, receipt });
-      sessionRecords.set(record.trackingCode, record);
-      return receipt;
+      return result;
     },
 
     async trackOrder(trackingCode) {
@@ -184,6 +142,48 @@ export const createDemoOrderBackend = (store: IOrderService): DemoOrderBackend =
       return record ? toTrackingView(record) : null;
     },
   };
+
+  /** ساخت و ذخیرهٔ رکورد نمایشی برای درخواستی که از قبل به فیلدهای مجاز محدود شده است. */
+  async function createRecord(request: OrderRequest): Promise<OrderReceipt> {
+    const quote = toQuote(request);
+    const requestedCleaner = CLEANERS_LIST.find((cleaner) => cleaner.id === request.requestedCleanerId);
+    const payload = buildDemoOrderPayload({
+      serviceId: request.serviceId as ServiceType,
+      serviceTitle: quote.serviceTitle,
+      cleanerGender: request.cleanerGender,
+      hours: request.hours,
+      squareMeters: request.squareMeters,
+      roomsCount: request.roomsCount,
+      selectedAddons: request.addonIds,
+      hasDetergentPackage: request.hasDetergentPackage,
+      date: request.date,
+      timeSlot: request.timeSlot,
+      cityName: request.cityName,
+      district: request.district,
+      address: request.address,
+      unit: request.unit,
+      customerName: request.customerName,
+      customerPhone: request.customerPhone,
+      notes: request.notes,
+      totalPrice: quote.total,
+      discountApplied: quote.discountsTotal,
+      requestedCleanerId: requestedCleaner?.id,
+      requestedCleanerName: requestedCleaner?.name,
+      // درگاه آنلاین وجود ندارد؛ روش پرداخت را adapter تعیین می‌کند، نه مرورگرِ مشتری.
+      paymentMethod: 'cash_on_site',
+    });
+
+    let record: BookingOrder;
+    try {
+      record = await store.createOrder(payload);
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : 'ذخیره‌سازی محلی ناموفق بود.';
+      throw new OrderGatewayError('local_storage', message);
+    }
+
+    sessionRecords.set(record.trackingCode, record);
+    return toReceipt(record);
+  }
 
   const ledger: DemoOrderLedger = {
     listLocalOrders: () => store.getOrders(),

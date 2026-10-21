@@ -21,7 +21,15 @@ import { DemoModeBanner } from './components/DemoNotice';
 import { BackgroundInertContext } from './context/BackgroundInertContext';
 
 function PakshoAppContent() {
-  const { orders, submitOrderRequest, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
+  const {
+    orders,
+    submitOrderRequest,
+    unresolvedSubmission,
+    retryUnresolvedSubmission,
+    submitOrderRating,
+    cancelOrder,
+    hasLegacyStoredData,
+  } = useOrders();
 
   // Modal States
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -255,6 +263,8 @@ function PakshoAppContent() {
         initialParams={bookingParams}
         onOrderCreated={handleOrderCreated}
         submitOrderRequest={submitOrderRequest}
+        unresolvedSubmission={unresolvedSubmission}
+        retryUnresolvedSubmission={retryUnresolvedSubmission}
       />
 
       {/* Order Tracker Modal */}

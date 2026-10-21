@@ -7,6 +7,7 @@ import type { BookingOrder } from '../../types';
 import { resolveOrderBackendMode } from '../../config/orderBackend';
 import { createDemoOrderBackend } from './demoGateway';
 import { createIdempotencyKey, IDEMPOTENCY_KEY_PATTERN } from './idempotency';
+import { createSubmissionCoordinator } from './submissionCoordinator';
 import {
   createOrderBackend,
   OrderGatewayError,
@@ -175,6 +176,63 @@ describe('adapter نمایشی — مبلغ، وضعیت و پرداخت را خ
     expect(storedOrders()).toHaveLength(1);
   });
 
+  it('دو درخواست هم‌زمان با کلید و محتوای یکسان فقط یک سفارش می‌سازند و هر دو همان رسید را می‌گیرند', async () => {
+    const { gateway } = createDemoOrderBackend(orderService);
+    const options = { idempotencyKey: createIdempotencyKey() };
+    const [first, second] = await Promise.all([
+      gateway.submitOrderRequest(REQUEST, options),
+      gateway.submitOrderRequest({ ...REQUEST }, options),
+    ]);
+    expect(second).toEqual(first);
+    expect(storedOrders()).toHaveLength(1);
+  });
+
+  it('دو درخواست هم‌زمان با کلید یکسان و محتوای متفاوت: فقط اولی ثبت می‌شود و دومی conflict می‌گیرد', async () => {
+    const { gateway } = createDemoOrderBackend(orderService);
+    const options = { idempotencyKey: createIdempotencyKey() };
+    const results = await Promise.allSettled([
+      gateway.submitOrderRequest(REQUEST, options),
+      gateway.submitOrderRequest({ ...REQUEST, hours: 7 }, options),
+    ]);
+    expect(results[0].status).toBe('fulfilled');
+    expect(results[1].status).toBe('rejected');
+    expect((results[1] as PromiseRejectedResult).reason).toMatchObject({ kind: 'conflict' });
+    expect(storedOrders()).toHaveLength(1);
+    expect(storedOrders()[0].hours).toBe(6);
+  });
+
+  it('پس از شکست قطعی ذخیره، تلاش دوباره با همان کلید و همان درخواست ممکن است و فقط یک سفارش می‌سازد', async () => {
+    const { gateway } = createDemoOrderBackend(orderService);
+    const options = { idempotencyKey: createIdempotencyKey() };
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    await expect(gateway.submitOrderRequest(REQUEST, options)).rejects.toMatchObject({ kind: 'local_storage' });
+    expect(storedOrders()).toHaveLength(0);
+    setItem.mockRestore();
+
+    const receipt = await gateway.submitOrderRequest(REQUEST, options);
+    expect(receipt.trackingCode).toMatch(/^DEMO-/);
+    expect(storedOrders()).toHaveLength(1);
+  });
+
+  it('درخواست هم‌زمانِ یکسان با تلاشی که شکست قطعی می‌خورد، همان شکست را می‌گیرد و سفارشی نمی‌سازد', async () => {
+    const { gateway } = createDemoOrderBackend(orderService);
+    const options = { idempotencyKey: createIdempotencyKey() };
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    const results = await Promise.allSettled([
+      gateway.submitOrderRequest(REQUEST, options),
+      gateway.submitOrderRequest({ ...REQUEST }, options),
+    ]);
+    for (const result of results) {
+      expect(result.status).toBe('rejected');
+      expect((result as PromiseRejectedResult).reason).toMatchObject({ kind: 'local_storage' });
+    }
+    expect(storedOrders()).toHaveLength(0);
+  });
+
   it('خطای ذخیرهٔ مرورگر با نوع local_storage برمی‌گردد و هیچ رسیدی ساخته نمی‌شود', async () => {
     const { gateway } = createDemoOrderBackend(orderService);
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -270,5 +328,75 @@ describe('کلید تکرار', () => {
     const key = createIdempotencyKey({ getRandomValues: (array) => globalThis.crypto.getRandomValues(array) });
     expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(() => createIdempotencyKey(null)).toThrow(/مولد/);
+  });
+});
+
+describe('هماهنگ‌کنندهٔ ثبت در لایهٔ اتصال', () => {
+  const OTHER: OrderRequest = { ...REQUEST, notes: 'درخواست دیگر' };
+
+  const scriptedGateway = (outcomes: Array<'ok' | 'unknown' | 'definitive'>) => {
+    const sent: Array<{ request: OrderRequest; key: string }> = [];
+    const gateway: CustomerOrderGateway = {
+      getQuote: async () => {
+        throw new OrderGatewayError('not_implemented', '');
+      },
+      submitOrderRequest: async (request, options) => {
+        sent.push({ request, key: options.idempotencyKey });
+        const outcome = outcomes[sent.length - 1] ?? 'ok';
+        if (outcome === 'unknown') throw new OrderGatewayError('outcome_unknown', 'گم شد.');
+        if (outcome === 'definitive') throw new OrderGatewayError('rate_limited', 'ثبت نشد.');
+        return { trackingCode: `T-${sent.length}`, status: 'new', createdAt: '', total: 1, isProvisional: false };
+      },
+      trackOrder: async () => null,
+    };
+    return { gateway, sent };
+  };
+
+  it('تا روشن‌شدن نتیجهٔ نامشخص، درخواست متفاوت را نمی‌فرستد و همان درخواست را با همان کلید می‌فرستد', async () => {
+    const { gateway, sent } = scriptedGateway(['unknown', 'ok']);
+    const changes: Array<OrderRequest | null> = [];
+    const coordinator = createSubmissionCoordinator(gateway, (value) => changes.push(value));
+
+    await expect(coordinator.submit(REQUEST)).rejects.toMatchObject({ kind: 'outcome_unknown' });
+    expect(coordinator.getUnresolved()).toEqual(REQUEST);
+
+    await expect(coordinator.submit(OTHER)).rejects.toMatchObject({ kind: 'outcome_unknown' });
+    expect(sent).toHaveLength(1);
+
+    const receipt = await coordinator.submit({ ...REQUEST });
+    expect(receipt.trackingCode).toBe('T-2');
+    expect(sent).toHaveLength(2);
+    expect(sent[1].key).toBe(sent[0].key);
+    expect(coordinator.getUnresolved()).toBeNull();
+    expect(changes).toEqual([REQUEST, null]);
+  });
+
+  it('پس از شکست قطعی قفل نمی‌کند: همان درخواست همان کلید و درخواست دیگر کلید تازه می‌گیرد', async () => {
+    const { gateway, sent } = scriptedGateway(['definitive', 'definitive', 'ok']);
+    const coordinator = createSubmissionCoordinator(gateway);
+
+    await expect(coordinator.submit(REQUEST)).rejects.toMatchObject({ kind: 'rate_limited' });
+    expect(coordinator.getUnresolved()).toBeNull();
+    await expect(coordinator.submit(REQUEST)).rejects.toMatchObject({ kind: 'rate_limited' });
+    await coordinator.submit(OTHER);
+
+    expect(sent[1].key).toBe(sent[0].key);
+    expect(sent[2].key).not.toBe(sent[0].key);
+  });
+
+  it('دو ثبت هم‌زمانِ همان درخواست فقط یک بار به adapter می‌رسد', async () => {
+    const { gateway, sent } = scriptedGateway(['ok']);
+    const coordinator = createSubmissionCoordinator(gateway);
+    const [a, b] = await Promise.all([coordinator.submit(REQUEST), coordinator.submit({ ...REQUEST })]);
+    expect(b).toEqual(a);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('فیلدهای خارج از قرارداد پیش از ارسال حذف می‌شوند', async () => {
+    const { gateway, sent } = scriptedGateway(['ok']);
+    const coordinator = createSubmissionCoordinator(gateway);
+    await coordinator.submit({ ...REQUEST, totalPrice: 1, status: 'completed' } as unknown as OrderRequest);
+    expect(sent[0].request).not.toHaveProperty('totalPrice');
+    expect(sent[0].request).not.toHaveProperty('status');
   });
 });

@@ -10,8 +10,8 @@ import {
   type PublicTrackingView,
   type Quote,
   type QuoteRequest,
-  type SubmitOrderOptions,
 } from '../services/customerOrders';
+import { createSubmissionCoordinator } from '../services/customerOrders/submissionCoordinator';
 
 /**
  * لایهٔ اتصال کامپوننت‌ها به سفارش‌ها.
@@ -20,6 +20,9 @@ import {
  * یک بار در `getActiveOrderBackend` از روی تنظیمات راه‌اندازی انتخاب می‌شود (یا برای آزمون
  * از ورودی `backend`). اگر adapter خطا بدهد، خطا به کامپوننت برمی‌گردد؛ هیچ بازگشت خودکار
  * و پنهانی به ذخیرهٔ نمایشی وجود ندارد.
+ *
+ * کلید تکرار و درخواستِ با نتیجهٔ نامشخص هم همین‌جا (در `submissionCoordinator`) نگه داشته
+ * می‌شوند، نه در فرم؛ پس بستن و بازکردن فرم آن‌ها را از بین نمی‌برد.
  */
 interface OrderContextType {
   backendMode: OrderBackend['mode'];
@@ -31,7 +34,15 @@ interface OrderContextType {
   isLoading: boolean;
   error: string | null;
   getQuote: (request: QuoteRequest) => Promise<Quote>;
-  submitOrderRequest: (request: OrderRequest, options: SubmitOrderOptions) => Promise<OrderReceipt>;
+  /** کلید تکرار را لایهٔ اتصال می‌سازد و نگه می‌دارد؛ فرم فقط درخواست را می‌دهد. */
+  submitOrderRequest: (request: OrderRequest) => Promise<OrderReceipt>;
+  /**
+   * درخواستی که نتیجهٔ ثبتش معلوم نیست (فقط در حافظهٔ همین صفحه). تا وقتی `null` نشده، درخواست
+   * تازهٔ متفاوتی فرستاده نمی‌شود.
+   */
+  unresolvedSubmission: OrderRequest | null;
+  /** همان درخواست نامشخص را با همان کلید تکرار دوباره می‌فرستد تا نتیجه روشن شود. */
+  retryUnresolvedSubmission: () => Promise<OrderReceipt>;
   trackOrder: (trackingCode: string) => Promise<PublicTrackingView | null>;
   /**
    * فقط نسخهٔ نمایشی: ثبت امتیاز عددی روی رکورد محلی. وضعیت سفارش را تغییر نمی‌دهد و متن
@@ -67,6 +78,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, backend:
   const [error, setError] = useState<string | null>(null);
   // فقط یک‌بار و صرفاً برای اطلاع‌رسانی بررسی می‌شود؛ هیچ داده‌ای دست‌کاری نمی‌شود.
   const [legacyDataPresent] = useState<boolean>(() => hasLegacyStoredData());
+  const [unresolvedSubmission, setUnresolvedSubmission] = useState<OrderRequest | null>(null);
+  const [coordinator] = useState(() => createSubmissionCoordinator(gateway, setUnresolvedSubmission));
 
   const refreshOrders = useCallback(async () => {
     if (!demoLedger) {
@@ -90,11 +103,11 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, backend:
     refreshOrders();
   }, [refreshOrders]);
 
-  const handleSubmitOrderRequest = useCallback(
-    async (request: OrderRequest, options: SubmitOrderOptions): Promise<OrderReceipt> => {
+  const trackSubmission = useCallback(
+    async (submission: () => Promise<OrderReceipt>): Promise<OrderReceipt> => {
       setError(null);
       try {
-        const receipt = await gateway.submitOrderRequest(request, options);
+        const receipt = await submission();
         // نسخهٔ نمایشی: نسخهٔ کامل همین نشست در فهرست محلی نشان داده می‌شود؛ روی دیسک فقط نسخهٔ ماسک‌شده است.
         const sessionRecord = demoLedger?.getSessionRecord(receipt.trackingCode);
         if (sessionRecord) {
@@ -109,7 +122,17 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, backend:
         throw err;
       }
     },
-    [gateway, demoLedger],
+    [demoLedger],
+  );
+
+  const handleSubmitOrderRequest = useCallback(
+    (request: OrderRequest) => trackSubmission(() => coordinator.submit(request)),
+    [coordinator, trackSubmission],
+  );
+
+  const retryUnresolvedSubmission = useCallback(
+    () => trackSubmission(() => coordinator.retryUnresolved()),
+    [coordinator, trackSubmission],
   );
 
   // ثبت امتیاز عددی — مشتری وضعیت عملیاتی سفارش را تغییر نمی‌دهد و متن آزاد ذخیره نمی‌شود.
@@ -179,6 +202,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, backend:
     error,
     getQuote,
     submitOrderRequest: handleSubmitOrderRequest,
+    unresolvedSubmission,
+    retryUnresolvedSubmission,
     trackOrder,
     submitOrderRating: handleSubmitOrderRating,
     cancelOrder: handleCancelOrder,
