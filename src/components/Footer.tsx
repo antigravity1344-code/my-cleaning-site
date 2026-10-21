@@ -7,6 +7,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { scrollToSection } from '../utils/scrollToSection';
 
 interface FooterProps {
   onOpenBooking: () => void;
@@ -17,10 +18,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenBooking,
   onOpenTracker
 }) => {
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollTo = (id: string) => scrollToSection(id);
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-8">
