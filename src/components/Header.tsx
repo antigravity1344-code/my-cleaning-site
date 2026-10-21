@@ -1,4 +1,5 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { Sparkles, PhoneCall, Search, CalendarCheck, Menu, X, ShieldCheck, Bot, FlaskConical } from 'lucide-react';
 import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
@@ -17,17 +18,32 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuId = useId();
+  const headerRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // منوی موبایل همین الان (نه در رندر بعدی) بسته می‌شود و فوکوس روی دکمه‌ی منو می‌ماند.
+  // دکمه‌های داخل منو با بسته شدن آن از صفحه حذف می‌شوند؛ بدون این کار فوکوس به body
+  // می‌افتد و پنجره‌ای که از منو باز شده، پس از بسته شدن جایی برای برگرداندن فوکوس ندارد.
+  const closeMobileMenu = () => {
+    if (!mobileMenuOpen) return;
+    flushSync(() => setMobileMenuOpen(false));
+    menuButtonRef.current?.focus({ preventScroll: true });
+  };
 
   const scrollToSection = (id: string) => {
-    setMobileMenuOpen(false);
+    // منو باید پیش از اندازه‌گیری بسته شده باشد؛ وگرنه موقعیت با ارتفاع منو حساب می‌شود
+    // و پس از بسته شدن آن، صفحه به اندازه‌ی همان ارتفاع از ابتدای بخش جلوتر می‌رود.
+    closeMobileMenu();
     const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (!element) return;
+    // هدر چسبان روی بالای صفحه می‌ماند؛ ابتدای بخش زیر آن قرار می‌گیرد، نه پشت آن.
+    const headerHeight = headerRef.current?.offsetHeight ?? 0;
+    const top = element.getBoundingClientRect().top + window.scrollY - headerHeight;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
+    <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
       {/* Top Banner Notice */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs md:text-sm py-1.5 px-4 font-medium">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -180,6 +196,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-5 h-5" />
             </button>
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-700 rounded-lg hover:bg-slate-100"
@@ -199,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="grid grid-cols-2 gap-2 pb-2">
             <button
               onClick={() => {
-                setMobileMenuOpen(false);
+                closeMobileMenu();
                 onOpenBooking();
               }}
               className="w-full flex items-center justify-center gap-2 py-3 px-3 bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md"
@@ -209,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => {
-                setMobileMenuOpen(false);
+                closeMobileMenu();
                 onOpenAiConsultant();
               }}
               className="w-full flex items-center justify-center gap-2 py-3 px-3 bg-teal-50 text-teal-800 border border-teal-200 font-bold rounded-xl text-sm"
