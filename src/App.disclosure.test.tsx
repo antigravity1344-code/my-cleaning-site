@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 import { FAQ_LIST } from './data/mockData';
 
@@ -30,6 +30,78 @@ describe('منوی موبایل', () => {
     fireEvent.click(button);
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).toBeNull();
+  });
+});
+
+describe('منوی موبایل — پیمایش و فوکوس پس از انتخاب گزینه', () => {
+  // همان رفتار مرورگر: focus() روی عنصر داخل inert نادیده گرفته می‌شود.
+  const nativeFocus = HTMLElement.prototype.focus;
+  const shimInertFocus = () =>
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (this.closest('[inert]')) return;
+      nativeFocus.call(this, options);
+    });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const openMenu = () => {
+    const toggle = screen.getByRole('button', { name: 'باز کردن منو' });
+    toggle.focus();
+    fireEvent.click(toggle);
+    const menuId = toggle.getAttribute('aria-controls') ?? '';
+    return { toggle, menuId, menu: document.getElementById(menuId) as HTMLElement };
+  };
+
+  it('بخش مقصد پس از بسته شدن منو اندازه‌گیری می‌شود و زیر هدر چسبان قرار می‌گیرد', () => {
+    render(<App />);
+    const { toggle, menuId, menu } = openMenu();
+
+    const header = document.querySelector('header') as HTMLElement;
+    const calculator = document.getElementById('calculator') as HTMLElement;
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this === header ? 141 : 0;
+    });
+    let menuPresentWhenMeasured: boolean | null = null;
+    const nativeRect = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this === calculator) {
+        menuPresentWhenMeasured = document.getElementById(menuId) !== null;
+        return { top: 6000, bottom: 6800, left: 0, right: 375, width: 375, height: 800, x: 0, y: 6000, toJSON: () => ({}) } as DOMRect;
+      }
+      return nativeRect.call(this);
+    });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+
+    fireEvent.click(within(menu).getByRole('button', { name: 'محاسبه آنلاین قیمت' }));
+
+    expect(menuPresentWhenMeasured).toBe(false);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 6000 - 141, behavior: 'smooth' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it.each([
+    ['رزرو فوری نظافت', 'ثبت درخواست خدمات نظافت'],
+    ['مشاور هوشمند', 'مشاور تخمین زمان (نسخه آزمایشی)'],
+  ])('پنجره‌ای که از گزینه‌ی «%s» منو باز شده، هنگام بسته شدن فوکوس را به دکمه‌ی منو برمی‌گرداند', async (item, title) => {
+    shimInertFocus();
+    render(<App />);
+    const { toggle, menu } = openMenu();
+    const option = within(menu).getByRole('button', { name: item });
+    option.focus();
+    fireEvent.click(option);
+
+    const dialog = screen.getByRole('dialog', { name: title });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: title })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(toggle));
   });
 });
 
