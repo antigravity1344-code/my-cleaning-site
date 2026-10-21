@@ -1,13 +1,29 @@
 import { ADDON_OPTIONS, DISCOUNT_CODES, SERVICES_LIST } from '../data/mockData';
-import type { AddonOption, ServiceItem, ServiceType } from '../types';
+import type { ServiceType } from '../types';
 import { SERVER_SIDE_PRICING_AVAILABLE } from '../config/capabilities';
+import {
+  normalizePromoCode,
+  priceSelection,
+  resolvePromoCode,
+  type CorePriceBreakdown,
+  type PriceLine,
+  type PricingCatalog,
+  type PricingDependencies,
+  type PricingInput as CorePricingInput,
+  type PromoCodeResult,
+  type PromoLookup,
+} from './pricingCore';
 
 /**
- * موتور قیمت‌گذاری مشترک پاک‌شو — تنها منبع حقیقت محاسبات قیمت در وب‌سایت.
+ * اتصال هستهٔ قیمت به دادهٔ **نسخهٔ نمایشی** — تنها منبع محاسبهٔ قیمت در واسط کاربری.
  *
  * پیش از این، محاسبه‌گر هزینه و فرم رزرو هرکدام منطق و پیکربندی مستقل خود را داشتند
  * و برای ورودی یکسان، مبلغ متفاوت نشان می‌دادند. اکنون تنها راه محاسبه قیمت در
  * رابط کاربری، فراخوانی `calculatePrice` است.
+ *
+ * محاسبه در `pricingCore.ts` انجام می‌شود که به `mockData` وابسته نیست. این فایل فقط
+ * کاتالوگ نمایشی (خدمات و افزودنی‌های نمونه) و فهرست **نمونهٔ** کدهای تخفیف را به
+ * هسته می‌دهد. سرور باید کاتالوگ و کدهای خودش را به همان هسته بدهد، نه این فایل را.
  *
  * ⚠️ این محاسبات «پیشنهادی/آزمایشی» است. در نسخه نهایی، مبلغ معتبر باید توسط سرور
  * پاک‌شو محاسبه شود و مبلغ محاسبه‌شده در مرورگر نباید مبنای دریافت وجه باشد.
@@ -40,138 +56,61 @@ export const PRICING_CONFIG: PricingConfig = {
 export const PROVISIONAL_PRICING_NOTE =
   'مبلغ پیشنهادی و آزمایشی است؛ مبلغ نهایی توسط سرور پاک‌شو محاسبه و تأیید می‌شود.';
 
-export interface PricingInput {
-  serviceId: ServiceType;
-  hours: number;
-  addonIds: string[];
-  hasDetergentPackage: boolean;
-  /** کد تخفیف اختیاری؛ اعتبارسنجی نهایی آن سمت سرور انجام می‌شود. */
-  promoCode?: string;
-}
+/** سقف ساعت فعلی فرم رزرو و محاسبه‌گر. */
+export const DEMO_MAX_HOURS = 12;
 
-export interface PriceLine {
-  id: string;
-  title: string;
-  amount: number;
-}
+/**
+ * کاتالوگ قیمت نسخهٔ نمایشی، ساخته‌شده از دادهٔ نمونه.
+ * ترتیب خدمات همان ترتیب `SERVICES_LIST` است (خدمت ناشناخته در مسیر اصلاح‌گر با اولین خدمت قیمت می‌خورد).
+ */
+export const DEMO_PRICING_CATALOG: PricingCatalog<ServiceType> = {
+  services: SERVICES_LIST.map((service) => ({
+    id: service.id,
+    title: service.title,
+    hourlyRate: service.baseHourlyRate,
+    minHours: service.minHours,
+  })),
+  addons: ADDON_OPTIONS.map((addon) => ({ id: addon.id, title: addon.title, price: addon.price })),
+  detergentPackagePrice: PRICING_CONFIG.detergentPackagePrice,
+  onlineBookingDiscountRate: PRICING_CONFIG.onlineBookingDiscountRate,
+  maxHours: DEMO_MAX_HOURS,
+};
 
-export interface PriceBreakdown {
-  serviceId: ServiceType;
-  serviceTitle: string;
-  hours: number;
-  hourlyRate: number;
-  serviceBase: number;
-  addonLines: PriceLine[];
-  addonsTotal: number;
-  detergentCost: number;
-  subtotal: number;
-  discountLines: PriceLine[];
-  discountsTotal: number;
-  /** هرگز منفی نمی‌شود. */
-  total: number;
+/** کدهای تخفیف **نمونه**؛ فقط برای نمایش. فقط کلیدهای خودِ فهرست پذیرفته می‌شوند. */
+const lookupDemoPromo: PromoLookup = (code) =>
+  Object.prototype.hasOwnProperty.call(DISCOUNT_CODES, code) ? DISCOUNT_CODES[code] : undefined;
+
+export const DEMO_PRICING_DEPENDENCIES: PricingDependencies<ServiceType> = {
+  catalog: DEMO_PRICING_CATALOG,
+  lookupPromo: lookupDemoPromo,
+};
+
+export type PricingInput = CorePricingInput<ServiceType>;
+export type { PriceLine, PromoCodeResult };
+
+export interface PriceBreakdown extends CorePriceBreakdown<ServiceType> {
   isProvisional: boolean;
   provisionalNote: string;
 }
 
-export interface PromoCodeResult {
-  code: string;
-  valid: boolean;
-  amount: number;
-}
-
-const findService = (serviceId: ServiceType): ServiceItem =>
-  SERVICES_LIST.find((service) => service.id === serviceId) ?? SERVICES_LIST[0];
-
-const findAddon = (addonId: string): AddonOption | undefined =>
-  ADDON_OPTIONS.find((addon) => addon.id === addonId);
-
-export const normalizePromoCode = (code: string): string => code.trim().toUpperCase();
+export { normalizePromoCode };
 
 /**
  * اعتبارسنجی سمت کلاینت کد تخفیف — صرفاً برای نمایش آزمایشی.
  * حذف کدهای تکراری/نامعتبر و اعتبارسنجی نهایی سمت سرور انجام می‌شود.
  */
-export const validatePromoCode = (rawCode: string): PromoCodeResult => {
-  const code = normalizePromoCode(rawCode);
-  if (!code) return { code, valid: false, amount: 0 };
-  const amount = DISCOUNT_CODES[code];
-  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
-    return { code, valid: false, amount: 0 };
-  }
-  return { code, valid: true, amount };
-};
-
-/** تخفیف سراسری فقط زمانی اعمال می‌شود که سیاست آن تأیید شده باشد. */
-const calculateVerifiedGlobalDiscount = (subtotal: number): number => {
-  const rate = PRICING_CONFIG.onlineBookingDiscountRate;
-  if (rate === null || !Number.isFinite(rate) || rate <= 0) return 0;
-  const rounded = Math.round((subtotal * rate) / 1000) * 1000;
-  return Math.min(rounded, subtotal);
-};
+export const validatePromoCode = (rawCode: string): PromoCodeResult =>
+  resolvePromoCode(rawCode, lookupDemoPromo);
 
 /**
- * محاسبه کامل و قطعی قیمت از روی ورودی‌های خام.
+ * محاسبه کامل قیمت از روی ورودی‌های خام (مسیر اصلاح‌گر هسته، با کاتالوگ نمایشی).
  * تابع خالص (pure) است: ورودی یکسان همیشه خروجی یکسان می‌دهد.
  */
-export const calculatePrice = (input: PricingInput): PriceBreakdown => {
-  const service = findService(input.serviceId);
-  const hours = Number.isFinite(input.hours) ? Math.max(1, Math.floor(input.hours)) : 1;
-  const hourlyRate = service.baseHourlyRate;
-  const serviceBase = hourlyRate * hours;
-
-  // حذف خدمات تکراری تا یک قلم دو بار محاسبه نشود.
-  const uniqueAddonIds = Array.from(new Set(input.addonIds));
-  const addonLines: PriceLine[] = uniqueAddonIds
-    .map(findAddon)
-    .filter((addon): addon is AddonOption => Boolean(addon))
-    .map((addon) => ({ id: addon.id, title: addon.title, amount: addon.price }));
-  const addonsTotal = addonLines.reduce((sum, line) => sum + line.amount, 0);
-
-  const detergentCost = input.hasDetergentPackage ? PRICING_CONFIG.detergentPackagePrice : 0;
-  const subtotal = serviceBase + addonsTotal + detergentCost;
-
-  const rawDiscountLines: PriceLine[] = [];
-  const globalDiscount = calculateVerifiedGlobalDiscount(subtotal);
-  if (globalDiscount > 0) {
-    rawDiscountLines.push({ id: 'online-booking', title: 'تخفیف رزرو آنلاین', amount: globalDiscount });
-  }
-  if (input.promoCode) {
-    const promo = validatePromoCode(input.promoCode);
-    if (promo.valid) {
-      rawDiscountLines.push({ id: `promo:${promo.code}`, title: `کد تخفیف ${promo.code}`, amount: promo.amount });
-    }
-  }
-
-  // سقف‌گذاری تخفیف‌ها روی جمع اقلام: نه تخفیف دوباره، نه مبلغ منفی.
-  let remaining = subtotal;
-  const discountLines = rawDiscountLines
-    .map((line) => {
-      const amount = Math.max(0, Math.min(line.amount, remaining));
-      remaining -= amount;
-      return { ...line, amount };
-    })
-    .filter((line) => line.amount > 0);
-
-  const discountsTotal = discountLines.reduce((sum, line) => sum + line.amount, 0);
-  const total = Math.max(0, subtotal - discountsTotal);
-
-  return {
-    serviceId: service.id,
-    serviceTitle: service.title,
-    hours,
-    hourlyRate,
-    serviceBase,
-    addonLines,
-    addonsTotal,
-    detergentCost,
-    subtotal,
-    discountLines,
-    discountsTotal,
-    total,
-    isProvisional: !SERVER_SIDE_PRICING_AVAILABLE,
-    provisionalNote: PROVISIONAL_PRICING_NOTE,
-  };
-};
+export const calculatePrice = (input: PricingInput): PriceBreakdown => ({
+  ...priceSelection(DEMO_PRICING_DEPENDENCIES, input),
+  isProvisional: !SERVER_SIDE_PRICING_AVAILABLE,
+  provisionalNote: PROVISIONAL_PRICING_NOTE,
+});
 
 /** برآورد تعداد ساعت پیشنهادی بر اساس مشخصات فضا (منطق موجود، منتقل‌شده به موتور مشترک). */
 export interface RecommendedHoursInput {
@@ -187,7 +126,8 @@ export const calculateRecommendedHours = ({
   roomsCount,
   bathroomsCount,
 }: RecommendedHoursInput): number => {
-  const service = findService(serviceId);
+  const service =
+    DEMO_PRICING_CATALOG.services.find((item) => item.id === serviceId) ?? DEMO_PRICING_CATALOG.services[0];
 
   let baseHours = 4;
   if (squareMeters <= 90) baseHours = 4;
@@ -201,7 +141,7 @@ export const calculateRecommendedHours = ({
   if (serviceId === 'home-deep') baseHours += 2;
   if (serviceId === 'post-construction') baseHours += 2;
 
-  return Math.max(service.minHours, Math.min(12, baseHours));
+  return Math.max(service.minHours, Math.min(DEMO_MAX_HOURS, baseHours));
 };
 
 /** مقایسه دو برآورد قیمت برای اطمینان از یکسان‌بودن مبلغ نمایش‌داده‌شده به کاربر. */
