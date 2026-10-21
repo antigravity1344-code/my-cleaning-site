@@ -4,10 +4,15 @@ import {
   Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
 } from 'lucide-react';
 import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
-import { ServiceType, CleanerGender, BookingOrder } from '../types';
-import { CreateOrderDTO } from '../services/orderService.types';
+import { ServiceType, CleanerGender } from '../types';
+import {
+  isOrderGatewayError,
+  type OrderReceipt,
+  type OrderRequest,
+  type SubmitOrderOptions,
+} from '../services/customerOrders/contract';
+import { createIdempotencyKey } from '../services/customerOrders/idempotency';
 import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
-import { buildDemoOrderPayload } from '../services/demoOrder';
 import { toLatinDigits } from '../services/pii';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
@@ -20,6 +25,30 @@ const TIME_SLOTS = [
   '۱۲:۳۰ الی ۱۶:۳۰ (ظهر و بعدازظهر)',
   '۱۶:۳۰ الی ۲۰:۳۰ (عصر و غروب)',
 ];
+
+/**
+ * متن خطای ثبت بر اساس «نوع» خطای قرارداد، نه متن پیام adapter.
+ * هیچ حالتی به ذخیرهٔ نمایشی برنمی‌گردد؛ خطا فقط نمایش داده می‌شود.
+ */
+const submitErrorText = (error: unknown): string => {
+  if (!isOrderGatewayError(error)) return 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.';
+  switch (error.kind) {
+    case 'local_storage':
+      return 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.';
+    case 'not_implemented':
+      return error.message;
+    case 'conflict':
+      return 'این درخواست قبلاً با اطلاعات دیگری ثبت شده است؛ فرم را ببندید و دوباره تلاش کنید.';
+    case 'validation':
+      return 'برخی اطلاعات درخواست معتبر نیست؛ لطفاً فرم را بررسی کنید.';
+    case 'price_changed':
+      return 'مبلغ تغییر کرده است؛ لطفاً فاکتور را دوباره بررسی و تأیید کنید.';
+    case 'rate_limited':
+      return 'تعداد درخواست‌ها زیاد بود؛ چند دقیقه بعد دوباره تلاش کنید.';
+    case 'unavailable':
+      return 'ارتباط با سرور برقرار نشد و درخواست ثبت نشد. مجدداً تلاش فرمایید.';
+  }
+};
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -36,8 +65,12 @@ interface BookingModalProps {
     cityName?: string;
     cleanerId?: string;
   };
-  onOrderCreated: (order: BookingOrder) => void;
-  createOrderService?: (orderData: CreateOrderDTO) => Promise<BookingOrder>;
+  onOrderCreated: (receipt: OrderReceipt) => void;
+  /**
+   * ثبت درخواست از راه قرارداد عمومی مشتری. فرم هیچ مبلغ، وضعیت، روش پرداخت یا متخصص
+   * تخصیص‌یافته‌ای نمی‌فرستد و نمی‌داند کدام adapter پشت این تابع است.
+   */
+  submitOrderRequest?: (request: OrderRequest, options: SubmitOrderOptions) => Promise<OrderReceipt>;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
@@ -46,7 +79,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialServiceId = 'home-standard',
   initialParams,
   onOrderCreated,
-  createOrderService
+  submitOrderRequest
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -89,8 +122,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // (مثلاً دو کلیک در یک task مرورگر) هر دو isSubmitting=false می‌دیدند و دو سفارش ثبت می‌شد.
   const submitLockRef = useRef(false);
 
+  // کلید یکتای تلاش ثبت: تلاش دوباره برای همان درخواست همان کلید را می‌فرستد تا بک‌اند
+  // سفارش دوم نسازد؛ اگر کاربر چیزی را تغییر دهد کلید تازه ساخته می‌شود.
+  const idempotencyRef = useRef<{ key: string; fingerprint: string } | null>(null);
+
   // Success screen state
-  const [createdOrder, setCreatedOrder] = useState<BookingOrder | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<{ receipt: OrderReceipt; requestedCleanerName?: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Reset & Hydrate States
@@ -145,6 +182,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setDiscountMsg(null);
       setFormError('');
       setCreatedOrder(null);
+      idempotencyRef.current = null;
     }
   }, [isOpen, initialParams, initialServiceId]);
 
@@ -248,15 +286,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     // نه متخصصی انتخاب می‌شود، نه شماره تماسی ساخته می‌شود.
     const requestedCleaner = CLEANERS_LIST.find(c => c.id === selectedCleanerId);
 
-    const orderPayload: CreateOrderDTO = buildDemoOrderPayload({
+    // فقط ورودی‌های انتخاب و اطلاعات تماس؛ مبلغ، وضعیت و پرداخت را بک‌اند تعیین می‌کند.
+    const request: OrderRequest = {
       serviceId,
-      serviceTitle: currentService.title,
-      cleanerGender,
       hours,
+      addonIds: selectedAddons,
+      hasDetergentPackage,
+      promoCode: appliedPromoCode || undefined,
+      cleanerGender,
+      requestedCleanerId: requestedCleaner?.id,
       squareMeters,
       roomsCount,
-      selectedAddons,
-      hasDetergentPackage,
       date: selectedDate,
       timeSlot: selectedTimeSlot,
       cityName,
@@ -266,27 +306,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       customerName: customerName.trim(),
       customerPhone: toLatinDigits(customerPhone.trim()),
       notes: notes.trim(),
-      totalPrice,
-      discountApplied: pricing.discountsTotal,
-      requestedCleanerId: requestedCleaner?.id,
-      requestedCleanerName: requestedCleaner?.name,
-      paymentMethod,
-    });
+    };
 
     try {
-      if (!createOrderService) {
+      if (!submitOrderRequest) {
         throw new Error('سرویس ثبت سفارش در دسترس نیست.');
       }
-      const created = await createOrderService(orderPayload);
-      setCreatedOrder(created);
-      onOrderCreated(created);
+      const fingerprint = JSON.stringify(request);
+      if (!idempotencyRef.current || idempotencyRef.current.fingerprint !== fingerprint) {
+        idempotencyRef.current = { key: createIdempotencyKey(), fingerprint };
+      }
+      const receipt = await submitOrderRequest(request, { idempotencyKey: idempotencyRef.current.key });
+      idempotencyRef.current = null;
+      setCreatedOrder({ receipt, requestedCleanerName: requestedCleaner?.name });
+      onOrderCreated(receipt);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '';
-      setFormError(
-        message.includes('حافظه') || message.includes('ذخیره‌سازی')
-          ? 'ذخیره‌سازی محلی مرورگر ناموفق بود؛ درخواست آزمایشی ثبت نشد.'
-          : 'ثبت درخواست آزمایشی ناموفق بود. مجدداً تلاش فرمایید.',
-      );
+      setFormError(submitErrorText(err));
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
@@ -307,7 +342,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleCopyTrackingCode = () => {
     if (createdOrder) {
-      navigator.clipboard?.writeText(createdOrder.trackingCode);
+      navigator.clipboard?.writeText(createdOrder.receipt.trackingCode);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     }
@@ -330,7 +365,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
           <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
-            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
+            <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.receipt.trackingCode}</span>
             <button
               type="button"
               onClick={handleCopyTrackingCode}

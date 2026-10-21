@@ -89,7 +89,7 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
         onClose={() => undefined}
         initialParams={transferred}
         onOrderCreated={() => undefined}
-        createOrderService={async () => {
+        submitOrderRequest={async () => {
           throw new Error('در این آزمون ثبت سفارش انجام نمی‌شود.');
         }}
       />,
@@ -125,7 +125,7 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
         onClose={() => undefined}
         initialParams={transferred}
         onOrderCreated={() => undefined}
-        createOrderService={async () => {
+        submitOrderRequest={async () => {
           throw new Error('در این آزمون ثبت سفارش انجام نمی‌شود.');
         }}
       />,
