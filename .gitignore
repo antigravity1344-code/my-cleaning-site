@@ -4,6 +4,9 @@ dist/
 dist-ssr/
 *.local
 
+# Server runtime data (SQLite db, WAL files) — never commit real orders/customer data
+server/data/
+
 # Editor & OS
 .vscode/*
 !.vscode/extensions.json

@@ -9,10 +9,12 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "server": "node server/index.js"
   },
   "dependencies": {
     "@fontsource-variable/vazirmatn": "^5.3.0",
+    "express": "^5.3.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1"
