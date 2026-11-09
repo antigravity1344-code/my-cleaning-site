@@ -170,26 +170,6 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     }
   };
 
-  const getStatusStepIndex = (status: OrderStatus) => {
-    switch (status) {
-      case 'pending': return 0;
-      case 'assigned': return 1;
-      case 'on_the_way': return 2;
-      case 'in_progress': return 3;
-      case 'completed': return 4;
-      case 'cancelled': return -1;
-      default: return 0;
-    }
-  };
-
-  const statusSteps = [
-    { title: 'ثبت درخواست', desc: 'درخواست شما ثبت شد' },
-    { title: 'تخصیص متخصص', desc: 'نیازمند سرور عملیات' },
-    { title: 'در مسیر اعزام', desc: 'نیازمند سرور عملیات' },
-    { title: 'در حال نظافت', desc: 'نیازمند سرور عملیات' },
-    { title: 'پایان کار', desc: 'نیازمند سرور عملیات' },
-  ];
-
   const handleCancelOrder = async () => {
     if (!selectedOrder || isCancelPending) return;
     if (!confirm('این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟')) return;
@@ -228,9 +208,6 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
       if (scope === requestScopeRef.current) setIsRatingPending(false);
     }
   };
-
-  const currentStepIdx = selectedOrder ? getStatusStepIndex(selectedOrder.status) : 0;
-  const isDemoStatus = selectedOrder ? selectedOrder.status === 'pending' : false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
@@ -394,52 +371,22 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 </div>
               </div>
 
-              {/* Status: demonstration only */}
+              {/* Status: real labels only (the server has four statuses; no fake steps) */}
               {selectedOrder.status !== 'cancelled' ? (
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-4">
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-slate-900">
-                      مراحل اجرای سفارش
-                    </h4>
+                    <h4 className="font-bold text-sm text-slate-900">وضعیت سفارش</h4>
                     <span className="text-xs text-amber-800 bg-amber-100 font-bold px-2.5 py-0.5 rounded-full">
                       نمایشی
                     </span>
                   </div>
-
-                  <div className="relative pt-2 pb-2">
-                    <div className="grid grid-cols-5 gap-1 relative text-center">
-                      {statusSteps.map((step, idx) => {
-                        const isDone = currentStepIdx >= idx;
-                        const isCurrent = currentStepIdx === idx;
-                        return (
-                          <div key={idx} className="space-y-1.5 flex flex-col items-center">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                              isCurrent
-                                ? 'bg-emerald-700 text-white ring-4 ring-emerald-100 shadow-md'
-                                : isDone
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-200 text-slate-600'
-                            }`}>
-                              {isDone && !isCurrent ? '✓' : idx + 1}
-                            </div>
-                            <span className={`text-[11px] font-bold block ${isCurrent ? 'text-emerald-800' : isDone ? 'text-slate-800' : 'text-slate-500'}`}>
-                              {step.title}
-                            </span>
-                            <span className="hidden sm:block text-[9px] text-slate-500 leading-tight">
-                              {step.desc}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
+                  <p className="text-sm font-bold text-slate-800">
+                    {REAL_STATUS_LABELS[selectedOrder.status] ?? REAL_STATUS_LABELS.new}
+                  </p>
                   <div className="p-3 rounded-2xl bg-white border border-amber-200 text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>
-                      {isDemoStatus
-                        ? 'مراحل بعدی در نسخه آزمایشی هرگز فعال نمی‌شوند، چون سامانه اعزام سرور پاک‌شو به این سایت متصل نیست. وضعیت ثبت‌شده در این صفحه وضعیت عملیاتی واقعی نیست و مشتری نمی‌تواند آن را تغییر دهد.'
-                        : 'تمدید خودکار وضعیت در نسخه آزمایشی انجام نمی‌شود.'}
+                      این صفحه در نسخهٔ آزمایشی وضعیت عملیاتی واقعی را نشان نمی‌دهد و مشتری نمی‌تواند آن را تغییر دهد.
                     </span>
                   </div>
                 </div>
