@@ -1,5 +1,72 @@
 @import "tailwindcss";
 
+/*
+ * هماهنگ‌سازی زبان بصری سایت با اپ موبایل پاکشو — ۹ نوامبر ۲۰۲۶.
+ * منبع: src/theme/customerHome.ts و src/theme/index.ts در مخزن my-mobile-app
+ * (پالت teal/cream، فاصله‌گذاری، شعاع گوشه و سایه‌های آن‌جا).
+ *
+ * به‌جای عوض‌کردن className در تک‌تک کامپوننت‌ها (ریسک و حجم زیاد)، همان
+ * توکن‌های رنگی Tailwind که کل سایت از قبل استفاده می‌کند (emerald/teal برای
+ * رنگ اصلی، slate برای متن/پس‌زمینه، rose برای خطا) را دقیقاً به مقادیر اپ
+ * موبایل بازتعریف می‌کنیم. نتیجه: هر جای سایت که از `bg-emerald-600`،
+ * `text-slate-900`، `shadow-emerald-600/30` و مشابه استفاده کرده، خودکار با
+ * رنگ واقعی اپ (teal اصلی #11766F، پس‌زمینهٔ کرم #F6F2E6، متن #1F2A28، خطای
+ * قرمز #B91C1C) هماهنگ می‌شود — بدون بازنویسی هر فایل.
+ */
+@theme {
+  /* رنگ اصلی برند (teal اپ) — هم emerald و هم teal پیش‌فرض Tailwind روی همین
+     یک طیف تنظیم می‌شوند تا گرادیان‌های قبلی emerald→teal به رنگ یکدست اپ برسند. */
+  --color-emerald-50: #eff7f6;
+  --color-emerald-100: #dceeec;
+  --color-emerald-200: #b8ddd9;
+  --color-emerald-300: #8fc9c2;
+  --color-emerald-400: #57a89f;
+  --color-emerald-500: #11766f;
+  --color-emerald-600: #11766f;
+  --color-emerald-700: #0e635d;
+  --color-emerald-800: #08403c;
+  --color-emerald-900: #06302d;
+  --color-emerald-950: #03201e;
+
+  --color-teal-50: #eff7f6;
+  --color-teal-100: #dceeec;
+  --color-teal-200: #b8ddd9;
+  --color-teal-300: #8fc9c2;
+  --color-teal-400: #57a89f;
+  --color-teal-500: #11766f;
+  --color-teal-600: #11766f;
+  --color-teal-700: #0e635d;
+  --color-teal-800: #08403c;
+  --color-teal-900: #06302d;
+  --color-teal-950: #03201e;
+
+  /* خنثی/متن — پس‌زمینهٔ کرم و متن سبزتیرهٔ اپ به‌جای آبی-خاکستری پیش‌فرض Tailwind. */
+  --color-slate-50: #f6f2e6;
+  --color-slate-100: #efe9d8;
+  --color-slate-200: #e4dfd0;
+  --color-slate-300: #cfc9b8;
+  --color-slate-400: #8a9290;
+  --color-slate-500: #6b7370;
+  --color-slate-600: #4b5552;
+  --color-slate-700: #33403d;
+  --color-slate-800: #26302d;
+  --color-slate-900: #1f2a28;
+  --color-slate-950: #121816;
+
+  /* خطا/لغو — دقیقاً رنگ danger اپ (#B91C1C). */
+  --color-rose-50: #fdecec;
+  --color-rose-100: #fbd9d9;
+  --color-rose-200: #f5b8b8;
+  --color-rose-300: #ed9191;
+  --color-rose-400: #de6666;
+  --color-rose-500: #cb3a3a;
+  --color-rose-600: #b91c1c;
+  --color-rose-700: #9b1818;
+  --color-rose-800: #7a1414;
+  --color-rose-900: #5c0f0f;
+  --color-rose-950: #330808;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -16,16 +83,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #efe9d8;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cfc9b8;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #8a9290;
 }
 
 /* Persian number display utility if needed */
