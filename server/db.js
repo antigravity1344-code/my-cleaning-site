@@ -78,5 +78,26 @@ function runMigrations(db) {
     BEGIN
       SELECT RAISE(ABORT, 'order_events is append-only');
     END;
+
+    -- سند عملیاتی، بخش ۳ و ۶: مدیر فقط از خط فرمان سرور ساخته می‌شود؛ ثبت‌نام عمومی نیست.
+    CREATE TABLE IF NOT EXISTS admins (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      totp_secret TEXT NOT NULL,
+      disabled_at TEXT,
+      last_login_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    -- نشست مدیر: شناسهٔ تصادفی در کوکی HttpOnly؛ این سطر فقط انقضا و مالک آن را نگه می‌دارد.
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      id TEXT PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      csrf_token TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
   `);
 }

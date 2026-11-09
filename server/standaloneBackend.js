@@ -2,6 +2,14 @@ import { randomUUID, createHash } from 'node:crypto';
 import { calculateServerPrice, validateQuoteInput, QuoteValidationError } from './pricingEngine.js';
 import { generateTrackingCode } from './trackingCode.js';
 
+/** سند عملیاتی، بخش ۳: چهار وضعیت و تغییرهای مجاز (فقط مدیر، فقط رو به جلو). */
+export const ALLOWED_STATUS_TRANSITIONS = {
+  new: ['confirmed', 'cancelled'],
+  confirmed: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+
 /**
  * بک‌اند «حالت مستقل» — سند عملیاتی، ف۷.
  *
@@ -38,6 +46,10 @@ export const createStandaloneBackend = (db) => {
 
   const findByIdempotencyKey = db.prepare('SELECT * FROM orders WHERE idempotency_key = ?');
   const findByTrackingCode = db.prepare('SELECT * FROM orders WHERE tracking_code = ?');
+  const findById = db.prepare('SELECT * FROM orders WHERE id = ?');
+  const listAllOrders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC');
+  const listOrderEvents = db.prepare('SELECT * FROM order_events WHERE order_id = ? ORDER BY created_at ASC');
+  const updateOrderStatus = db.prepare('UPDATE orders SET status = @status, status_updated_at = @statusUpdatedAt, updated_at = @updatedAt WHERE id = @id');
 
   const toPublicOrder = (row) => ({
     trackingCode: row.tracking_code,
@@ -156,5 +168,98 @@ export const createStandaloneBackend = (db) => {
     };
   };
 
-  return { createQuote, createOrder, trackOrder };
+  /**
+   * نمای کامل سفارش برای پنل مدیر — سند عملیاتی بخش ۶: اطلاعات شخصی فقط اینجا
+   * دیده می‌شود (نه در پاسخ پیگیری مشتری).
+   */
+  const toAdminOrder = (row) => ({
+    id: row.id,
+    trackingCode: row.tracking_code,
+    status: row.status,
+    statusUpdatedAt: row.status_updated_at,
+    serviceId: row.service_id,
+    serviceTitle: row.service_title,
+    hours: row.hours,
+    addonIds: JSON.parse(row.addon_ids_json),
+    hasDetergentPackage: Boolean(row.has_detergent_package),
+    promoCode: row.promo_code,
+    date: row.date,
+    timeSlot: row.time_slot,
+    cityName: row.city_name,
+    district: row.district,
+    address: row.address,
+    unit: row.unit,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    notes: row.notes,
+    pricingVersion: row.pricing_version,
+    serviceBase: row.service_base,
+    addonsTotal: row.addons_total,
+    detergentCost: row.detergent_cost,
+    discountTotal: row.discount_total,
+    total: row.total,
+    paymentMethod: row.payment_method,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+
+  const toAdminEvent = (row) => ({
+    id: row.id,
+    fromStatus: row.from_status,
+    toStatus: row.to_status,
+    actor: row.actor,
+    note: row.note,
+    createdAt: row.created_at,
+  });
+
+  const listOrdersForAdmin = () => listAllOrders.all().map(toAdminOrder);
+
+  const getOrderForAdmin = (orderId) => {
+    const row = findById.get(orderId);
+    if (!row) return null;
+    return { order: toAdminOrder(row), events: listOrderEvents.all(orderId).map(toAdminEvent) };
+  };
+
+  /**
+   * تغییر وضعیت توسط مدیر — فقط گذارهای مجاز (ALLOWED_STATUS_TRANSITIONS).
+   * یک رخداد در order_events (افزودنی) ثبت می‌کند.
+   */
+  const changeOrderStatus = (orderId, { toStatus, note, actor = 'admin' } = {}) => {
+    const row = findById.get(orderId);
+    if (!row) {
+      const error = new QuoteValidationError('orderId', 'سفارش پیدا نشد.');
+      error.statusCode = 404;
+      throw error;
+    }
+    const allowed = ALLOWED_STATUS_TRANSITIONS[row.status] ?? [];
+    if (!allowed.includes(toStatus)) {
+      throw new QuoteValidationError(
+        'status',
+        `تغییر وضعیت از «${row.status}» به «${toStatus}» مجاز نیست.`
+      );
+    }
+
+    const now = new Date().toISOString();
+    updateOrderStatus.run({ id: orderId, status: toStatus, statusUpdatedAt: now, updatedAt: now });
+    insertEvent.run({
+      id: randomUUID(),
+      orderId,
+      fromStatus: row.status,
+      toStatus,
+      actor,
+      note: typeof note === 'string' && note.trim() ? note.trim() : null,
+      createdAt: now,
+    });
+
+    return getOrderForAdmin(orderId);
+  };
+
+  return {
+    createQuote,
+    createOrder,
+    trackOrder,
+    listOrdersForAdmin,
+    getOrderForAdmin,
+    changeOrderStatus,
+  };
 };

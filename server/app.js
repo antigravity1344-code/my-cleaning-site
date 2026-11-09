@@ -9,19 +9,27 @@ import { createRateLimiter } from './rateLimiter.js';
  * GET /api/track/:code (با محدودیت نرخ). پنل مدیر عمداً اینجا نیست — طبق
  * ترتیب خودِ سند، PR بعدی است.
  *
- * `backend` یک شیء با {createQuote, createOrder, trackOrder} است (از
+ * `backend` یک شیء با {createQuote, createOrder, trackOrder, ...} است (از
  * standaloneBackend.js یا، در آینده، پیاده‌سازی «حالت هماهنگ»). این فایل از
  * جزئیات پیاده‌سازی بک‌اند بی‌خبر است — دقیقاً همان جداییِ لازم برای دو‌حالته
  * بودن (ف۷).
+ *
+ * `adminRouter` (اختیاری؛ خروجی createAdminRouter) زیر /api/admin سوار
+ * می‌شود — PR#4. وقتی داده نشود (مثلاً در آزمون‌هایی که فقط مسیرهای عمومی را
+ * می‌سنجند)، مسیرهای مدیر اصلاً ثبت نمی‌شوند.
  */
 
 // بخش ۷: «مثلاً ۲۰ بار در ساعت برای هر IP». با متغیر محیطی قابل‌تنظیم است.
 const TRACK_RATE_LIMIT_MAX = Number(process.env.TRACK_RATE_LIMIT_MAX) || 20;
 const TRACK_RATE_LIMIT_WINDOW_MS = Number(process.env.TRACK_RATE_LIMIT_WINDOW_MS) || 60 * 60 * 1000;
 
-export const createApp = (backend) => {
+export const createApp = (backend, { adminRouter } = {}) => {
   const app = express();
   app.use(express.json());
+
+  if (adminRouter) {
+    app.use('/api/admin', adminRouter);
+  }
 
   const trackRateLimiter = createRateLimiter({
     windowMs: TRACK_RATE_LIMIT_WINDOW_MS,

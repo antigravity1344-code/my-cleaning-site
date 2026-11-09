@@ -2,6 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase } from './db.js';
 import { createStandaloneBackend } from './standaloneBackend.js';
+import { createAdminAuth } from './adminAuth.js';
+import { createAdminRouter } from './adminRouter.js';
 import { createApp } from './app.js';
 
 /**
@@ -24,7 +26,9 @@ if (mode !== 'standalone') {
 const dbPath = process.env.SITE_DB_PATH ?? path.join(__dirname, 'data', 'site.sqlite');
 const db = openDatabase(dbPath);
 const backend = createStandaloneBackend(db);
-const app = createApp(backend);
+const adminAuth = createAdminAuth(db);
+const adminRouter = createAdminRouter(adminAuth, backend);
+const app = createApp(backend, { adminRouter });
 
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {

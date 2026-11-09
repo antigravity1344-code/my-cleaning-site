@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { TOTP, Secret } from 'otpauth';
 import { createApp } from './app.js';
 import { openDatabase } from './db.js';
 import { createStandaloneBackend } from './standaloneBackend.js';
+import { createAdminAuth, generateTotpSecret } from './adminAuth.js';
+import { createAdminRouter } from './adminRouter.js';
 
 /**
  * آزمون‌های یکپارچه‌سازی — سند عملیاتی، بخش ۱۵ (PR#2).
@@ -10,16 +13,26 @@ import { createStandaloneBackend } from './standaloneBackend.js';
 
 let server;
 let baseUrl;
+let adminUsername;
+let adminPassword;
+let adminTotpSecret;
 
 beforeEach(async () => {
   const db = openDatabase(':memory:');
   const backend = createStandaloneBackend(db);
-  const app = createApp(backend);
+  const adminAuth = createAdminAuth(db);
+  const adminRouter = createAdminRouter(adminAuth, backend, { cookieSecure: false });
+  const app = createApp(backend, { adminRouter });
   await new Promise((resolve) => {
     server = app.listen(0, resolve);
   });
   const { port } = server.address();
   baseUrl = `http://127.0.0.1:${port}`;
+
+  adminUsername = 'owner';
+  adminPassword = 'a-very-strong-password-1';
+  adminTotpSecret = generateTotpSecret();
+  await adminAuth.createAdmin({ username: adminUsername, password: adminPassword, totpSecret: adminTotpSecret });
 });
 
 afterEach(async () => {
@@ -183,5 +196,136 @@ describe('GET /api/track/:code', () => {
       lastStatus = res.status;
     }
     expect(lastStatus).toBe(429);
+  });
+});
+
+const currentTotp = () =>
+  new TOTP({ algorithm: 'SHA1', digits: 6, period: 30, secret: Secret.fromBase32(adminTotpSecret) }).generate();
+
+const sessionCookieFrom = (res) => {
+  const setCookie = res.headers.get('set-cookie');
+  return setCookie ? setCookie.split(';')[0] : null;
+};
+
+const loginAsAdmin = async () => {
+  const res = await post('/api/admin/login', { username: adminUsername, password: adminPassword, totp: currentTotp() });
+  const body = await res.json();
+  const cookie = sessionCookieFrom(res);
+  return { status: res.status, cookie, csrfToken: body.csrfToken };
+};
+
+describe('POST /api/admin/login', () => {
+  it('ورود صحیح یک کوکی نشست و csrfToken می‌دهد', async () => {
+    const { status, cookie, csrfToken } = await loginAsAdmin();
+    expect(status).toBe(200);
+    expect(cookie).toMatch(/^admin_session=/);
+    expect(typeof csrfToken).toBe('string');
+    expect(csrfToken.length).toBeGreaterThan(0);
+  });
+
+  it('رمز نادرست ۴۰۱ می‌دهد', async () => {
+    const res = await post('/api/admin/login', { username: adminUsername, password: 'wrong', totp: currentTotp() });
+    expect(res.status).toBe(401);
+  });
+
+  it('TOTP نادرست حتی با رمز درست ۴۰۱ می‌دهد', async () => {
+    const res = await post('/api/admin/login', { username: adminUsername, password: adminPassword, totp: '000000' });
+    expect(res.status).toBe(401);
+  });
+
+  it('نام کاربری ناموجود هم همان ۴۰۱ را می‌دهد (بدون افشای وجود حساب)', async () => {
+    const res = await post('/api/admin/login', { username: 'ghost', password: 'whatever12345', totp: '000000' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Admin API — دسترسی و سفارش‌ها', () => {
+  it('بدون ورود، مسیرهای مدیر ۴۰۱ می‌دهند', async () => {
+    const list = await fetch(`${baseUrl}/api/admin/orders`);
+    expect(list.status).toBe(401);
+    const detail = await fetch(`${baseUrl}/api/admin/orders/whatever`);
+    expect(detail.status).toBe(401);
+  });
+
+  it('با نشست معتبر، سفارش جدید در فهرست مدیر با اطلاعات کامل دیده می‌شود', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-admin-111' });
+    const order = await created.json();
+
+    const { cookie } = await loginAsAdmin();
+    const res = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const found = body.orders.find((o) => o.trackingCode === order.trackingCode);
+    expect(found).toBeDefined();
+    expect(found.customerName).toBe(validOrderInput.customerName);
+    expect(found.address).toBe(validOrderInput.address);
+    expect(found.customerPhone).toBe(validOrderInput.customerPhone);
+  });
+
+  it('تغییر وضعیت مجاز (new → confirmed) را اعمال می‌کند و رویداد ثبت می‌کند', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-admin-222' });
+    const order = await created.json();
+
+    const { cookie, csrfToken } = await loginAsAdmin();
+    const listRes = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    const { orders } = await listRes.json();
+    const orderId = orders.find((o) => o.trackingCode === order.trackingCode).id;
+
+    const patchRes = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { Cookie: cookie, 'X-CSRF-Token': csrfToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'confirmed', note: 'تماس گرفته شد' }),
+    });
+    expect(patchRes.status).toBe(200);
+    const body = await patchRes.json();
+    expect(body.order.status).toBe('confirmed');
+    expect(body.events.at(-1)).toMatchObject({ fromStatus: 'new', toStatus: 'confirmed', actor: 'admin', note: 'تماس گرفته شد' });
+  });
+
+  it('تغییر وضعیت غیرمجاز (new → completed) را رد می‌کند', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-admin-333' });
+    const order = await created.json();
+
+    const { cookie, csrfToken } = await loginAsAdmin();
+    const listRes = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    const { orders } = await listRes.json();
+    const orderId = orders.find((o) => o.trackingCode === order.trackingCode).id;
+
+    const patchRes = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { Cookie: cookie, 'X-CSRF-Token': csrfToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'completed' }),
+    });
+    expect(patchRes.status).toBe(400);
+  });
+
+  it('تغییر وضعیت بدون توکن CSRF درست رد می‌شود (۴۰۳)', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-admin-444' });
+    const order = await created.json();
+
+    const { cookie } = await loginAsAdmin();
+    const listRes = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    const { orders } = await listRes.json();
+    const orderId = orders.find((o) => o.trackingCode === order.trackingCode).id;
+
+    const patchRes = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { Cookie: cookie, 'X-CSRF-Token': 'wrong-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'confirmed' }),
+    });
+    expect(patchRes.status).toBe(403);
+  });
+
+  it('بعد از خروج (logout)، نشست دیگر معتبر نیست', async () => {
+    const { cookie, csrfToken } = await loginAsAdmin();
+
+    const logoutRes = await fetch(`${baseUrl}/api/admin/logout`, {
+      method: 'POST',
+      headers: { Cookie: cookie, 'X-CSRF-Token': csrfToken },
+    });
+    expect(logoutRes.status).toBe(200);
+
+    const afterLogout = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    expect(afterLogout.status).toBe(401);
   });
 });
