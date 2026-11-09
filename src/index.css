@@ -40,18 +40,20 @@
   --color-teal-900: #06302d;
   --color-teal-950: #03201e;
 
-  /* خنثی/متن — پس‌زمینهٔ کرم و متن سبزتیرهٔ اپ به‌جای آبی-خاکستری پیش‌فرض Tailwind. */
-  --color-slate-50: #f6f2e6;
-  --color-slate-100: #efe9d8;
-  --color-slate-200: #e4dfd0;
-  --color-slate-300: #cfc9b8;
-  --color-slate-400: #8a9290;
-  --color-slate-500: #6b7370;
-  --color-slate-600: #4b5552;
-  --color-slate-700: #33403d;
-  --color-slate-800: #26302d;
-  --color-slate-900: #1f2a28;
-  --color-slate-950: #121816;
+  /* خنثی/متن — جهت «A» (۹ نوامبر ۲۰۲۶، پس از بازبینی مالک): تیل همان تیل اپ
+     می‌ماند، اما پس‌زمینه و خاکستری‌های روشن به‌جای کرم سنگین، سفید/سفید مایل
+     به سبز خیلی کم‌رنگ‌اند — نسخهٔ پالایش‌شده و سبک‌تر، نه کرم شلوغ قبلی. */
+  --color-slate-50: #ffffff;
+  --color-slate-100: #f7faf9;
+  --color-slate-200: #e4eeec;
+  --color-slate-300: #cbd8d5;
+  --color-slate-400: #94a39f;
+  --color-slate-500: #5b6663;
+  --color-slate-600: #46514d;
+  --color-slate-700: #2e3836;
+  --color-slate-800: #1d2624;
+  --color-slate-900: #132421;
+  --color-slate-950: #0b1413;
 
   /* خطا/لغو — دقیقاً رنگ danger اپ (#B91C1C). */
   --color-rose-50: #fdecec;
@@ -83,16 +85,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #efe9d8;
+  background: #f7faf9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cfc9b8;
+  background: #cbd8d5;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8a9290;
+  background: #94a39f;
 }
 
 /* Persian number display utility if needed */
