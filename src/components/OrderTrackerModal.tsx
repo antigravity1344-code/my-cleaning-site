@@ -33,7 +33,23 @@ interface OrderTrackerModalProps {
   onCancelOrder: (orderId: string) => Promise<unknown>;
   /** آیا داده‌ای از نسخه قبلی سایت در این مرورگر وجود دارد؟ (فقط اطلاع‌رسانی) */
   hasLegacyStoredData?: boolean;
+  /**
+   * جست‌وجوی سفارش واقعی با کد پیگیری، فراتر از فهرست محلی `orders`
+   * (docs/OPERATIONAL-PLAN.md بخش ۷). وقتی داده نشود (وضعیت فعلی سایت)،
+   * جست‌وجو دقیقاً مثل قبل فقط در `orders` محلی انجام می‌شود — رفتار نسخه
+   * آزمایشی هیچ تغییری نمی‌کند. فقط هنگام سوار شدن `HttpOrderService` پر
+   * می‌شود.
+   */
+  onLookupByTrackingCode?: (code: string) => Promise<BookingOrder | null>;
 }
+
+/** برچسب فارسی وضعیت‌های واقعی (docs/OPERATIONAL-PLAN.md بخش ۳). */
+const REAL_STATUS_LABELS: Partial<Record<OrderStatus, string>> = {
+  new: 'ثبت شد؛ در انتظار تماس',
+  confirmed: 'تأیید شد',
+  completed: 'انجام شد',
+  cancelled: 'لغو شد',
+};
 
 export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   isOpen,
@@ -41,11 +57,13 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   orders,
   onSubmitOrderRating,
   onCancelOrder,
-  hasLegacyStoredData = false
+  hasLegacyStoredData = false,
+  onLookupByTrackingCode,
 }) => {
   const [searchCode, setSearchCode] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<BookingOrder | null>(null);
   const [searchError, setSearchError] = useState<string>('');
+  const [isLookupPending, setIsLookupPending] = useState(false);
   const [userStarRating, setUserStarRating] = useState(5);
   /**
    * متن بازخورد فقط در حافظه همین کامپوننت نگه داشته می‌شود و **ذخیره نمی‌شود**.
@@ -79,6 +97,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     setCancelError('');
     setIsCancelPending(false);
     setSearchError('');
+    setIsLookupPending(false);
     setUserStarRating(5);
     if (!isOpen) {
       setSelectedOrder(null);
@@ -103,12 +122,12 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchCode.trim().toUpperCase();
     if (!query) return;
 
-    // جست‌وجو فقط در رکوردهای نمایشی همین مرورگر انجام می‌شود.
+    // اول در فهرست محلی همین نشست (سفارش‌هایی که همین مرورگر همین الان دید).
     const found = orders.find(
       (order) =>
         order.trackingCode.toUpperCase() === query ||
@@ -118,10 +137,36 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     if (found) {
       setSelectedOrder(found);
       setSearchError('');
-    } else {
+      return;
+    }
+
+    // اگر سرویس سفارش واقعی سوار باشد (onLookupByTrackingCode)، جست‌وجوی محلی که
+    // شکست خورد به سرور می‌رود — همان راهی که مشتری بعد از بستن مرورگر/جلسهٔ
+    // قبلی، سفارشش را با کد پیگیری پیدا می‌کند (بخش ۷). در نسخهٔ آزمایشی فعلی
+    // این prop داده نمی‌شود، پس این مسیر هرگز اجرا نمی‌شود و رفتار قبلی عیناً باقی می‌ماند.
+    if (!onLookupByTrackingCode) {
       setSearchError(
         'درخواستی با این کد در همین مرورگر یافت نشد. در نسخه آزمایشی هیچ سامانه مرکزی برای رهگیری وجود ندارد.',
       );
+      return;
+    }
+
+    const scope = requestScopeRef.current;
+    setIsLookupPending(true);
+    setSearchError('');
+    try {
+      const result = await onLookupByTrackingCode(query);
+      if (scope !== requestScopeRef.current) return;
+      if (result) {
+        setSelectedOrder(result);
+      } else {
+        setSearchError('سفارشی با این کد پیدا نشد.');
+      }
+    } catch {
+      if (scope !== requestScopeRef.current) return;
+      setSearchError('جست‌وجو ناموفق بود؛ دوباره تلاش کنید.');
+    } finally {
+      if (scope === requestScopeRef.current) setIsLookupPending(false);
     }
   };
 
@@ -245,9 +290,10 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </div>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shrink-0"
+              disabled={isLookupPending}
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shrink-0"
             >
-              جستجو
+              {isLookupPending ? 'در حال جست‌وجو...' : 'جستجو'}
             </button>
           </form>
 
@@ -282,7 +328,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </div>
           )}
 
-          {selectedOrder ? (
+          {selectedOrder?.isPublicSummary ? (
+            <PublicOrderSummary order={selectedOrder} />
+          ) : selectedOrder ? (
             <div className="space-y-6">
 
               {/* Demo order info card */}
@@ -532,6 +580,67 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     </div>
   );
 };
+
+/**
+ * نمای پیگیری عمومی یک سفارش واقعی — سند عملیاتی، بخش ۷.
+ *
+ * برخلاف کارت نمایشی بالا، اینجا به‌هیچ‌وجه نباید مبلغ، نام، آدرس یا تلفن
+ * نمایش داده شود: `order.isPublicSummary` یعنی این مقادیر روی خودِ آبجکت هم
+ * واقعی نیستند (فقط جای‌نگه‌دار نوع‌اند — types.ts). نوار پیشرفت ۵مرحله‌ای
+ * نمایشی هم اینجا نیست؛ سرور واقعی فقط ۴ وضعیت تخت دارد (بخش ۳) و هیچ مرحلهٔ
+ * اعزام یا در حال نظافت تولید نمی‌کند.
+ */
+function PublicOrderSummary({ order }: { order: BookingOrder }) {
+  const statusLabel = REAL_STATUS_LABELS[order.status] ?? order.status;
+  const isCancelled = order.status === 'cancelled';
+
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-4 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <span className="text-xs text-slate-400 block">کد پیگیری:</span>
+            <strong className="text-lg font-black font-mono text-emerald-400">{order.trackingCode}</strong>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold ${
+              isCancelled ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+            }`}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <span className="text-slate-400 block">نوع خدمت:</span>
+            <strong className="text-white">{order.serviceTitle || '—'}</strong>
+          </div>
+          <div>
+            <span className="text-slate-400 block">تاریخ / بازه:</span>
+            <strong className="text-white">{order.date || '—'} {order.timeSlot}</strong>
+          </div>
+          <div>
+            <span className="text-slate-400 block">شهر:</span>
+            <strong className="text-white">{order.cityName || '—'}</strong>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-slate-400">
+          آخرین تغییر وضعیت: {formatCreatedAt(order.createdAt)}
+        </div>
+      </div>
+
+      <div className="p-3 rounded-2xl bg-white border border-slate-200 text-[11px] text-slate-600 leading-relaxed flex items-start gap-2">
+        <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+        <span>
+          برای حفظ حریم خصوصی، این صفحه فقط خدمت، تاریخ، شهر و وضعیت را نشان می‌دهد — نه مبلغ، نام،
+          آدرس یا شماره تماس. برای جزئیات بیشتر یا لغو سفارش، با کسب‌وکار تماس بگیرید.
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /** پیام‌های شکست ذخیره‌سازی؛ هیچ‌کدام موفقیت را اعلام نمی‌کنند. */
 const RATING_ERROR_TEXT =
