@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useMemo, useId, useRef } from 'react';
 import {
   X, Check, ArrowLeft, ArrowRight,
-  Sparkles, Tag, PackageCheck, CheckCircle2, Copy, Receipt
+  Sparkles, CheckCircle2, Copy, Receipt
 } from 'lucide-react';
-import { SERVICES_LIST, ADDON_OPTIONS, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
+import { SERVICES_LIST, CLEANERS_LIST, CITIES_DATA } from '../data/mockData';
 import { ServiceType, CleanerGender, BookingOrder } from '../types';
 import { CreateOrderDTO } from '../services/orderService.types';
-import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
+import { calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
 import { buildDemoOrderPayload } from '../services/demoOrder';
 import { toLatinDigits } from '../services/pii';
 import { validateOrderContact } from '../validation/orderContactValidation';
+import {
+  isPakshoConfigured,
+  requestQuote,
+  sendOtp,
+  verifyOtp,
+  getSiteFeatures,
+  createOrder as createPakshoOrder,
+  PakshoApiError,
+  type PakshoQuote,
+  type SiteFeatures,
+} from '../services/pakshoApi';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
@@ -74,6 +85,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [unit, setUnit] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
+  // حالت پاکشو: قیمت از سرور، و ثبت نهایی با کد پیامکی (بدون ورود قبلی).
+  const [serverQuote, setServerQuote] = useState<PakshoQuote | null>(null);
+  const [quoteError, setQuoteError] = useState<string>('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState<string>('');
+  const [customerToken, setCustomerToken] = useState<string | null>(null);
+  const clientRequestRef = useRef<string>('');
+  // کلیدهای سایت از سرور: افزودنی/کد تخفیف و پکیج شوینده (پیش‌فرض خاموش تا پاسخ برسد).
+  const [siteFlags, setSiteFlags] = useState<SiteFeatures>({ siteExtras: false, detergentPackage: false });
   const [notes, setNotes] = useState<string>('');
 
   // Discount & Payment
@@ -161,22 +181,65 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // محاسبه قیمت از موتور مشترک قیمت‌گذاری — دقیقاً همان تابعی که محاسبه‌گر
   // هزینه استفاده می‌کند، بنابراین مبلغ فاکتور با مبلغ نمایش‌داده‌شده در
   // محاسبه‌گر همیشه یکسان است.
+  // افزودنی‌ها، پاک‌کننده و کد تخفیف از فرم حذف شده‌اند (تصمیم مالک، ۹ نوامبر ۲۰۲۶).
   const pricing = useMemo(
     () =>
       calculatePrice({
         serviceId,
         hours,
-        addonIds: selectedAddons,
-        hasDetergentPackage,
-        promoCode: appliedPromoCode || undefined,
+        addonIds: [],
+        hasDetergentPackage: false,
       }),
-    [serviceId, hours, selectedAddons, hasDetergentPackage, appliedPromoCode],
+    [serviceId, hours],
   );
 
-  const addonsPrice = pricing.addonsTotal;
-  const detergentPrice = pricing.detergentCost;
-  const baseServicePrice = pricing.serviceBase;
-  const totalPrice = pricing.total;
+  const pakshoMode = isPakshoConfigured();
+  const extrasOn = pakshoMode && siteFlags.siteExtras;
+  const detergentAvailable = extrasOn && siteFlags.detergentPackage;
+  const detergentOn = detergentAvailable && hasDetergentPackage;
+  const quoteDiscount = extrasOn && appliedPromoCode ? appliedPromoCode : undefined;
+  const baseServicePrice = pakshoMode ? (serverQuote?.subtotal ?? 0) : pricing.serviceBase;
+  const totalPrice = pakshoMode ? (serverQuote?.total ?? 0) : pricing.serviceBase;
+
+  // کلیدهای سایت: یک بار وقتی مودال باز است و مشتری در حالت پاکشو است.
+  useEffect(() => {
+    if (!isOpen || !pakshoMode) return;
+    let cancelled = false;
+    getSiteFeatures()
+      .then((flags) => { if (!cancelled) setSiteFlags(flags); })
+      .catch(() => { if (!cancelled) setSiteFlags({ siteExtras: false, detergentPackage: false }); });
+    return () => { cancelled = true; };
+  }, [isOpen, pakshoMode]);
+
+  // قیمت از سرور پاکشو؛ با تغییر خدمت، ساعت، پکیج شوینده یا کد تخفیف دوباره گرفته می‌شود.
+  useEffect(() => {
+    if (!isOpen || !pakshoMode) return;
+    let cancelled = false;
+    setServerQuote(null);
+    setQuoteError('');
+    requestQuote({
+      serviceId,
+      quantity: hours,
+      options: detergentOn ? { detergent: true } : {},
+      discountCode: quoteDiscount,
+    })
+      .then((quote) => { if (!cancelled) setServerQuote(quote); })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof PakshoApiError && error.code?.startsWith('PROMO_')) {
+          // کد نامعتبر: کد برداشته می‌شود تا مشتری بدون تخفیف ادامه دهد و پیام روشن ببیند.
+          setAppliedPromoCode('');
+          setDiscountMsg({ type: 'error', text: error.message });
+          return;
+        }
+        setQuoteError(
+          error instanceof PakshoApiError && error.code === 'FEATURE_DISABLED'
+            ? error.message
+            : 'قیمت از سرور دریافت نشد. دوباره تلاش کنید.',
+        );
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, pakshoMode, serviceId, hours, detergentOn, quoteDiscount]);
 
   // دسترس‌پذیری پنجره: نقش dialog، Escape برای بستن، نگه‌داشتن فوکوس داخل پنجره
   // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
@@ -194,6 +257,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const handleApplyDiscount = () => {
     const code = discountCodeInput.trim().toUpperCase();
     if (!code) return;
+    if (pakshoMode) {
+      // در حالت پاکشو اعتبار کد را سرور می‌سنجد؛ نتیجه از روی نقل‌قول می‌آید.
+      setAppliedPromoCode(code);
+      setDiscountMsg({ type: 'success', text: `کد ${code} بررسی می‌شود.` });
+      return;
+    }
 
     const result = validatePromoCode(code);
     if (!result.valid) {
@@ -233,6 +302,53 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setCurrentStep(prev => prev + 1);
   };
 
+  // ثبت سفارش در سرور پاکشو: مرحلهٔ اول کد پیامکی می‌فرستد، مرحلهٔ دوم کد را تأیید و سفارش را ثبت می‌کند.
+  const submitToPaksho = async (orderPayload: CreateOrderDTO): Promise<BookingOrder> => {
+    const phone = toLatinDigits(customerPhone.trim());
+    let token = customerToken;
+    if (!token) {
+      if (!otpSent) {
+        await sendOtp(phone);
+        setOtpSent(true);
+        throw new Error('کد تأیید برای شماره شما پیامک شد. کد را وارد کنید و دوباره تأیید نهایی بزنید.');
+      }
+      const code = toLatinDigits(otpCode.trim());
+      if (!/^\d{4}$/.test(code)) throw new Error('کد پیامکی ۴ رقمی را وارد کنید.');
+      token = await verifyOtp(phone, code);
+      setCustomerToken(token);
+    }
+    if (!serverQuote) throw new Error('قیمت هنوز دریافت نشده است. صبر کنید و دوباره تلاش کنید.');
+    if (!clientRequestRef.current) clientRequestRef.current = crypto.randomUUID();
+
+    const result = await createPakshoOrder(token, {
+      serviceId,
+      quantity: hours,
+      quoteToken: serverQuote.quoteToken,
+      confirmedTotal: serverQuote.total,
+      address: [cityName, district, address.trim(), unit.trim()].filter(Boolean).join('، '),
+      date: selectedDate,
+      time: selectedTimeSlot,
+      customerName: customerName.trim(),
+      customerPhone: phone,
+      notes: notes.trim(),
+      clientRequestId: clientRequestRef.current,
+      options: detergentOn ? { detergent: true } : {},
+      discountCode: quoteDiscount,
+    });
+
+    // TODO: نوع رکورد عملیاتی در مدل نیست؛ همان قرار httpOrderService فعلاً 'demo' می‌ماند.
+    return {
+      ...orderPayload,
+      id: result.id,
+      trackingCode: result.id,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+      recordType: 'demo',
+      paymentStatus: 'unpaid',
+      totalPrice: result.price,
+    };
+  };
+
   const handleFinalSubmit = async () => {
     if (isSubmitting || submitLockRef.current) return;
     submitLockRef.current = true;
@@ -267,6 +383,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       requestedCleanerName: requestedCleaner?.name,
       paymentMethod,
     });
+
+    if (pakshoMode) {
+      try {
+        const created = await submitToPaksho(orderPayload);
+        setCreatedOrder(created);
+        onOrderCreated(created);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : 'ثبت سفارش ناموفق بود؛ دوباره تلاش کنید.');
+      } finally {
+        submitLockRef.current = false;
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     try {
       if (!createOrderService) {
@@ -424,54 +554,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           ))}
         </div>
       </div>
-      <div role="group" aria-labelledby={`${fieldId}-addons`} className="space-y-2">
-        <span id={`${fieldId}-addons`} className="block text-xs font-bold text-slate-700 mb-1">خدمات جانبی (اختیاری):</span>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
-            const checked = selectedAddons.includes(addon.id);
-            return (
-              <ChoiceCard
-                key={addon.id}
-                type="checkbox"
-                checked={checked}
-                onChange={() => setSelectedAddons(prev => checked ? prev.filter(x => x !== addon.id) : [...prev, addon.id])}
-                className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
-                  checked ? 'bg-emerald-50 border-emerald-500' : 'bg-white border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <span className="block space-y-0.5">
-                  <span className="text-xs font-bold text-slate-800 block">{addon.title}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">+{addon.price.toLocaleString('fa-IR')} ت</span>
-                </span>
-                <span aria-hidden="true" className={`w-4 h-4 rounded-md flex items-center justify-center border ${checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'}`}>
-                  {checked && <Check className="w-3 h-3" />}
-                </span>
-              </ChoiceCard>
-            );
-          })}
-        </div>
+      {detergentAvailable && (
         <ChoiceCard
           type="checkbox"
           checked={hasDetergentPackage}
           onChange={() => setHasDetergentPackage(!hasDetergentPackage)}
-          className={`p-3 rounded-2xl border transition-all flex items-center justify-between mt-2 ${
+          className={`w-full flex items-center justify-between p-3 rounded-2xl border text-right text-xs font-bold transition-all ${
             hasDetergentPackage ? 'bg-teal-50 border-teal-500' : 'bg-white border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span className="flex items-center gap-2">
-            <PackageCheck aria-hidden="true" className="w-4 h-4 text-teal-600" />
-            <span className="block text-right">
-              <span className="text-xs font-bold text-slate-900 block">تامین شوینده‌ها و دستمال نانو توسط متخصص</span>
-              <span className="text-[10px] text-slate-500">
-                (+{PRICING_CONFIG.detergentPackagePrice.toLocaleString('fa-IR')} ت - جرم‌گیر، وایتکس، شیشه‌پاک‌کن، دستمال نانو)
-              </span>
-            </span>
-          </span>
-          <span aria-hidden="true" className={`w-4 h-4 rounded-md flex items-center justify-center border ${hasDetergentPackage ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300'}`}>
-            {hasDetergentPackage && <Check className="w-3 h-3" />}
-          </span>
+          پکیج مواد شوینده (افزودنی؛ محتوای هر خدمت جداست)
         </ChoiceCard>
-      </div>
+      )}
     </div>
   );
 
@@ -692,24 +786,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <span>{currentService.title} ({hours} ساعت):</span>
             <span className="font-mono">{baseServicePrice.toLocaleString('fa-IR')} ت</span>
           </div>
-          {addonsPrice > 0 && (
-            <div className="flex justify-between text-amber-800">
-              <span>خدمات جانبی انتخابی:</span>
-              <span className="font-mono">+{addonsPrice.toLocaleString('fa-IR')} ت</span>
+
+          {pakshoMode && serverQuote?.surcharges.map((line) => (
+            <div key={`s-${line.id}`} className="flex justify-between text-amber-800">
+              <span>هزینه جانبی:</span>
+              <span className="font-mono">+{line.amount.toLocaleString('fa-IR')} ت</span>
             </div>
-          )}
-          {hasDetergentPackage && (
-            <div className="flex justify-between text-teal-800">
-              <span>پکیج مواد شوینده و دستمال نانو:</span>
-              <span className="font-mono">+{detergentPrice.toLocaleString('fa-IR')} ت</span>
-            </div>
-          )}
-          {pricing.discountLines.map((line) => (
-            <div key={line.id} className="flex justify-between text-emerald-600 font-bold border-t border-slate-200 pt-2">
-              <span>{line.title}:</span>
+          ))}
+          {pakshoMode && serverQuote?.discounts.map((line) => (
+            <div key={`d-${line.id}`} className="flex justify-between text-emerald-600 font-bold border-t border-slate-200 pt-2">
+              <span>{line.id.startsWith('promo:') ? 'کد تخفیف' : 'تخفیف تعرفه'}:</span>
               <span className="font-mono">-{line.amount.toLocaleString('fa-IR')} ت</span>
             </div>
           ))}
+          {quoteError && <p className="text-[11px] font-bold text-rose-600">{quoteError}</p>}
         </div>
         <div className="pt-3 border-t border-slate-300 flex flex-col gap-2">
           <div className="flex items-center justify-between">
@@ -722,47 +812,49 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <ProvisionalPriceNote />
         </div>
       </div>
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
-        <label htmlFor={`${fieldId}-promo`} className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-          <Tag aria-hidden="true" className="w-3.5 h-3.5 text-emerald-600" />
-          کد تخفیف دارید؟
-        </label>
-        <div className="flex gap-2">
-          <input
-            id={`${fieldId}-promo`}
-            type="text"
-            placeholder="مثال: PAK1403"
-            value={discountCodeInput}
-            onChange={(e) => setDiscountCodeInput(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter در این فیلد باید کد را اعمال کند، نه اینکه فرم (و سفارش) را ثبت کند.
-              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleApplyDiscount();
-              }
-            }}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
-          />
-          <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
+      {extrasOn && (
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+          <label htmlFor={`${fieldId}-promo`} className="block text-xs font-bold text-slate-700">کد تخفیف دارید؟</label>
+          <div className="flex gap-2">
+            <input
+              id={`${fieldId}-promo`}
+              type="text"
+              placeholder="مثال: SAVE10"
+              value={discountCodeInput}
+              onChange={(e) => setDiscountCodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleApplyDiscount();
+                }
+              }}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs sm:text-sm font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            />
+            <button type="button" onClick={handleApplyDiscount} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer">اعمال</button>
+          </div>
+          {discountMsg && <p className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
+          {appliedPromoCode && (
+            <button type="button" onClick={handleRemoveDiscount} className="text-[11px] font-bold text-slate-600 underline hover:text-slate-900 cursor-pointer">
+              حذف کد تخفیف {appliedPromoCode}
+            </button>
+          )}
         </div>
-        {/* متن دیداری؛ اعلام برای صفحه‌خوان در ناحیه‌ی status زیر کارت است (تکرار نشود). */}
-        {discountMsg && <p aria-hidden="true" className={`text-[11px] font-bold ${discountMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>{discountMsg.text}</p>}
-        {appliedPromoCode && (
-          <button
-            type="button"
-            onClick={handleRemoveDiscount}
-            className="text-[11px] font-bold text-slate-600 underline hover:text-slate-900 cursor-pointer"
-          >
-            حذف کد تخفیف {appliedPromoCode}
-          </button>
-        )}
-      </div>
-      {/*
-        ناحیه‌ی اعلام پیام کد تخفیف: همیشه حاضر است تا صفحه‌خوان همان پیام اول را هم اعلام کند.
-        بیرون از کارت کد تخفیف و با sr-only (موقعیت absolute) است تا فاصله‌ها و چیدمان دیداری
-        تغییر نکنند.
-      */}
-      <p role="status" className="sr-only">{discountMsg?.text ?? ''}</p>
+      )}
+      {pakshoMode && otpSent && !customerToken && (
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+          <label htmlFor={`${fieldId}-otp`} className="block text-xs font-bold text-slate-700">کد پیامکی را وارد کنید:</label>
+          <input
+            id={`${fieldId}-otp`}
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={otpCode}
+            onChange={(e) => setOtpCode(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      )}
+      {pakshoMode && quoteError && <p className="text-[11px] font-bold text-rose-600">{quoteError}</p>}
       <div>
         <span id={`${fieldId}-payment`} className="block text-xs font-bold text-slate-700 mb-2">نحوه پرداخت:</span>
         <div role="radiogroup" aria-labelledby={`${fieldId}-payment`} className="grid grid-cols-1 sm:grid-cols-2 gap-3">

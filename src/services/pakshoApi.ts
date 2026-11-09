@@ -70,8 +70,16 @@ async function call<T>(path: string, options: RequestOptions = {}): Promise<T> {
   return payload as T;
 }
 
+export interface PakshoLine {
+  id: string;
+  amount: number;
+}
+
 export interface PakshoQuote {
   quoteToken: string;
+  subtotal: number;
+  surcharges: PakshoLine[];
+  discounts: PakshoLine[];
   total: number;
   currencyUnit: string;
   expiresAt: string;
@@ -81,14 +89,31 @@ export interface QuoteInput {
   serviceId: string;
   quantity: number;
   options?: Record<string, unknown>;
+  discountCode?: string;
 }
 
 export async function requestQuote(input: QuoteInput): Promise<PakshoQuote> {
   const data = await call<{ quote: PakshoQuote }>('/api/pricing/quote', {
     method: 'POST',
-    body: { serviceId: input.serviceId, quantity: input.quantity, options: input.options ?? {} },
+    body: {
+      serviceId: input.serviceId,
+      quantity: input.quantity,
+      options: input.options ?? {},
+      ...(input.discountCode ? { discountCode: input.discountCode } : {}),
+    },
   });
   return data.quote;
+}
+
+export interface SiteFeatures {
+  siteExtras: boolean;
+  detergentPackage: boolean;
+}
+
+/** کلیدهای سایت (بدون ورود): آیا افزودنی/کد تخفیف و پکیج شوینده روشن‌اند. */
+export async function getSiteFeatures(): Promise<SiteFeatures> {
+  const data = await call<SiteFeatures>('/api/site/features');
+  return { siteExtras: data.siteExtras === true, detergentPackage: data.detergentPackage === true };
 }
 
 export async function sendOtp(phone: string): Promise<void> {
@@ -116,6 +141,7 @@ export interface PakshoOrderInput {
   customerPhone: string;
   notes?: string;
   clientRequestId: string;
+  discountCode?: string;
 }
 
 export interface PakshoOrderResult {

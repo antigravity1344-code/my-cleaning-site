@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
-import { ADDON_OPTIONS, SERVICES_LIST } from './data/mockData';
+import { SERVICES_LIST } from './data/mockData';
 
 /**
  * دسترس‌پذیری کنترل‌های محاسبه‌گر هزینه و فرم سریع بالای صفحه — مسیر واقعی App.
@@ -62,22 +62,11 @@ describe('محاسبه‌گر هزینه', () => {
     expect(readCalculatorTotal()).not.toBe(before);
   });
 
-  it('خدمات جانبی و بسته‌ی شوینده checkbox با نام هستند و روی مبلغ اثر می‌گذارند', () => {
+  it('محاسبه‌گر در حالت نمایشی خدمات جانبی و پکیج شوینده ندارد (کارهای اصلی جزو خدمت‌اند)', () => {
     render(<App />);
-    const group = within(calculator()).getByRole('group', { name: '۴. خدمات جانبی و شوینده (اختیاری):' });
-    const optional = ADDON_OPTIONS.filter((addon) => addon.id !== 'detergents');
-    expect(within(group).getAllByRole('checkbox')).toHaveLength(optional.length + 1);
-
-    const before = readCalculatorTotal();
-    const addon = within(group).getByRole('checkbox', { name: new RegExp(optional[0].title) }) as HTMLInputElement;
-    fireEvent.click(addon);
-    expect(addon.checked).toBe(true);
-    expect(readCalculatorTotal()).not.toBe(before);
-
-    const detergent = within(group).getByRole('checkbox', { name: /تامین کامل شوینده‌ها/ }) as HTMLInputElement;
-    expect(detergent.checked).toBe(true);
-    fireEvent.click(detergent);
-    expect(detergent.checked).toBe(false);
+    const section = calculator();
+    expect(within(section).queryByRole('group', { name: /خدمات جانبی و شوینده/ })).toBeNull();
+    expect(within(section).queryByRole('checkbox', { name: /تامین کامل شوینده‌ها/ })).toBeNull();
   });
 
   it('انتخاب تعداد سرویس و جنسیت ثبت می‌شود و جنسیت به فرم رزرو منتقل می‌شود', () => {

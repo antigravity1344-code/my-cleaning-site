@@ -571,33 +571,21 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
     expect(normalizeClaimText(document.body.textContent ?? '')).not.toContain('ارگانیک');
   });
 
-  it('F2-R1: every optional add-on card in the calculator is free of unverified tool/equipment claims', () => {
+  it('F2-R1: the calculator shows no optional add-on cards with unverified tool/equipment claims', () => {
     render(<App />);
     const calculator = document.querySelector('#calculator') as HTMLElement;
     expect(calculator).not.toBeNull();
 
-    // پکیج مواد شوینده (detergents) عمداً مستثناست: بازبینی #6201281981 فهرست اقلام آن را
-    // در حالت Demo به‌عنوان «فهرست نمونه اقلام پکیج» پذیرفت. این آزمون فقط کارت افزونه‌های
-    // اختیاری را می‌سنجد که شرح انجام کار دارند.
-    const optionalAddons = ADDON_OPTIONS.filter((addon) => addon.id !== 'detergents');
-    expect(optionalAddons.length).toBeGreaterThan(0);
-
+    // تصمیم مالک (۱۰ نوامبر ۲۰۲۶): دیوارشویی، شیشه‌ها و یخچال/فر جزو خدمت اصلی‌اند و
+    // اتوکشی حذف شده؛ پکیج شوینده در حالت نمایشی نمایش داده نمی‌شود. پس کارت افزونه‌ای نیست
+    // که ادعای ابزار داشته باشد. اگر افزونه‌ای برگردد، این آزمون باید دوباره کارت‌ها را بسنجد.
     const toolClaims = ['نانو', 'اسفنج جادویی', 'ارگانیک', 'دستگاه', 'مکنده', 'پولیشر'];
-    for (const addon of optionalAddons) {
-      const titleEl = Array.from(calculator.querySelectorAll('span')).find(
-        (el) => el.textContent?.trim() === addon.title,
-      );
-      // کارت باید واقعاً در DOM رندر شده باشد (نه فقط در داده).
-      expect(titleEl, `add-on card not rendered: ${addon.id}`).toBeTruthy();
-      // کارت افزونه (اکنون label یک checkbox است، نه div).
-      const card = titleEl!.closest('.rounded-2xl') as HTMLElement;
-      expect(card, `add-on card container not found: ${addon.id}`).toBeTruthy();
-      expect(card.textContent).toContain(addon.description);
-
-      const cardText = normalizeClaimText(card.textContent ?? '');
-      for (const claim of toolClaims) {
-        expect(cardText, `${addon.id}: ${claim}`).not.toContain(normalizeClaimText(claim));
-      }
+    const calcText = normalizeClaimText(calculator.textContent ?? '');
+    for (const addon of ADDON_OPTIONS) {
+      expect(calcText, `add-on should not be shown in demo calculator: ${addon.id}`).not.toContain(normalizeClaimText(addon.title));
+    }
+    for (const claim of toolClaims) {
+      expect(calcText, `calculator: ${claim}`).not.toContain(normalizeClaimText(claim));
     }
   });
 
