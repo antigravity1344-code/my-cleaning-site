@@ -239,6 +239,21 @@ describe('POST /api/admin/login', () => {
   });
 });
 
+describe('GET /api/admin/session', () => {
+  it('بدون نشست ۴۰۱ می‌دهد', async () => {
+    const res = await fetch(`${baseUrl}/api/admin/session`);
+    expect(res.status).toBe(401);
+  });
+
+  it('با نشست معتبر همان csrfToken را دوباره می‌دهد', async () => {
+    const { cookie, csrfToken } = await loginAsAdmin();
+    const res = await fetch(`${baseUrl}/api/admin/session`, { headers: { Cookie: cookie } });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.csrfToken).toBe(csrfToken);
+  });
+});
+
 describe('Admin API — دسترسی و سفارش‌ها', () => {
   it('بدون ورود، مسیرهای مدیر ۴۰۱ می‌دهند', async () => {
     const list = await fetch(`${baseUrl}/api/admin/orders`);

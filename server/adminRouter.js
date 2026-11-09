@@ -64,6 +64,15 @@ export const createAdminRouter = (auth, backend, { cookieSecure = process.env.CO
     res.json({ csrfToken: session.csrfToken, username: admin.username });
   });
 
+  // رهگیری نشست بعد از رفرش صفحه: کوکی HttpOnly خودش باقی می‌ماند، اما
+  // csrfToken در حافظهٔ جاوااسکریپت مرورگر از بین می‌رود. این مسیر GET است
+  // (بدون اثر جانبی) و csrfToken را دوباره می‌دهد — افشای آن با GET حفاظت
+  // CSRF را ضعیف نمی‌کند، چون محافظت در برابر *درخواست جعلی از سایت دیگر* است،
+  // نه در برابر خواندن پاسخ، که با سیاست هم‌مبدأ مرورگر از قبل محدود است.
+  router.get('/session', requireSession, (req, res) => {
+    res.json({ csrfToken: req.adminSession.csrf_token });
+  });
+
   router.post('/logout', requireSession, requireCsrf, (req, res) => {
     auth.revokeSession(req.adminSession.id);
     res.set('Set-Cookie', buildExpiredCookie(SESSION_COOKIE_NAME, { secure: cookieSecure }));
