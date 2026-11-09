@@ -132,3 +132,56 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /api/track/:code', () => {
+  it('کد معتبر را با اطلاعات محدود برمی‌گرداند (بدون نام/آدرس/تلفن)', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-track-111' });
+    const order = await created.json();
+
+    const res = await fetch(`${baseUrl}/api/track/${order.trackingCode}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({
+      serviceTitle: order.serviceTitle,
+      date: null,
+      timeSlot: null,
+      cityName: null,
+      status: 'new',
+      statusUpdatedAt: expect.any(String),
+    });
+    expect(body.customerName).toBeUndefined();
+    expect(body.address).toBeUndefined();
+    expect(body.customerPhone).toBeUndefined();
+  });
+
+  it('کد ناموجود ۴۰۴ عمومی می‌دهد', async () => {
+    const res = await fetch(`${baseUrl}/api/track/ZZZZ-ZZZZ-ZZZZ-ZZZZ`);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(typeof body.message).toBe('string');
+  });
+
+  it('کد بدشکل همان پاسخ کد ناموجود را می‌دهد (بخش ۷: پاسخ یکسان)', async () => {
+    const notFound = await fetch(`${baseUrl}/api/track/ZZZZ-ZZZZ-ZZZZ-ZZZZ`);
+    const malformed = await fetch(`${baseUrl}/api/track/not-a-real-code`);
+    expect(malformed.status).toBe(notFound.status);
+    expect(await malformed.json()).toEqual(await notFound.json());
+  });
+
+  it('کد با حروف کوچک هم پیدا می‌شود (نرمال‌سازی حروف بزرگ)', async () => {
+    const created = await post('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-track-222' });
+    const order = await created.json();
+
+    const res = await fetch(`${baseUrl}/api/track/${order.trackingCode.toLowerCase()}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('بعد از عبور از سقف محدودیت نرخ ۴۲۹ می‌دهد', async () => {
+    let lastStatus;
+    for (let i = 0; i < 21; i += 1) {
+      const res = await fetch(`${baseUrl}/api/track/ZZZZ-ZZZZ-ZZZZ-ZZZZ`);
+      lastStatus = res.status;
+    }
+    expect(lastStatus).toBe(429);
+  });
+});

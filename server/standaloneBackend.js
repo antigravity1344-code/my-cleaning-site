@@ -37,6 +37,7 @@ export const createStandaloneBackend = (db) => {
   `);
 
   const findByIdempotencyKey = db.prepare('SELECT * FROM orders WHERE idempotency_key = ?');
+  const findByTrackingCode = db.prepare('SELECT * FROM orders WHERE tracking_code = ?');
 
   const toPublicOrder = (row) => ({
     trackingCode: row.tracking_code,
@@ -135,5 +136,25 @@ export const createStandaloneBackend = (db) => {
     return { order: toPublicOrder({ ...row, tracking_code: row.trackingCode, status: row.status, service_id: row.serviceId, service_title: row.serviceTitle, created_at: row.createdAt }), idempotent: false };
   };
 
-  return { createQuote, createOrder };
+  /**
+   * پیگیری سفارش با کد: GET /api/track/:code — سند عملیاتی بخش ۷.
+   * خروجی عمداً محدود است: فقط خدمت، تاریخ/بازه، شهر، وضعیت و زمان آخرین
+   * تغییر. نام، آدرس و تلفن هرگز در این پاسخ نیستند. کد ناموجود یا نامعتبر
+   * هر دو null برمی‌گردانند تا لایهٔ HTTP پاسخ یکسان بدهد (حدس‌زنی را سخت‌تر می‌کند).
+   */
+  const trackOrder = (trackingCode) => {
+    if (typeof trackingCode !== 'string' || !trackingCode.trim()) return null;
+    const row = findByTrackingCode.get(trackingCode.trim().toUpperCase());
+    if (!row) return null;
+    return {
+      serviceTitle: row.service_title,
+      date: row.date,
+      timeSlot: row.time_slot,
+      cityName: row.city_name,
+      status: row.status,
+      statusUpdatedAt: row.status_updated_at,
+    };
+  };
+
+  return { createQuote, createOrder, trackOrder };
 };
