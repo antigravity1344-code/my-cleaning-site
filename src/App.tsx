@@ -17,6 +17,7 @@ import { ServiceType, CleanerGender, BookingOrder, CleanerSpecialist } from './t
 import { SERVICES_LIST } from './data/mockData';
 import { Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
+import { OrderTrackingPage } from './components/OrderTrackingPage';
 import { BackgroundInertContext } from './context/BackgroundInertContext';
 
 function PakshoAppContent() {
@@ -278,6 +279,10 @@ function PakshoAppContent() {
 }
 
 export default function App() {
+  // صفحهٔ پیگیری عمومی: /track (بدون ورود، بدون نام و تلفن در پاسخ).
+  if (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/track') {
+    return <OrderTrackingPage />;
+  }
   return (
     <OrderProvider>
       <PakshoAppContent />
