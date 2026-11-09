@@ -101,15 +101,13 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
     expect(invoiceTotal).toBe(calculatorTotal);
   });
 
-  it('برای ورودی‌های متفاوت (متراژ، اتاق، افزودنی‌ها) نیز دو مبلغ یکسان می‌مانند', () => {
+  it('برای ورودی‌های متفاوت (متراژ و اتاق) نیز دو مبلغ یکسان می‌مانند', () => {
     const onProceed = vi.fn();
     const { container } = render(<CostCalculator onProceedToBooking={onProceed} />);
 
-    // تغییر متراژ (ساعت پیشنهادی را تغییر می‌دهد) و افزودن دو خدمت جانبی
+    // تغییر متراژ (ساعت پیشنهادی را تغییر می‌دهد). خدمات اصلی افزودنی نیستند، پس افزودنی‌ای انتخاب نمی‌شود.
     const sliders = container.querySelectorAll('input[type="range"]');
     fireEvent.change(sliders[0], { target: { value: '220' } });
-    fireEvent.click(screen.getAllByText('شستشوی کامل شیشه‌ها و بالکن')[0]);
-    fireEvent.click(screen.getAllByText('دیوارشویی تخصصی اتاق‌ها')[0]);
 
     const calculatorTotal = readCalculatorTotal(container);
 
@@ -117,7 +115,7 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
     const transferred = onProceed.mock.calls[0][0] as CalculatorTransfer;
 
     // انتقال می‌بایست افزودنی‌ها و ساعت بازمحاسبه‌شده را حمل کند
-    expect(transferred.selectedAddons).toEqual(expect.arrayContaining(['windows', 'walls']));
+    expect(transferred.selectedAddons).toEqual([]);
 
     const booking = render(
       <BookingModal
@@ -138,8 +136,8 @@ describe('محاسبه‌گر → فرم رزرو: یکسان‌بودن مبل�
     const engineTotal = calculatePrice({
       serviceId: transferred.serviceId,
       hours: transferred.hours,
-      addonIds: transferred.selectedAddons,
-      hasDetergentPackage: transferred.hasDetergentPackage,
+      addonIds: [],
+      hasDetergentPackage: false,
     }).total;
     expect(toPersianDigits(engineTotal)).toBe(calculatorTotal);
   });

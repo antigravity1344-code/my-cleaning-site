@@ -63,7 +63,8 @@ describe('calculatePrice — محاسبات پایه', () => {
   });
 
   it('هزینه خدمات جانبی را درست جمع می‌زند', () => {
-    const addonIds = ['windows', 'walls'];
+    // تنها افزودنی باقی‌مانده در داده (پکیج شوینده) برای سنجش جمع خدمات جانبی.
+    const addonIds = ['detergents'];
     const result = calculatePrice({
       serviceId: 'home-deep',
       hours: 5,
@@ -73,7 +74,7 @@ describe('calculatePrice — محاسبات پایه', () => {
 
     const expectedAddons = addonIds.reduce((sum, id) => sum + addonPrice(id), 0);
     expect(result.addonsTotal).toBe(expectedAddons);
-    expect(result.addonLines).toHaveLength(2);
+    expect(result.addonLines).toHaveLength(1);
     expect(result.subtotal).toBe(result.serviceBase + expectedAddons);
   });
 
@@ -235,8 +236,8 @@ describe('ورودی‌های نامعتبر', () => {
   });
 
   it('خدمات جانبی تکراری را دو بار محاسبه نمی‌کند', () => {
-    const single = calculatePrice({ serviceId: 'home-standard', hours: 4, addonIds: ['windows'], hasDetergentPackage: false });
-    const duplicated = calculatePrice({ serviceId: 'home-standard', hours: 4, addonIds: ['windows', 'windows', 'windows'], hasDetergentPackage: false });
+    const single = calculatePrice({ serviceId: 'home-standard', hours: 4, addonIds: ['detergents'], hasDetergentPackage: false });
+    const duplicated = calculatePrice({ serviceId: 'home-standard', hours: 4, addonIds: ['detergents', 'detergents', 'detergents'], hasDetergentPackage: false });
 
     expect(duplicated.addonsTotal).toBe(single.addonsTotal);
     expect(duplicated.total).toBe(single.total);
@@ -246,11 +247,11 @@ describe('ورودی‌های نامعتبر', () => {
     const result = calculatePrice({
       serviceId: 'home-standard',
       hours: 4,
-      addonIds: ['windows', 'not-a-real-addon'],
+      addonIds: ['detergents', 'not-a-real-addon'],
       hasDetergentPackage: false,
     });
     expect(result.addonLines).toHaveLength(1);
-    expect(result.addonsTotal).toBe(addonPrice('windows'));
+    expect(result.addonsTotal).toBe(addonPrice('detergents'));
   });
 
   it('مبلغ را همیشه به‌عنوان برآورد آزمایشی علامت می‌زند', () => {

@@ -41,6 +41,19 @@ describe('pakshoApi', () => {
     expect(JSON.parse(init.body)).toEqual({ serviceId: 'hourly', quantity: 2, options: {} });
   });
 
+  it('sends the discount code with the quote and reads the site flags without login', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, quote: { quoteToken: 't', subtotal: 2000, surcharges: [], discounts: [], total: 1800, currencyUnit: 'toman', expiresAt: 'x' } }))
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, siteExtras: true, detergentPackage: false }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadWithBase('https://paksho.example');
+    await api.requestQuote({ serviceId: 'hourly', quantity: 2, discountCode: 'SAVE10' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).discountCode).toBe('SAVE10');
+    const flags = await api.getSiteFeatures();
+    expect(flags).toEqual({ siteExtras: true, detergentPackage: false });
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBeUndefined();
+  });
+
   it('verifies the OTP as a customer and returns the token', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { success: true, token: 'session-1' }));
     vi.stubGlobal('fetch', fetchMock);

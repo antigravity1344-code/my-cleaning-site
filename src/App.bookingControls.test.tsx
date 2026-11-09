@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
-import { ADDON_OPTIONS, CLEANERS_LIST, SERVICES_LIST } from './data/mockData';
+import { CLEANERS_LIST, SERVICES_LIST } from './data/mockData';
 
 /**
  * دسترس‌پذیری کنترل‌های فرم رزرو — روی مسیر واقعی `<App />`.
@@ -97,32 +97,12 @@ describe('مرحله ۱ — نوع خدمت، ساعت، جنسیت، خدمات
     expect(checkedIn(group)).toEqual([female]);
   });
 
-  it('خدمات جانبی و بسته‌ی شوینده checkbox هستند و روی فاکتور اثر می‌گذارند', () => {
+  it('حالت نمایشی فرم رزرو خدمات جانبی و پکیج شوینده ندارد (کارهای اصلی جزو خدمت‌اند)', () => {
     const dialog = openBooking();
-    const group = within(dialog).getByRole('group', { name: 'خدمات جانبی (اختیاری):' });
-    const optional = ADDON_OPTIONS.filter((addon) => addon.id !== 'detergents');
-    const boxes = within(group).getAllByRole('checkbox');
-    expect(boxes).toHaveLength(optional.length + 1);
-
-    const firstAddon = within(group).getByRole('checkbox', { name: new RegExp(optional[0].title) });
-    expect((firstAddon as HTMLInputElement).checked).toBe(false);
-    fireEvent.click(firstAddon);
-    expect((firstAddon as HTMLInputElement).checked).toBe(true);
-
-    const detergent = within(group).getByRole('checkbox', { name: /تامین شوینده‌ها/ });
-    expect((detergent as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(detergent);
-    expect((detergent as HTMLInputElement).checked).toBe(false);
-
-    nextStep(dialog);
-    nextStep(dialog);
-    fillContactAndContinue(dialog);
-    expect(dialog.textContent).toContain('خدمات جانبی انتخابی');
-    expect(dialog.textContent).not.toContain('پکیج مواد شوینده و دستمال نانو:');
+    expect(within(dialog).queryByRole('group', { name: 'خدمات جانبی (اختیاری):' })).toBeNull();
+    expect(within(dialog).queryByRole('checkbox', { name: /پکیج مواد شوینده/ })).toBeNull();
   });
-});
 
-describe('مرحله ۲ — روز، بازه‌ی زمانی، متخصص', () => {
   it('روز، بازه‌ی زمانی و متخصص گروه‌های radio با نام هستند و انتخاب در هرکدام یکتاست', () => {
     const dialog = openBooking();
     nextStep(dialog);
@@ -196,6 +176,16 @@ describe('رفتن از مرحله ۳ به ۴ نباید سفارش را فور�
 });
 
 describe('مرحله‌ی فاکتور با فشار تکراری یا Enter در کد تخفیف رد نمی‌شود', () => {
+  const storedOrders = (): Array<Record<string, unknown>> => JSON.parse(localStorage.getItem('paksho_demo_orders_v2') ?? '[]');
+
+  const toStep3WithPhone = (dialog: HTMLElement, phone: string): void => {
+    nextStep(dialog);
+    nextStep(dialog);
+    fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
+    fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
+    fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: phone } });
+    nextStep(dialog);
+  };
   const toInvoice = (dialog: HTMLElement): HTMLElement => {
     nextStep(dialog);
     nextStep(dialog);
@@ -226,48 +216,10 @@ describe('مرحله‌ی فاکتور با فشار تکراری یا Enter د�
     expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
   });
 
-  it('Enter در فیلد کد تخفیف کد را اعمال می‌کند و فرم را ثبت نمی‌کند؛ ناحیه‌ی اعلام از قبل حاضر است', () => {
+  it('حالت نمایشی کد تخفیف ندارد؛ کد فقط با کلید سایت مستقل روشن در فرم می‌آید', () => {
     const dialog = openBooking();
     toInvoice(dialog);
-    const status = within(dialog).getByRole('status');
-    expect(status.textContent).toBe('');
-
-    const promo = within(dialog).getByLabelText(/کد تخفیف دارید/);
-    fireEvent.change(promo, { target: { value: 'PAK1403' } });
-    expect(fireEvent.keyDown(promo, { key: 'Enter' })).toBe(false);
-
-    expect(status.textContent).toContain('PAK1403');
-    expect(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ })).toBeTruthy();
-    expect(localStorage.getItem('paksho_demo_orders_v2')).toBeNull();
-  });
-});
-
-describe('ثبت سفارش — شماره همراه با ارقام فارسی و جلوگیری از ثبت دوباره', () => {
-  const storedOrders = (): Array<Record<string, unknown>> => JSON.parse(localStorage.getItem('paksho_demo_orders_v2') ?? '[]');
-
-  const toStep3WithPhone = (dialog: HTMLElement, phone: string): void => {
-    nextStep(dialog);
-    nextStep(dialog);
-    fireEvent.change(within(dialog).getByLabelText(/آدرس دقیق/), { target: { value: 'خیابان نمونه، پلاک ۱' } });
-    fireEvent.change(within(dialog).getByLabelText(/نام و نام خانوادگی/), { target: { value: 'کاربر آزمایشی' } });
-    fireEvent.change(within(dialog).getByLabelText(/شماره همراه/), { target: { value: phone } });
-    nextStep(dialog);
-  };
-
-  it.each([
-    ['ارقام فارسی', '۰۹۱۲۱۲۳۴۵۶۷'],
-    ['ارقام عربی', '٠٩١٢١٢٣٤٥٦٧'],
-  ])('همان شماره‌ی معتبر ۱۱ رقمی با %s پذیرفته و ماسک‌شده‌اش ذخیره می‌شود', async (_label, phone) => {
-    const dialog = openBooking();
-    toStep3WithPhone(dialog, phone);
-
-    expect(within(dialog).queryByRole('alert')).toBeNull();
-    fireEvent.click(within(dialog).getByRole('button', { name: /تایید نهایی و ثبت سفارش/ }));
-    expect(await within(dialog).findByRole('button', { name: 'کپی کد پیگیری' })).toBeTruthy();
-
-    const orders = storedOrders();
-    expect(orders).toHaveLength(1);
-    expect(orders[0].customerPhone).toBe('0912***567');
+    expect(within(dialog).queryByLabelText(/کد تخفیف دارید/)).toBeNull();
   });
 
   it('شماره‌ی نامعتبر با ارقام فارسی (۱۰ رقم) همچنان رد می‌شود', () => {
@@ -322,7 +274,7 @@ describe('مرحله ۳ و ۴ — برچسب فیلدها، خطا، پرداخ�
     expect(online.disabled).toBe(true);
     expect(online.checked).toBe(false);
 
-    expect(within(dialog).getByLabelText(/کد تخفیف دارید/)).toBeTruthy();
+    expect(within(dialog).queryByLabelText(/کد تخفیف دارید/)).toBeNull();
     expect(dialog.querySelector('[aria-current="step"]')?.textContent).toContain('۴. فاکتور و تایید');
   });
 

@@ -91,7 +91,7 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     expect(readInvoiceTotal()).toBe(calculatorTotal);
   });
 
-  it('برای ورودی‌های تغییر یافته (متراژ، اتاق و افزودنی) در App نیز مبلغ‌ها یکسان می‌مانند', () => {
+  it('برای ورودی‌های تغییر یافته (متراژ و اتاق) در App نیز مبلغ‌ها یکسان می‌مانند', () => {
     render(<App />);
 
     const section = document.querySelector('#calculator') as HTMLElement;
@@ -110,8 +110,6 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     fireEvent.click(roomButton);
     expect(roomButton.checked).toBe(true);
 
-    // و یک خدمت جانبی اضافه می‌کنیم.
-    fireEvent.click(screen.getAllByText('شستشوی کامل شیشه‌ها و بالکن')[0]);
 
     const calculatorTotal = readCalculatorTotal();
 
@@ -130,8 +128,8 @@ describe('مسیر واقعی App — محاسبه‌گر تا فاکتور رز
     const engineTotal = calculatePrice({
       serviceId: 'home-standard',
       hours: recommendedHours,
-      addonIds: ['windows'],
-      hasDetergentPackage: true,
+      addonIds: [],
+      hasDetergentPackage: false,
     }).total;
     expect(invoiceTotal).toBe(toPersianDigits(engineTotal));
   });

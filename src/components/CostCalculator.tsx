@@ -1,9 +1,8 @@
 import React, { useId, useState, useMemo } from 'react';
-import { Calculator, Sparkles, PackageCheck, ArrowLeft, Check } from 'lucide-react';
-import { SERVICES_LIST, ADDON_OPTIONS } from '../data/mockData';
+import { Calculator, Sparkles, ArrowLeft } from 'lucide-react';
+import { SERVICES_LIST } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
 import {
-  PRICING_CONFIG,
   calculatePrice,
   calculateRecommendedHours,
 } from '../pricing/pricingEngine';
@@ -31,8 +30,9 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   const [roomsCount, setRoomsCount] = useState<number>(2);
   const [bathroomsCount, setBathroomsCount] = useState<number>(1);
   const [cleanerGender, setCleanerGender] = useState<CleanerGender>('no-pref');
-  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
-  const [hasDetergentPackage, setHasDetergentPackage] = useState<boolean>(true);
+  // افزودنی‌ها و پکیج شوینده در حالت نمایشی نیستند (تصمیم مالک، ۱۰ نوامبر ۲۰۲۶).
+  const selectedAddons: string[] = [];
+  const hasDetergentPackage = false;
   // پیشوند یکتا برای id برچسب‌ها و name گروه‌های گزینه.
   const fieldId = useId();
 
@@ -56,12 +56,6 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
       }),
     [serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
   );
-
-  const toggleAddon = (id: string) => {
-    setSelectedAddons(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
 
   const handleBook = () => {
     // فقط ورودی‌های خام منتقل می‌شوند. مبلغ در فرم رزرو با همان موتور مشترک
@@ -238,81 +232,6 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               </div>
             </div>
 
-            {/* Optional Add-ons */}
-            <div role="group" aria-labelledby={`${fieldId}-addons`}>
-              <span id={`${fieldId}-addons`} className="block text-xs font-bold text-slate-700 mb-2">
-                ۴. خدمات جانبی و شوینده (اختیاری):
-              </span>
-              <div className="space-y-2">
-                {ADDON_OPTIONS.filter(a => a.id !== 'detergents').map(addon => {
-                  const isChecked = selectedAddons.includes(addon.id);
-                  return (
-                    <ChoiceCard
-                      key={addon.id}
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleAddon(addon.id)}
-                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
-                        isChecked 
-                          ? 'bg-emerald-50/80 border-emerald-500 shadow-xs' 
-                          : 'bg-white border-slate-200 hover:bg-slate-100/60'
-                      }`}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span aria-hidden="true" className={`w-5 h-5 rounded-md flex items-center justify-center border ${
-                          isChecked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'
-                        }`}>
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
-                        </span>
-                        <span className="block text-right">
-                          <span className="text-xs font-bold text-slate-800 block">
-                            {addon.title}
-                          </span>
-                          <span className="text-[11px] text-slate-500">
-                            {addon.description}
-                          </span>
-                        </span>
-                      </span>
-                      <span className="text-xs font-bold font-mono text-emerald-700 shrink-0 mr-2">
-                        +{addon.price.toLocaleString('fa-IR')} ت
-                      </span>
-                    </ChoiceCard>
-                  );
-                })}
-
-                {/* Detergent package toggle */}
-                <ChoiceCard
-                  type="checkbox"
-                  checked={hasDetergentPackage}
-                  onChange={() => setHasDetergentPackage(!hasDetergentPackage)}
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                    hasDetergentPackage 
-                      ? 'bg-teal-50 border-teal-500 shadow-xs' 
-                      : 'bg-white border-slate-200 hover:bg-slate-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <span aria-hidden="true" className={`w-5 h-5 rounded-md flex items-center justify-center border ${
-                      hasDetergentPackage ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300 bg-white'
-                    }`}>
-                      {hasDetergentPackage && <Check className="w-3.5 h-3.5" />}
-                    </span>
-                    <span className="block text-right">
-                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <PackageCheck aria-hidden="true" className="w-4 h-4 text-teal-600" />
-                        تامین کامل شوینده‌ها و دستمال نانو توسط نیرو
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        (شامل جرم‌گیر، وایتکس معطر، شیشه‌پاک‌کن، گازپاک‌کن و ۴ عدد دستمال نانو)
-                      </span>
-                    </span>
-                  </span>
-                  <span className="text-xs font-bold font-mono text-teal-800 shrink-0 mr-2">
-                    +{PRICING_CONFIG.detergentPackagePrice.toLocaleString('fa-IR')} ت
-                  </span>
-                </ChoiceCard>
-              </div>
-            </div>
 
           </div>
 

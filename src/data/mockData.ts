@@ -175,34 +175,6 @@ export const SERVICES_LIST: ServiceItem[] = [
 
 export const ADDON_OPTIONS: AddonOption[] = [
   {
-    id: 'walls',
-    title: 'دیوارشویی تخصصی اتاق‌ها',
-    price: 180000,
-    description: 'پاک کردن دوده، رد دست و لکه‌های روی دیوار',
-    icon: 'Grid'
-  },
-  {
-    id: 'windows',
-    title: 'شستشوی کامل شیشه‌ها و بالکن',
-    price: 130000,
-    description: 'شستن شیشه‌های داخلی/بیرونی و کف بالکن به همراه چارچوب‌ها',
-    icon: 'Maximize'
-  },
-  {
-    id: 'appliances',
-    title: 'تمیزکاری عمیق داخل یخچال و فر',
-    price: 150000,
-    description: 'چربی‌زدایی و یخ‌زدایی قفسه‌های یخچال و فر',
-    icon: 'Flame'
-  },
-  {
-    id: 'ironing',
-    title: 'اتوکشی و مرتب‌سازی البسه و پرده',
-    price: 110000,
-    description: 'اتوکشی تا ۱۰ تکه لباس یا مرتب کردن کمدهای لباس',
-    icon: 'Shirt'
-  },
-  {
     id: 'detergents',
     title: 'پکیج کامل مواد شوینده و دستمال نانو',
     price: 140000,
