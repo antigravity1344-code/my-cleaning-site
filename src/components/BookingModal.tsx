@@ -9,6 +9,7 @@ import { CreateOrderDTO } from '../services/orderService.types';
 import { PRICING_CONFIG, calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
 import { buildDemoOrderPayload } from '../services/demoOrder';
 import { toLatinDigits } from '../services/pii';
+import { validateOrderContact } from '../validation/orderContactValidation';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
@@ -218,15 +219,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const validateStep3 = (): boolean => {
     setFormError('');
-    if (!address.trim() || !customerName.trim() || !customerPhone.trim()) {
-      setFormError('لطفاً آدرس دقیق، نام و شماره همراه را تکمیل فرمایید.');
-      return false;
-    }
-    // همان قاعده (۱۱ رقم، شروع با 09)؛ ارقام فارسی/عربی فقط به لاتین تبدیل می‌شوند،
-    // چون \d در JavaScript فقط ارقام لاتین را می‌شناسد.
-    const phoneRegex = /^09\d{9}$/;
-    if (!phoneRegex.test(toLatinDigits(customerPhone.trim()))) {
-      setFormError('لطفاً شماره همراه معتبر ۱۱ رقمی (مثال: 09123456789) وارد کنید.');
+    const result = validateOrderContact({ address, name: customerName, phone: customerPhone });
+    if (!result.valid) {
+      setFormError(result.errorMessage ?? '');
       return false;
     }
     return true;
