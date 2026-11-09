@@ -125,7 +125,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
               <h3 id={titleId} className="text-base sm:text-lg font-black text-white">
                 مشاور تخمین زمان (نسخه آزمایشی)
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-white/65">
                 شرح نیاز خود را بنویسید تا تخمین اولیه زمان و خدمت پیشنهاد شود؛
                 این ابزار یک راهنمای ساده است و سرویس هوش مصنوعی نیست.
               </p>
@@ -135,7 +135,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="بستن"
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

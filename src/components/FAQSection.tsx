@@ -136,7 +136,7 @@ export const FAQSection: React.FC = () => {
             <h4 className="text-base sm:text-lg font-black">
               پاسخ سوال خود را پیدا نکردید؟
             </h4>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-white/65">
               در نسخه آزمایشی کانال تماس یا ساعات پاسخ‌گویی رسمی هنوز تأیید نشده‌اند.
             </p>
           </div>

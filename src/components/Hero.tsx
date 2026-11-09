@@ -121,7 +121,7 @@ export const Hero: React.FC<HeroProps> = ({
                   <Sparkles className="w-4 h-4 text-amber-300" />
                   نمی‌دانید به چند ساعت نظافت نیاز دارید؟
                 </p>
-                <p className="text-xs text-slate-300">
+                <p className="text-xs text-white/70">
                   مشاور هوشمند پاک‌شو بر اساس متراژ و نوع منزل شما، زمان و تعداد نیرو را تخمین می‌زند.
                 </p>
               </div>
@@ -261,21 +261,21 @@ export const Hero: React.FC<HeroProps> = ({
                 {/* Price Display Box */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-between shadow-inner">
                   <div>
-                    <span className="text-xs text-slate-300 block">{DEMO_COPY.provisionalPriceLabel}:</span>
+                    <span className="text-xs text-white/65 block">{DEMO_COPY.provisionalPriceLabel}:</span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
                         {/* همان موتور قیمت‌گذاری مشترک که محاسبه‌گر و فاکتور استفاده می‌کنند */}
                         {(currentServiceObj.baseHourlyRate * selectedHours).toLocaleString('fa-IR')}
                       </span>
-                      <span className="text-xs text-slate-300">تومان</span>
+                      <span className="text-xs text-white/65">تومان</span>
                     </div>
                   </div>
-                  <div className="text-left text-[11px] text-slate-300 bg-white/10 px-2.5 py-1.5 rounded-lg">
+                  <div className="text-left text-[11px] text-white/80 bg-white/10 px-2.5 py-1.5 rounded-lg">
                     {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <span>شامل بیمه و گارانتی</span> : <span>برآورد آزمایشی</span>}
                   </div>
                 </div>
 
-                <ProvisionalPriceNote className="text-slate-500 text-center" />
+                <ProvisionalPriceNote textClassName="text-white/65" className="text-center" />
 
                 {/* Submit Button */}
                 <button

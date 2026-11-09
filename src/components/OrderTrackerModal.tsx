@@ -337,14 +337,14 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
               <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-4 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div>
-                    <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
+                    <span className="text-xs text-white/65 block">کد پیگیری آزمایشی:</span>
                     <strong className="text-lg font-black font-mono text-emerald-400">
                       {selectedOrder.trackingCode}
                     </strong>
                   </div>
                   <div className="text-left">
-                    <span className="text-xs text-slate-400 block">زمان ثبت در این مرورگر:</span>
-                    <span className="text-xs font-medium text-slate-200">
+                    <span className="text-xs text-white/65 block">زمان ثبت در این مرورگر:</span>
+                    <span className="text-xs font-medium text-white">
                       {formatCreatedAt(selectedOrder.createdAt)}
                     </span>
                   </div>
@@ -352,19 +352,19 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div>
-                    <span className="text-slate-400 block">نوع خدمت:</span>
+                    <span className="text-white/65 block">نوع خدمت:</span>
                     <strong className="text-white">{selectedOrder.serviceTitle}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">مدت زمان:</span>
+                    <span className="text-white/65 block">مدت زمان:</span>
                     <strong className="text-white font-mono">{selectedOrder.hours} ساعت</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">تاریخ درخواستی:</span>
+                    <span className="text-white/65 block">تاریخ درخواستی:</span>
                     <strong className="text-white">{selectedOrder.date}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">{DEMO_COPY.provisionalPriceLabel}:</span>
+                    <span className="text-white/65 block">{DEMO_COPY.provisionalPriceLabel}:</span>
                     <strong className="text-emerald-400 font-mono">
                       {selectedOrder.totalPrice.toLocaleString('fa-IR')} ت
                     </strong>
@@ -372,23 +372,23 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-white/80">
                     وضعیت پرداخت: ثبت نشده
                   </span>
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-white/80">
                     مبلغ نهایی: پس از تأیید سرور
                   </span>
                 </div>
 
                 {/* Masked / redacted customer data stored locally */}
-                <div className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700 text-[11px] text-slate-300 space-y-1">
-                  <span className="flex items-center gap-1.5 text-slate-400">
+                <div className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700 text-[11px] text-white/80 space-y-1">
+                  <span className="flex items-center gap-1.5 text-white/65">
                     <MapPin className="w-3.5 h-3.5" />
                     اطلاعات ذخیره‌شده روی همین دستگاه (ماسک‌شده)
                   </span>
                   <span className="block">{selectedOrder.customerName || '—'}</span>
                   <span className="block font-mono" dir="ltr">{selectedOrder.customerPhone || '—'}</span>
-                  <span className="block text-slate-400">
+                  <span className="block text-white/65">
                     نشانی دقیق برای حفاظت از حریم خصوصی در نسخه آزمایشی ذخیره نمی‌شود.
                   </span>
                 </div>
@@ -599,7 +599,7 @@ function PublicOrderSummary({ order }: { order: BookingOrder }) {
       <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-4 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
-            <span className="text-xs text-slate-400 block">کد پیگیری:</span>
+            <span className="text-xs text-white/65 block">کد پیگیری:</span>
             <strong className="text-lg font-black font-mono text-emerald-400">{order.trackingCode}</strong>
           </div>
           <span
@@ -613,20 +613,20 @@ function PublicOrderSummary({ order }: { order: BookingOrder }) {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <span className="text-slate-400 block">نوع خدمت:</span>
+            <span className="text-white/65 block">نوع خدمت:</span>
             <strong className="text-white">{order.serviceTitle || '—'}</strong>
           </div>
           <div>
-            <span className="text-slate-400 block">تاریخ / بازه:</span>
+            <span className="text-white/65 block">تاریخ / بازه:</span>
             <strong className="text-white">{order.date || '—'} {order.timeSlot}</strong>
           </div>
           <div>
-            <span className="text-slate-400 block">شهر:</span>
+            <span className="text-white/65 block">شهر:</span>
             <strong className="text-white">{order.cityName || '—'}</strong>
           </div>
         </div>
 
-        <div className="text-[11px] text-slate-400">
+        <div className="text-[11px] text-white/65">
           آخرین تغییر وضعیت: {formatCreatedAt(order.createdAt)}
         </div>
       </div>

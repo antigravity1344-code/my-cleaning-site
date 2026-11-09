@@ -323,14 +323,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </p>
         </div>
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
-          <span className="text-xs text-slate-400 block">کد پیگیری آزمایشی:</span>
+          <span className="text-xs text-white/65 block">کد پیگیری آزمایشی:</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
             <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
             <button
               type="button"
               onClick={handleCopyTrackingCode}
               aria-label={copiedCode ? 'کد پیگیری کپی شد' : 'کپی کد پیگیری'}
-              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-white/70 hover:text-white transition-colors cursor-pointer"
             >
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>

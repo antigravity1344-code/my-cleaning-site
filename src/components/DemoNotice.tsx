@@ -49,9 +49,17 @@ export const DemoInlineNotice: React.FC<{ text: string; className?: string }> = 
   </div>
 );
 
-/** یادداشت «مبلغ پیشنهادی» برای همه‌جا که عددی به‌عنوان قیمت نمایش داده می‌شود. */
-export const ProvisionalPriceNote: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <p className={`text-[10px] sm:text-[11px] text-slate-500 leading-relaxed ${className}`}>
+/**
+ * یادداشت «مبلغ پیشنهادی» برای همه‌جا که عددی به‌عنوان قیمت نمایش داده می‌شود.
+ * رنگ متن پیش‌فرض برای زمینه‌های روشن است (`text-slate-500`)؛ روی زمینه تیره باید
+ * یک رنگ سفید/سفید-کم‌رنگ از طریق `textClassName` جایگزین آن شود (نه کنارش اضافه)
+ * چون دو کلاس رنگ Tailwind در کنار هم روی یک پراپرتی نتیجه غیرقابل پیش‌بینی می‌دهد.
+ */
+export const ProvisionalPriceNote: React.FC<{ className?: string; textClassName?: string }> = ({
+  className = '',
+  textClassName = 'text-slate-500',
+}) => (
+  <p className={`text-[10px] sm:text-[11px] ${textClassName} leading-relaxed ${className}`}>
     {DEMO_COPY.provisionalPriceNote}
   </p>
 );

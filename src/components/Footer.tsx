@@ -21,7 +21,7 @@ export const Footer: React.FC<FooterProps> = ({
   const scrollTo = (id: string) => scrollToSection(id);
 
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-8">
+    <footer className="bg-slate-900 text-white/75 border-t border-slate-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Top Feature Badges */}
@@ -32,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-white text-sm">نسخه آزمایشی — بدون ضمانت قابل اجرا</h4>
-              <p className="text-xs text-slate-400 mt-0.5">شرایط جبران خدمت پس از تأیید سیاست رسمی اعلام خواهد شد</p>
+              <p className="text-xs text-white/65 mt-0.5">شرایط جبران خدمت پس از تأیید سیاست رسمی اعلام خواهد شد</p>
             </div>
           </div>
 
@@ -42,7 +42,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-white text-sm">{VERIFIED_TRUST_CLAIMS_AVAILABLE ? 'متخصصین گزینش شده' : 'فهرست متخصصین نمونه'}</h4>
-              {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-slate-400 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-slate-400 mt-0.5">این نسخه آزمایشی است و به سرور عملیات متصل نیست</p>}
+              {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-white/65 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-white/65 mt-0.5">این نسخه آزمایشی است و به سرور عملیات متصل نیست</p>}
             </div>
           </div>
 
@@ -52,7 +52,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-white text-sm">ساعات پشتیبانی</h4>
-              <p className="text-xs text-slate-400 mt-0.5">ساعات پاسخگویی پس از راه‌اندازی رسمی سرویس پشتیبانی اعلام می‌شود</p>
+              <p className="text-xs text-white/65 mt-0.5">ساعات پاسخگویی پس از راه‌اندازی رسمی سرویس پشتیبانی اعلام می‌شود</p>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@ export const Footer: React.FC<FooterProps> = ({
                 پاک‌<span className="text-emerald-500">شو</span>
               </span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-white/65 leading-relaxed">
               نسخه آزمایشی سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
             </p>
             <p className="text-xs text-amber-300">راه‌های تماس و نشانی رسمی پس از تأیید مالک منتشر می‌شوند.</p>
@@ -79,7 +79,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Quick Access */}
           <div>
             <h4 className="font-bold text-white text-sm mb-4">دسترسی سریع</h4>
-            <ul className="space-y-2.5 text-xs text-slate-400">
+            <ul className="space-y-2.5 text-xs text-white/65">
               <li>
                 <button onClick={() => scrollTo('services')} className="hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1">
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -116,7 +116,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Popular Services */}
           <div>
             <h4 className="font-bold text-white text-sm mb-4">محبوب‌ترین خدمات</h4>
-            <ul className="space-y-2.5 text-xs text-slate-400">
+            <ul className="space-y-2.5 text-xs text-white/65">
               <li>
                 <button onClick={onOpenBooking} className="hover:text-emerald-400 transition-colors cursor-pointer">
                   نمونه نظافت منزل
@@ -150,15 +150,15 @@ export const Footer: React.FC<FooterProps> = ({
             <h4 className="font-bold text-white text-sm mb-4">مجوزها و تاییده‌ها</h4>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-slate-300">نماد اعتماد الکترونیکی</span>
+                <span className="text-[11px] font-bold text-white/85">نماد اعتماد الکترونیکی</span>
                 <span className="text-[10px] text-amber-400 mt-1">در انتظار صدور/درج کد رهگیری</span>
               </div>
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-slate-300">اتحادیه قالیشویان</span>
+                <span className="text-[11px] font-bold text-white/85">اتحادیه قالیشویان</span>
                 <span className="text-[10px] text-amber-400 mt-1">در انتظار ارائه مستند عضویت</span>
               </div>
               <div className="p-3 bg-slate-800 rounded-xl text-center border border-slate-700 flex flex-col items-center justify-center col-span-2">
-                <span className="text-[11px] font-bold text-slate-300">بیمه مسئولیت مدنی</span>
+                <span className="text-[11px] font-bold text-white/85">بیمه مسئولیت مدنی</span>
                 <span className="text-[10px] text-amber-400 mt-1">در انتظار درج شماره بیمه‌نامه معتبر</span>
               </div>
             </div>
@@ -167,7 +167,7 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
         {/* Bottom Copyright */}
-        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
+        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-white/60 gap-4">
           <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد. نسخه فعلی، نسخه آزمایشی و غیرعملیاتی است.</p>
           <p>طراحی شده با React 19، TypeScript و Tailwind CSS</p>
         </div>

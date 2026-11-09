@@ -326,7 +326,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   <h3 className="text-lg font-black text-white">
                     برآورد هزینه (آزمایشی)
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-white/65">
                     محاسبه بر اساس پارامترهای انتخابی شما
                   </p>
                 </div>
@@ -336,7 +336,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               </div>
 
               {/* Specs breakdown */}
-              <div className="space-y-3 text-xs text-slate-300">
+              <div className="space-y-3 text-xs text-white/80">
                 <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                   <span>خدمت انتخاب‌شده:</span>
                   <span className="font-bold text-white">{currentService.title}</span>
@@ -373,12 +373,12 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               {/* Total final amount */}
               <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
                 <div className="text-right">
-                  <span className="text-xs text-slate-400 block">{DEMO_COPY.provisionalPriceLabel}:</span>
+                  <span className="text-xs text-white/65 block">{DEMO_COPY.provisionalPriceLabel}:</span>
                   <div className="flex items-baseline gap-1 mt-1">
                     <span className="text-3xl font-black text-emerald-400 font-mono tracking-tight">
                       {calculation.total.toLocaleString('fa-IR')}
                     </span>
-                    <span className="text-xs text-slate-300">تومان</span>
+                    <span className="text-xs text-white/80">تومان</span>
                   </div>
                 </div>
                 <div className="text-left text-[11px] text-amber-200 bg-amber-950/60 border border-amber-800/60 px-2 py-1 rounded-lg">
@@ -396,7 +396,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               </button>
 
               <div className="space-y-1.5 pt-1 text-center">
-                <ProvisionalPriceNote className="text-slate-400" />
+                <ProvisionalPriceNote textClassName="text-white/65" />
               </div>
 
             </div>
