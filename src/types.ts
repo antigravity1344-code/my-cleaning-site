@@ -70,10 +70,14 @@ export interface CustomerReview {
 }
 
 export type OrderStatus =
-  | 'pending' // ثبت شده در انتظار تایید
-  | 'assigned' // نیروی خدماتی تعیین شد
-  | 'on_the_way' // در حال اعزام به محل
-  | 'in_progress' // در حال انجام نظافت
+  | 'pending' // ثبت شده در انتظار تایید (فقط نسخه آزمایشی)
+  | 'assigned' // نیروی خدماتی تعیین شد (فقط نسخه آزمایشی)
+  | 'on_the_way' // در حال اعزام به محل (فقط نسخه آزمایشی)
+  | 'in_progress' // در حال انجام نظافت (فقط نسخه آزمایشی)
+  // چهار وضعیت زیر واقعی‌اند (docs/OPERATIONAL-PLAN.md بخش ۳) و از سرور عملیاتی می‌آیند؛
+  // 'new' معادل عملیاتیِ 'pending' نسخه آزمایشی است، نه یک وضعیت اضافه.
+  | 'new' // ثبت شد؛ در انتظار تماس
+  | 'confirmed' // تأیید شد
   | 'completed' // با موفقیت انجام شد
   | 'cancelled'; // لغو شده
 
@@ -87,6 +91,15 @@ export interface BookingOrder {
    * در نسخه آزمایشی، وضعیت نمایشی است و وضعیت عملیاتی واقعی محسوب نمی‌شود.
    */
   status: OrderStatus;
+  /**
+   * true فقط برای سفارش عملیاتی‌ای که از `GET /api/track/:code` (پاسخ عمومی
+   * پیگیری، بدون اطلاعات شخصی — docs/OPERATIONAL-PLAN.md بخش ۷) ساخته شده.
+   * چنین رکوردی فیلدهای مالی و تماس را واقعاً **ندارد** (نه این‌که صفر یا خالی
+   * باشند)؛ هر رابط کاربری که این پرچم را true می‌بیند نباید `totalPrice`،
+   * `address`، `customerName`/`customerPhone` یا `discountApplied` آن را نمایش
+   * دهد — آن مقادیر در این حالت فقط جای‌نگه‌دارِ ارضای نوع TypeScript‌اند.
+   */
+  isPublicSummary?: boolean;
   recordType: RecordType;
   /** در نسخه آزمایشی همیشه «unpaid» است؛ هیچ پرداختی ثبت نمی‌شود. */
   paymentStatus: PaymentStatus;
