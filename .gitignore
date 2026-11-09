@@ -7,6 +7,10 @@ dist-ssr/
 # Server runtime data (SQLite db, WAL files) — never commit real orders/customer data
 server/data/
 
+# Local backups (encrypted, but still never belong in git) — در استقرار واقعی
+# BACKUP_DIR باید به ذخیره‌سازی جدا از این مخزن/سرور اشاره کند (سند عملیاتی بخش ۹).
+server/backups/
+
 # Editor & OS
 .vscode/*
 !.vscode/extensions.json

@@ -144,6 +144,43 @@ describe('POST /api/orders', () => {
     );
     expect(res.status).toBe(400);
   });
+
+  // سند عملیاتی بخش ۱۰، آزمون ۴: مبلغ، وضعیت، متخصص یا پرداخت دست‌کاری‌شده
+  // در درخواست نادیده گرفته یا رد می‌شود.
+  it('مبلغ/وضعیت/متخصص/پرداخت دست‌کاری‌شده در بدنه نادیده گرفته می‌شود', async () => {
+    const quoteRes = await post('/api/quotes', validOrderInput);
+    const quote = await quoteRes.json();
+
+    const tamperedInput = {
+      ...validOrderInput,
+      total: 1,
+      status: 'completed',
+      paymentMethod: 'card',
+      cleanerId: 'fake-cleaner-id',
+      id: 'attacker-chosen-id',
+      trackingCode: 'HACK-HACK-HACK-HACK',
+    };
+    const res = await post('/api/orders', tamperedInput, { 'Idempotency-Key': 'key-fff-666' });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+
+    // مبلغ همان مبلغ معتبر محاسبه‌شدهٔ سرور است، نه ۱ تومانِ درخواست.
+    expect(body.total).toBe(quote.total);
+    expect(body.total).not.toBe(1);
+    // وضعیت تازه همیشه «new» است، نه مقدار دست‌کاری‌شده.
+    expect(body.status).toBe('new');
+    // شناسه/کد پیگیری توسط سرور تولید می‌شوند، نه مقدار درخواستی.
+    expect(body.trackingCode).not.toBe('HACK-HACK-HACK-HACK');
+
+    // در پنل مدیر هم روش پرداخت واقعی (نقدی، پیش‌فرض) دیده می‌شود، نه «card».
+    const { cookie } = await loginAsAdmin();
+    const listRes = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
+    const { orders } = await listRes.json();
+    const stored = orders.find((o) => o.trackingCode === body.trackingCode);
+    expect(stored).toBeDefined();
+    expect(stored.paymentMethod).toBe('cash_on_site');
+    expect(stored.status).toBe('new');
+  });
 });
 
 describe('GET /api/track/:code', () => {
@@ -342,5 +379,73 @@ describe('Admin API — دسترسی و سفارش‌ها', () => {
 
     const afterLogout = await fetch(`${baseUrl}/api/admin/orders`, { headers: { Cookie: cookie } });
     expect(afterLogout.status).toBe(401);
+  });
+});
+
+/**
+ * سند عملیاتی بخش ۱۰، آزمون ۸: «در قطع پایگاه داده پیام خطا نمایش داده
+ * می‌شود و موفقیت کاذب نیست. تلاش دوباره سالم است.» این بلوک یک سرور جدا
+ * می‌سازد با یک backend جعلی که createOrder را طوری خراب می‌کند که انگار
+ * پایگاه داده قطع شده (خطای عمومی، بدون نوع QuoteValidationError)، تا
+ * مسیر عمومیِ مدیریت خطای app.js (نه مسیر اعتبارسنجی فیلد) آزموده شود.
+ */
+describe('POST /api/orders — قطع پایگاه داده (بدون موفقیت کاذب)', () => {
+  let failingServer;
+  let failingBaseUrl;
+  let callCount;
+
+  beforeEach(async () => {
+    callCount = 0;
+    const realDb = openDatabase(':memory:');
+    const realBackend = createStandaloneBackend(realDb);
+    const flakyBackend = {
+      ...realBackend,
+      createOrder: (rawInput, idempotencyKey) => {
+        callCount += 1;
+        if (callCount === 1) {
+          // شبیه‌سازی قطع پایگاه داده: خطای عمومی (نه QuoteValidationError)،
+          // دقیقاً همان چیزی که یک کوئری ناموفق SQLite پرتاب می‌کند.
+          throw new Error('SQLITE_IOERR: disk I/O error');
+        }
+        return realBackend.createOrder(rawInput, idempotencyKey);
+      },
+    };
+    const app = createApp(flakyBackend);
+    await new Promise((resolve) => {
+      failingServer = app.listen(0, resolve);
+    });
+    failingBaseUrl = `http://127.0.0.1:${failingServer.address().port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise((resolve) => failingServer.close(resolve));
+  });
+
+  const postToFailing = (path, body, headers = {}) =>
+    fetch(`${failingBaseUrl}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+
+  it('خطای پایگاه داده ۵۰۰ و پیام روشن می‌دهد، نه موفقیت یا سقوط سرور', async () => {
+    const res = await postToFailing('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-db-down-1' });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(typeof body.message).toBe('string');
+    expect(body.message.length).toBeGreaterThan(0);
+    // هیچ trackingCode یا status موفقیت‌آمیزی در پاسخ خطا نباید باشد.
+    expect(body.trackingCode).toBeUndefined();
+  });
+
+  it('تلاش دوباره با همان کلید بعد از رفع قطعی، سالم ثبت می‌شود (نه خطا و نه سفارش تکراری)', async () => {
+    const failed = await postToFailing('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-db-down-2' });
+    expect(failed.status).toBe(500);
+
+    const retried = await postToFailing('/api/orders', validOrderInput, { 'Idempotency-Key': 'key-db-down-2' });
+    expect(retried.status).toBe(201);
+    const body = await retried.json();
+    expect(body.trackingCode).toMatch(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
+    expect(body.status).toBe('new');
   });
 });
