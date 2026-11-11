@@ -31,6 +31,7 @@ export function usePakshoQuote(
   detergent = false,
   discountCode?: string,
   sofa?: SofaFormValues,
+  quoteActive = enabled,
 ) {
   const [rules, setRules] = useState<PricingRule[] | null>(null);
   const [rulesError, setRulesError] = useState<unknown>();
@@ -55,7 +56,7 @@ export function usePakshoQuote(
 
   const sofaInput = isSofa && sofa ? sofaQuoteInput(pricingMode, sofa) : null;
   const quantity = isSofa ? (sofaInput?.quantity ?? 0) : model === 'fixed' ? 1 : hours;
-  const valid = enabled && (isSofa
+  const valid = quoteActive && (isSofa
     ? sofaInput !== null
     : (model === 'fixed' || model === 'hourly') && Number.isSafeInteger(quantity) && quantity > 0);
 

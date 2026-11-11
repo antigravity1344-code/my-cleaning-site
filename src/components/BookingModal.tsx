@@ -201,7 +201,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const quoteDiscount = extrasOn && appliedPromoCode ? appliedPromoCode : undefined;
   const isSofa = pakshoServiceId(serviceId) === SOFA_PAKSHO_SERVICE_ID;
   const sofaForm: SofaFormValues | undefined = isSofa ? { mattresses: sofaMattresses, seatSize: sofaSeat } : undefined;
-  const quoteState = usePakshoQuote(isOpen && pakshoMode && currentStep >= 2, serviceId, hours, detergentOn, quoteDiscount, sofaForm);
+  const quoteState = usePakshoQuote(isOpen && pakshoMode, serviceId, hours, detergentOn, quoteDiscount, sofaForm, isOpen && pakshoMode && currentStep >= 2);
   const serverQuote = quoteState.quote;
   const quoteError = quoteState.availabilityMessage || (quoteState.error ? quoteErrorText(quoteState.error) : '');
   const baseServicePrice = pakshoMode ? (serverQuote?.subtotal ?? 0) : pricing.serviceBase;
