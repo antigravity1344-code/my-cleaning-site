@@ -15,7 +15,7 @@ interface OrdersViewProps {
 }
 
 const StatusBadge = ({ status }: { status: string }) => (
-  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[status] ?? 'bg-slate-100 text-slate-800'}`}>
+  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[status] ?? 'admin-neutral'}`}>
     {STATUS_LABELS[status] ?? status}
   </span>
 );
@@ -43,18 +43,18 @@ export function OrdersView({ csrfToken }: OrdersViewProps) {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-bold text-slate-900">سفارش‌ها {orders ? `(${orders.length})` : ''}</h2>
+      <div className="admin-card min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 p-4">
+          <h2 className="admin-label font-bold">سفارش‌ها {orders && <bdi className="admin-count">({orders.length === 0 ? <span className="admin-zero">۰</span> : orders.length.toLocaleString('fa-IR')})</bdi>}</h2>
           <button
             type="button"
             onClick={loadOrders}
-            className="text-xs font-medium text-emerald-700 hover:underline"
+            className="admin-button"
           >
             تازه‌سازی
           </button>
         </div>
-        {listError && <p className="px-4 py-3 text-sm text-rose-700">{listError}</p>}
+        {listError && <p className="px-4 py-3 admin-error rounded-xl p-2 text-sm">{listError}</p>}
         {!listError && orders === null && <p className="px-4 py-3 text-sm text-slate-500">در حال بارگذاری...</p>}
         {orders !== null && orders.length === 0 && (
           <p className="px-4 py-3 text-sm text-slate-500">هنوز سفارشی ثبت نشده است.</p>
@@ -65,13 +65,13 @@ export function OrdersView({ csrfToken }: OrdersViewProps) {
               <button
                 type="button"
                 onClick={() => setSelectedId(order.id)}
-                className={`w-full px-4 py-3 text-right transition hover:bg-slate-50 ${selectedId === order.id ? 'bg-emerald-50' : ''}`}
+                className={`admin-order w-full p-4 text-right ${selectedId === order.id ? 'admin-order-active' : ''}`}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-slate-900">{order.customerName}</span>
                   <StatusBadge status={order.status} />
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 admin-label">
                   <span>{order.serviceTitle} · {order.hours} ساعت</span>
                   <span className="font-mono">{order.total.toLocaleString('fa-IR')} ت</span>
                 </div>
@@ -82,7 +82,7 @@ export function OrdersView({ csrfToken }: OrdersViewProps) {
         </ul>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="admin-card min-w-0 p-4">
         {selectedId ? (
           <OrderDetailPanel
             orderId={selectedId}
@@ -183,7 +183,7 @@ function OrderDetailPanel({ orderId, csrfToken, onStatusChanged }: OrderDetailPa
         )}
       </dl>
 
-      <div className="rounded-xl bg-slate-50 p-3">
+      <div className="admin-neutral rounded-2xl p-4">
         <h4 className="mb-2 text-xs font-bold text-slate-700">تاریخچهٔ وضعیت</h4>
         <ul className="space-y-1.5 text-xs text-slate-600">
           {events.map((event) => (
@@ -202,22 +202,22 @@ function OrderDetailPanel({ orderId, csrfToken, onStatusChanged }: OrderDetailPa
       {nextStatuses.length > 0 && (
         <div className="space-y-2 border-t border-slate-100 pt-3">
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-slate-700">یادداشت داخلی (اختیاری)</span>
+            <span className="admin-label font-medium">یادداشت داخلی (اختیاری)</span>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="admin-field w-full"
             />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="admin-actions">
             {nextStatuses.map((status) => (
               <button
                 key={status}
                 type="button"
                 disabled={updating !== null}
                 onClick={() => handleStatusChange(status)}
-                className="rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="admin-button"
               >
                 {updating === status ? 'در حال ثبت...' : `تغییر به «${STATUS_LABELS[status] ?? status}»`}
               </button>

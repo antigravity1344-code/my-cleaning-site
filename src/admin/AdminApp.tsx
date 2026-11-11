@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminLogout, fetchAdminSession } from './adminApi';
 import { LoginView } from './LoginView';
 import { OrdersView } from './OrdersView';
+import './admin.css';
 
 type AuthState = { status: 'checking' } | { status: 'loggedOut' } | { status: 'loggedIn'; csrfToken: string };
 
@@ -36,7 +37,7 @@ export function AdminApp() {
 
   if (auth.status === 'checking') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
+      <div className="site-admin grid place-items-center text-sm text-slate-500">
         در حال بررسی نشست...
       </div>
     );
@@ -47,18 +48,18 @@ export function AdminApp() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-        <h1 className="text-sm font-bold text-slate-900">پنل مدیر پاک‌شو</h1>
+    <div className="site-admin">
+      <header className="admin-card flex flex-wrap items-center justify-between gap-2 p-4">
+        <h1 className="text-lg font-bold">پنل مدیر پاک‌شو</h1>
         <button
           type="button"
           onClick={handleLogout}
-          className="text-xs font-medium text-slate-500 hover:text-rose-600"
+          className="admin-button"
         >
           خروج
         </button>
       </header>
-      <main className="p-4">
+      <main className="mt-4">
         <OrdersView csrfToken={auth.csrfToken} />
       </main>
     </div>

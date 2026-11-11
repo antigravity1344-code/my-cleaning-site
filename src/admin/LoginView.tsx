@@ -27,39 +27,39 @@ export function LoginView({ onLoggedIn }: LoginViewProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="site-admin grid place-items-center">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4"
+        className="admin-card w-full max-w-sm space-y-4 p-6"
       >
         <h1 className="text-lg font-bold text-slate-900">ورود پنل مدیر — پاک‌شو</h1>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">نام کاربری</span>
+          <span className="admin-label font-medium">نام کاربری</span>
           <input
             type="text"
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="admin-field w-full"
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">رمز عبور</span>
+          <span className="admin-label font-medium">رمز عبور</span>
           <input
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="admin-field w-full"
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">کد یک‌بارمصرف (TOTP)</span>
+          <span className="admin-label font-medium">کد یک‌بارمصرف (TOTP)</span>
           <input
             type="text"
             inputMode="numeric"
@@ -69,12 +69,12 @@ export function LoginView({ onLoggedIn }: LoginViewProps) {
             value={totp}
             onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
             required
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm tracking-widest focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="admin-field w-full tracking-widest"
           />
         </label>
 
         {error && (
-          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <p role="alert" className="admin-error rounded-xl p-2 text-sm">
             {error}
           </p>
         )}
@@ -82,7 +82,7 @@ export function LoginView({ onLoggedIn }: LoginViewProps) {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="admin-button admin-button-primary w-full"
         >
           {submitting ? 'در حال ورود...' : 'ورود'}
         </button>

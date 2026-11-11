@@ -19,8 +19,8 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 export const STATUS_BADGE_CLASS: Record<string, string> = {
-  new: 'bg-amber-100 text-amber-800',
-  confirmed: 'bg-sky-100 text-sky-800',
-  completed: 'bg-emerald-100 text-emerald-800',
-  cancelled: 'bg-rose-100 text-rose-800',
+  new: 'admin-neutral',
+  confirmed: 'admin-success',
+  completed: 'admin-success',
+  cancelled: 'admin-error',
 };

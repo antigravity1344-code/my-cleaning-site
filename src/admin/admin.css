@@ -1,0 +1,72 @@
+.site-admin {
+  --admin-ink: #1F2A28;
+  --admin-muted: #6B7370;
+  --admin-accent: #11766F;
+  --admin-accent-dark: #0E635D;
+  --admin-border: #D8DEDB;
+  min-height: 100vh;
+  padding: 24px 20px;
+  background: #F6F2E6;
+  color: var(--admin-ink);
+  font-family: 'Vazirmatn Variable', Vazirmatn, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.site-admin > header,
+.site-admin > main { max-width: 72rem; margin-inline: auto; }
+.site-admin :is(.text-slate-400, .text-slate-500, .text-slate-600) { color: var(--admin-muted); }
+.site-admin :is(.text-slate-700, .text-slate-900) { color: var(--admin-ink); }
+.site-admin .admin-card { border: 1px solid var(--admin-border); border-radius: 16px; background: #FFFFFF; }
+.site-admin .admin-label { font-size: 13px; color: var(--admin-muted); }
+.site-admin dt { font-size: 13px; }
+.site-admin dd { min-width: 0; }
+
+.site-admin :is(.admin-button, .admin-order, .admin-field) {
+  min-height: 44px;
+  min-width: 0;
+  font-size: 14px;
+}
+.site-admin :is(.admin-button, .admin-field) {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 8px 16px;
+}
+.site-admin .admin-button { color: var(--admin-accent-dark); font-weight: 700; }
+.site-admin .admin-button:hover { background: #E6F3F2; }
+.site-admin :is(.admin-button-primary, .admin-order-active) {
+  background: var(--admin-accent);
+  color: #FFFFFF;
+}
+.site-admin .admin-button-primary:hover,
+.site-admin .admin-order-active:hover { background: var(--admin-accent-dark); }
+.site-admin .admin-order-active :is(.admin-label, .text-slate-900, .text-slate-400) { color: #FFFFFF; }
+.site-admin .admin-order:not(.admin-order-active):hover { background: #F1EFE8; }
+.site-admin button:disabled { opacity: .6; cursor: not-allowed; }
+.site-admin :is(button, input, textarea):focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.site-admin .admin-success { background: #E6F3F2; color: var(--admin-accent-dark); }
+.site-admin .admin-error { background: #FDECEC; color: #B91C1C; }
+.site-admin .admin-neutral { background: #F1EFE8; color: #4B5552; }
+
+.site-admin .admin-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.site-admin .admin-count { font-size: 24px; font-weight: 900; color: var(--admin-accent); }
+.site-admin .admin-zero { display: inline-block; position: relative; -webkit-text-fill-color: transparent; }
+.site-admin .admin-zero::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: 13px;
+  height: 21px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+}
+
+@media (max-width: 640px) {
+  .site-admin .admin-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
