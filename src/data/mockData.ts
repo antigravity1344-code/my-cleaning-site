@@ -151,26 +151,6 @@ export const SERVICES_LIST: ServiceItem[] = [
     ],
     bannerImage: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80'
   },
-  {
-    id: 'post-construction',
-    title: 'نظافت بعد از بازسازی و اسباب‌کشی',
-    shortDesc: 'پاک‌سازی گرد و غبار گچ و نقاشی، زدودن لکه‌های رنگ، سیمان و آماده‌سازی کلید نخورده',
-    fullDesc: 'نظافت واحدها پس از پایان عملیات نقاشی، گچ‌کاری و نصب کابینت و پیش از چیدمان اثاثیه. این شرح نمونه است؛ ابزارها و مدت انجام کار هنوز تأیید نشده‌اند.',
-    iconName: 'HardHat',
-    baseHourlyRate: 200000,
-    minHours: 6,
-    included: [
-      'زدودن لکه‌های رنگ و گچ از روی شیشه و سرامیک',
-      'جاروکشی غبار غلیظ ساختمانی از گوشه‌ها و داخل داکت‌ها',
-      'شستشوی کف‌پوش‌ها و قرنیزها',
-      'شستشوی کامل سرویس‌ها و شیرآلات نوساز',
-      'آماده‌سازی خانه برای چیدمان مبلمان'
-    ],
-    excluded: [
-      'حمل نخاله‌های سنگین ساختمانی به بیرون ساختمان'
-    ],
-    bannerImage: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80'
-  }
 ];
 
 export const ADDON_OPTIONS: AddonOption[] = [

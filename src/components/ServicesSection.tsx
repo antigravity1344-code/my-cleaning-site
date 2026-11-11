@@ -123,11 +123,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] text-slate-500 block">تعرفه ساعتی:</span>
-                      <span className="text-lg font-black text-slate-900 font-mono">
-                        {service.baseHourlyRate.toLocaleString('fa-IR')}{' '}
-                        <small className="text-xs font-normal text-slate-500">تومان</small>
-                      </span>
+                      <span className="text-sm font-bold text-slate-900">مشاهده قیمت</span>
                     </div>
                     <div className="text-left text-xs text-slate-500 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -237,10 +233,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               {/* Pricing breakdown */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-100 text-slate-800">
                 <div>
-                  <span className="text-xs text-slate-500 block">نرخ پایه پیشنهادی (آزمایشی):</span>
-                  <span className="text-lg font-black text-slate-900 font-mono">
-                    {selectedServiceDetail.baseHourlyRate.toLocaleString('fa-IR')} تومان در ساعت
-                  </span>
+                  <span className="text-sm font-bold text-slate-900">مشاهده قیمت</span>
+                  <span className="block text-xs text-slate-500">قیمت پس از انتخاب جزئیات نمایش داده می‌شود</span>
                 </div>
                 <div className="text-left text-xs text-slate-600">
                   <span className="block">حداقل زمان: {selectedServiceDetail.minHours} ساعت</span>

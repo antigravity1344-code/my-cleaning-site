@@ -193,7 +193,6 @@ export const calculateRecommendedHours = (
   if (roomsCount >= 3) baseHours += 1;
   if (bathroomsCount >= 2) baseHours += 1;
   if (serviceId === 'home-deep') baseHours += 2;
-  if (serviceId === 'post-construction') baseHours += 2;
 
   return Math.max(service.minHours, Math.min(12, baseHours));
 };

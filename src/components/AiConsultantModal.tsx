@@ -53,11 +53,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
       let addons: string[] = [];
       let detergent = true;
 
-      if (text.includes('نقاشی') || text.includes('بازسازی') || text.includes('بنایی') || text.includes('گچ') || text.includes('نوساز')) {
-        sId = 'post-construction';
-        h = 7;
-        addons.push('windows', 'walls');
-      } else if (text.includes('مبل') || text.includes('فرش') || text.includes('تشک') || text.includes('موکت')) {
+      if (text.includes('مبل') || text.includes('فرش') || text.includes('تشک') || text.includes('موکت')) {
         sId = 'furniture-carpet';
         h = 4;
       } else if (text.includes('خانه‌تکانی') || text.includes('عمیق') || text.includes('اساسی') || text.includes('دیوار') || text.includes('کابینت')) {

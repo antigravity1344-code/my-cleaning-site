@@ -197,7 +197,7 @@ export const Hero: React.FC<HeroProps> = ({
                   >
                     {SERVICES_LIST.map(s => (
                       <option key={s.id} value={s.id}>
-                        {s.title} ({s.baseHourlyRate.toLocaleString('fa-IR')} ت/ساعت)
+                        {s.title}
                       </option>
                     ))}
                   </select>
@@ -261,14 +261,8 @@ export const Hero: React.FC<HeroProps> = ({
                 {/* Price Display Box */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-between shadow-inner">
                   <div>
-                    <span className="text-xs text-white/65 block">{DEMO_COPY.provisionalPriceLabel}:</span>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
-                        {/* همان موتور قیمت‌گذاری مشترک که محاسبه‌گر و فاکتور استفاده می‌کنند */}
-                        {(currentServiceObj.baseHourlyRate * selectedHours).toLocaleString('fa-IR')}
-                      </span>
-                      <span className="text-xs text-white/65">تومان</span>
-                    </div>
+                    <span className="text-sm font-bold">مشاهده قیمت</span>
+                    <span className="text-xs text-white/65 block">قیمت پس از انتخاب جزئیات نمایش داده می‌شود</span>
                   </div>
                   <div className="text-left text-[11px] text-white/80 bg-white/10 px-2.5 py-1.5 rounded-lg">
                     {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <span>شامل بیمه و گارانتی</span> : <span>برآورد آزمایشی</span>}

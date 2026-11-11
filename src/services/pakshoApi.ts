@@ -18,12 +18,14 @@ const API_BASE = RAW_BASE.replace(/\/+$/, '');
 export class PakshoApiError extends Error {
   readonly status: number;
   readonly code: string | undefined;
+  readonly retryAfter: string | null;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, retryAfter: string | null = null) {
     super(message);
     this.name = 'PakshoApiError';
     this.status = status;
     this.code = code;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -65,6 +67,7 @@ async function call<T>(path: string, options: RequestOptions = {}): Promise<T> {
       payload.message ?? 'خطایی در ارتباط با سرور رخ داد.',
       response.status,
       payload.code,
+      response.status === 429 ? response.headers?.get('Retry-After') ?? null : null,
     );
   }
   return payload as T;
@@ -92,17 +95,49 @@ export interface QuoteInput {
   discountCode?: string;
 }
 
-export async function requestQuote(input: QuoteInput): Promise<PakshoQuote> {
-  const data = await call<{ quote: PakshoQuote }>('/api/pricing/quote', {
-    method: 'POST',
-    body: {
-      serviceId: input.serviceId,
-      quantity: input.quantity,
-      options: input.options ?? {},
-      ...(input.discountCode ? { discountCode: input.discountCode } : {}),
-    },
-  });
-  return data.quote;
+const serviceIds = new Map([
+  ['home-standard', 'home_unit_cleaning'],
+  ['home-deep', 'home_unit_cleaning'],
+  ['office', 'office_company_cleaning'],
+  ['building-staircase', 'staircase_common_areas'],
+  ['furniture-carpet', 'sofa_carpet_washing'],
+]);
+
+export function pakshoServiceId(serviceId: string): string {
+  return serviceIds.get(serviceId) ?? serviceId;
+}
+
+const pendingQuotes = new Map<string, Promise<PakshoQuote>>();
+
+export function requestQuote(input: QuoteInput): Promise<PakshoQuote> {
+  const body = {
+    serviceId: pakshoServiceId(input.serviceId),
+    quantity: input.quantity,
+    options: input.options ?? {},
+    ...(input.discountCode ? { discountCode: input.discountCode } : {}),
+  };
+  const key = JSON.stringify(body);
+  const pending = pendingQuotes.get(key);
+  if (pending) return pending;
+  const quote = call<{ quote: PakshoQuote }>('/api/pricing/quote', { method: 'POST', body })
+    .then(data => data.quote)
+    .finally(() => { pendingQuotes.delete(key); });
+  pendingQuotes.set(key, quote);
+  return quote;
+}
+
+export interface PricingRule {
+  serviceId: string;
+  model: 'hourly' | 'fixed' | 'count' | 'area';
+}
+
+let pendingPricingRules: Promise<PricingRule[]> | undefined;
+
+export function getPricingRules(): Promise<PricingRule[]> {
+  pendingPricingRules ??= call<{ pricingRules: PricingRule[] }>('/api/services/enabled')
+    .then(data => data.pricingRules ?? [])
+    .finally(() => { pendingPricingRules = undefined; });
+  return pendingPricingRules;
 }
 
 export interface SiteFeatures {
@@ -157,7 +192,7 @@ export async function createOrder(token: string, input: PakshoOrderInput): Promi
   const data = await call<{ order: PakshoOrderResult }>('/api/orders', {
     method: 'POST',
     token,
-    body: { ...input, options: input.options ?? {}, price: input.confirmedTotal },
+    body: { ...input, serviceId: pakshoServiceId(input.serviceId), options: input.options ?? {}, price: input.confirmedTotal },
   });
   return data.order;
 }

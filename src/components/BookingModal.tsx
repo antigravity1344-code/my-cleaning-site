@@ -12,15 +12,14 @@ import { toLatinDigits } from '../services/pii';
 import { validateOrderContact } from '../validation/orderContactValidation';
 import {
   isPakshoConfigured,
-  requestQuote,
   sendOtp,
   verifyOtp,
   getSiteFeatures,
   createOrder as createPakshoOrder,
   PakshoApiError,
-  type PakshoQuote,
   type SiteFeatures,
 } from '../services/pakshoApi';
+import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
@@ -86,8 +85,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   // حالت پاکشو: قیمت از سرور، و ثبت نهایی با کد پیامکی (بدون ورود قبلی).
-  const [serverQuote, setServerQuote] = useState<PakshoQuote | null>(null);
-  const [quoteError, setQuoteError] = useState<string>('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState<string>('');
   const [customerToken, setCustomerToken] = useState<string | null>(null);
@@ -198,6 +195,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const detergentAvailable = extrasOn && siteFlags.detergentPackage;
   const detergentOn = detergentAvailable && hasDetergentPackage;
   const quoteDiscount = extrasOn && appliedPromoCode ? appliedPromoCode : undefined;
+  const quoteState = usePakshoQuote(isOpen && pakshoMode && currentStep >= 2, serviceId, hours, detergentOn, quoteDiscount);
+  const serverQuote = quoteState.quote;
+  const quoteError = quoteState.availabilityMessage || (quoteState.error ? quoteErrorText(quoteState.error) : '');
   const baseServicePrice = pakshoMode ? (serverQuote?.subtotal ?? 0) : pricing.serviceBase;
   const totalPrice = pakshoMode ? (serverQuote?.total ?? 0) : pricing.serviceBase;
 
@@ -211,35 +211,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return () => { cancelled = true; };
   }, [isOpen, pakshoMode]);
 
-  // قیمت از سرور پاکشو؛ با تغییر خدمت، ساعت، پکیج شوینده یا کد تخفیف دوباره گرفته می‌شود.
   useEffect(() => {
-    if (!isOpen || !pakshoMode) return;
-    let cancelled = false;
-    setServerQuote(null);
-    setQuoteError('');
-    requestQuote({
-      serviceId,
-      quantity: hours,
-      options: detergentOn ? { detergent: true } : {},
-      discountCode: quoteDiscount,
-    })
-      .then((quote) => { if (!cancelled) setServerQuote(quote); })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        if (error instanceof PakshoApiError && error.code?.startsWith('PROMO_')) {
-          // کد نامعتبر: کد برداشته می‌شود تا مشتری بدون تخفیف ادامه دهد و پیام روشن ببیند.
-          setAppliedPromoCode('');
-          setDiscountMsg({ type: 'error', text: error.message });
-          return;
-        }
-        setQuoteError(
-          error instanceof PakshoApiError && error.code === 'FEATURE_DISABLED'
-            ? error.message
-            : 'قیمت از سرور دریافت نشد. دوباره تلاش کنید.',
-        );
-      });
-    return () => { cancelled = true; };
-  }, [isOpen, pakshoMode, serviceId, hours, detergentOn, quoteDiscount]);
+    const error = quoteState.error;
+    if (error instanceof PakshoApiError && error.code?.startsWith('PROMO_')) {
+      setAppliedPromoCode('');
+      setDiscountMsg({ type: 'error', text: error.message });
+    }
+  }, [quoteState.error]);
 
   // دسترس‌پذیری پنجره: نقش dialog، Escape برای بستن، نگه‌داشتن فوکوس داخل پنجره
   // و بازگرداندن فوکوس به دکمه بازکننده (پیش از return زودهنگام).
@@ -322,7 +300,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     const result = await createPakshoOrder(token, {
       serviceId,
-      quantity: hours,
+      quantity: quoteState.quantity,
       quoteToken: serverQuote.quoteToken,
       confirmedTotal: serverQuote.total,
       address: [cityName, district, address.trim(), unit.trim()].filter(Boolean).join('، '),
@@ -511,7 +489,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             >
               <span className="block">
                 <span className="text-xs font-bold text-slate-900 block">{srv.title}</span>
-                <span className="text-[11px] text-slate-500 font-mono">{srv.baseHourlyRate.toLocaleString('fa-IR')} ت / ساعت</span>
+                <span className="text-[11px] text-slate-500 font-mono">مشاهده قیمت</span>
               </span>
               {serviceId === srv.id && <span aria-hidden="true" className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">✓</span>}
             </ChoiceCard>
@@ -784,7 +762,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="space-y-2 text-xs text-slate-700">
           <div className="flex justify-between">
             <span>{currentService.title} ({hours} ساعت):</span>
-            <span className="font-mono">{baseServicePrice.toLocaleString('fa-IR')} ت</span>
+            <span className="font-mono">{pakshoMode && !serverQuote ? '—' : `${baseServicePrice.toLocaleString('fa-IR')} ت`}</span>
           </div>
 
           {pakshoMode && serverQuote?.surcharges.map((line) => (
@@ -805,8 +783,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="flex items-center justify-between">
           <span className="font-bold text-slate-900 text-sm">{DEMO_COPY.provisionalPriceLabel}:</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-emerald-600 font-mono">{totalPrice.toLocaleString('fa-IR')}</span>
-            <span className="text-xs text-slate-600">تومان</span>
+            {pakshoMode && !serverQuote ? <span className="text-xs text-slate-600">{QUOTE_PENDING_TEXT}</span> : <>
+              <span className="text-2xl font-black text-emerald-600 font-mono">{totalPrice.toLocaleString('fa-IR')}</span>
+              <span className="text-xs text-slate-600">{serverQuote && serverQuote.currencyUnit !== 'toman' ? serverQuote.currencyUnit : 'تومان'}</span>
+            </>}
           </div>
           </div>
           <ProvisionalPriceNote />

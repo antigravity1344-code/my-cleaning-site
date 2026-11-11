@@ -4,7 +4,6 @@ export type ServiceType =
   | 'office'
   | 'building-staircase'
   | 'furniture-carpet'
-  | 'post-construction'
   | 'disinfection';
 
 export type CleanerGender = 'female' | 'male' | 'no-pref';

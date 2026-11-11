@@ -27,8 +27,9 @@ describe('داده‌های نمونه — تفکیک و برچسب‌گذاری
     });
   });
 
-  it('کاتالوگ خدمات دست‌نخورده و کامل باقی مانده است (بدون حذف قابلیت)', () => {
-    expect(SERVICES_LIST.length).toBeGreaterThanOrEqual(6);
+  it('کاتالوگ پنج خدمت دارد و نظافت بعد از بازسازی را عرضه نمی‌کند', () => {
+    expect(SERVICES_LIST).toHaveLength(5);
+    expect(SERVICES_LIST.map(service => service.id)).not.toContain('post-construction');
     SERVICES_LIST.forEach((service) => {
       expect(service.baseHourlyRate).toBeGreaterThan(0);
       expect(service.minHours).toBeGreaterThan(0);

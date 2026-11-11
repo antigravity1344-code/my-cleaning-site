@@ -9,6 +9,8 @@ import {
 import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY } from '../config/capabilities';
 import { ChoiceCard } from './ChoiceCard';
+import { isPakshoConfigured } from '../services/pakshoApi';
+import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
 
 interface CostCalculatorProps {
   onProceedToBooking: (calcData: {
@@ -30,6 +32,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   const [roomsCount, setRoomsCount] = useState<number>(2);
   const [bathroomsCount, setBathroomsCount] = useState<number>(1);
   const [cleanerGender, setCleanerGender] = useState<CleanerGender>('no-pref');
+  const [hasSelection, setHasSelection] = useState(false);
   // افزودنی‌ها و پکیج شوینده در حالت نمایشی نیستند (تصمیم مالک، ۱۰ نوامبر ۲۰۲۶).
   const selectedAddons: string[] = [];
   const hasDetergentPackage = false;
@@ -44,18 +47,19 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
     [serviceId, squareMeters, roomsCount, bathroomsCount],
   );
 
-  // محاسبه قیمت با موتور مشترک — همان تابعی که فرم رزرو استفاده می‌کند،
-  // بنابراین مبلغ نمایش‌داده‌شده در این‌جا و در فاکتور نهایی همیشه یکسان است.
+  const pakshoMode = isPakshoConfigured();
+  const serverPrice = usePakshoQuote(pakshoMode && hasSelection, serviceId, recommendedHours);
   const calculation = useMemo(
-    () =>
+    () => pakshoMode ? null :
       calculatePrice({
         serviceId,
         hours: recommendedHours,
         addonIds: selectedAddons,
         hasDetergentPackage,
       }),
-    [serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
+    [pakshoMode, serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
   );
+  const total = serverPrice.quote?.total ?? calculation?.total;
 
   const handleBook = () => {
     // فقط ورودی‌های خام منتقل می‌شوند. مبلغ در فرم رزرو با همان موتور مشترک
@@ -91,7 +95,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Controls Config (8 cols) */}
-          <div className="lg:col-span-7 paksho-calc-panel rounded-3xl p-6 sm:p-8 border space-y-6">
+          <div className="lg:col-span-7 paksho-calc-panel rounded-3xl p-6 sm:p-8 border space-y-6" onChange={() => setHasSelection(true)}>
             <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} />
             
             {/* Service Type Selection */}
@@ -99,7 +103,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               <span id={`${fieldId}-service`} className="block text-xs font-bold text-slate-700 mb-2">
                 ۱. نوع خدمت نظافت را انتخاب کنید:
               </span>
-              <div role="radiogroup" aria-labelledby={`${fieldId}-service`} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div role="radiogroup" aria-labelledby={`${fieldId}-service`} className="grid grid-cols-2 sm:grid-cols-3 gap-2" onClick={() => setHasSelection(true)}>
                 {SERVICES_LIST.map(s => (
                   <ChoiceCard
                     key={s.id}
@@ -117,7 +121,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                       {s.title}
                     </span>
                     <span className="text-[11px] text-slate-500 font-mono mt-0.5 block">
-                      {s.baseHourlyRate.toLocaleString('fa-IR')} ت/ساعت
+                      مشاهده قیمت
                     </span>
                   </ChoiceCard>
                 ))}
@@ -268,19 +272,19 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
-                  <span>هزینه پایه زمان ({recommendedHours} ساعت × {currentService.baseHourlyRate.toLocaleString('fa-IR')}):</span>
+                {calculation && <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                  <span>هزینه پایه زمان ({recommendedHours} ساعت):</span>
                   <span className="font-mono">{calculation.serviceBase.toLocaleString('fa-IR')} ت</span>
-                </div>
+                </div>}
 
-                {calculation.addonsTotal > 0 && (
+                {calculation && calculation.addonsTotal > 0 && (
                   <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                     <span>هزینه خدمات جانبی انتخابی:</span>
                     <span className="font-mono text-amber-300">+{calculation.addonsTotal.toLocaleString('fa-IR')} ت</span>
                   </div>
                 )}
 
-                {hasDetergentPackage && (
+                {calculation && hasDetergentPackage && (
                   <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                     <span>پکیج مواد شوینده و دستمال:</span>
                     <span className="font-mono text-teal-300">+{calculation.detergentCost.toLocaleString('fa-IR')} ت</span>
@@ -293,12 +297,15 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
                 <div className="text-right">
                   <span className="text-xs text-white/65 block">{DEMO_COPY.provisionalPriceLabel}:</span>
-                  <div className="flex items-baseline gap-1 mt-1">
+                  {total === undefined ? <p className="text-xs text-white/80">{QUOTE_PENDING_TEXT}</p> : <div className="flex items-baseline gap-1 mt-1">
                     <span className="text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                      {calculation.total.toLocaleString('fa-IR')}
+                      {total.toLocaleString('fa-IR')}
                     </span>
-                    <span className="text-xs text-white/80">تومان</span>
-                  </div>
+                    <span className="text-xs text-white/80">{serverPrice.quote && serverPrice.quote.currencyUnit !== 'toman' ? serverPrice.quote.currencyUnit : 'تومان'}</span>
+                  </div>}
+                  {(Boolean(serverPrice.error) || serverPrice.availabilityMessage) && (
+                    <p role="status" className="text-xs text-white/80">{serverPrice.availabilityMessage || quoteErrorText(serverPrice.error)}</p>
+                  )}
                 </div>
                 <div className="text-left text-[11px] text-amber-200 bg-amber-950/60 border border-amber-800/60 px-2 py-1 rounded-lg">
                   <span>برآورد آزمایشی</span>

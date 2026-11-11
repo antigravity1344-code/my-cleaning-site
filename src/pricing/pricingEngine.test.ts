@@ -97,7 +97,6 @@ describe('calculatePrice — یکسان‌بودن مبلغ محاسبه‌گر 
     { name: 'استاندارد منزل / با شوینده', serviceId: 'home-standard' as const, hours: 4, addonIds: [], hasDetergentPackage: true },
     { name: 'عمیق / چند افزودنی', serviceId: 'home-deep' as const, hours: 6, addonIds: ['walls', 'appliances', 'ironing'], hasDetergentPackage: true },
     { name: 'دفاتر / آسانسور و شیشه', serviceId: 'office' as const, hours: 5, addonIds: ['windows'], hasDetergentPackage: false },
-    { name: 'بعد از بازسازی', serviceId: 'post-construction' as const, hours: 8, addonIds: ['windows', 'appliances'], hasDetergentPackage: true },
     { name: 'مبل‌شویی', serviceId: 'furniture-carpet' as const, hours: 3, addonIds: [], hasDetergentPackage: false },
   ];
 
@@ -283,7 +282,7 @@ describe('calculateRecommendedHours', () => {
 
   it('سقف ۱۲ ساعت را رعایت می‌کند', () => {
     const hours = calculateRecommendedHours({
-      serviceId: 'post-construction',
+      serviceId: 'home-deep',
       squareMeters: 500,
       roomsCount: 6,
       bathroomsCount: 4,

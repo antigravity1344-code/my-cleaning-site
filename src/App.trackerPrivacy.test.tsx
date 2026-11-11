@@ -541,7 +541,9 @@ describe('SAFETY-005 — actual rendered marketing copy', () => {
     const detailButtons = Array.from(services.querySelectorAll('button')).filter((b) =>
       /جزئیات خدمت/.test(b.textContent ?? ''),
     );
-    expect(detailButtons.length).toBeGreaterThanOrEqual(6);
+    expect(detailButtons).toHaveLength(5);
+    expect(services.textContent).toContain('مشاهده قیمت');
+    expect(services.textContent).not.toMatch(/تعرفه ساعتی|۱۶۰٬۰۰۰|نظافت بعد از بازسازی/);
 
     // متن کارت‌ها + متن جزئیات هر خدمت پس از باز کردن آن. پنجره‌ی جزئیات (dialog) با portal
     // بیرون از #services رندر می‌شود، پس با نقش dialog پیدا و بعد از خواندن بسته می‌شود.

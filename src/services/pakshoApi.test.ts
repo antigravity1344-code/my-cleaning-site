@@ -1,5 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+it('maps the five site services and combines identical in-flight quotes', async () => {
+  vi.stubEnv('VITE_PAKSHO_API_BASE', 'https://paksho.example');
+  vi.resetModules();
+  const api = await import('./pakshoApi');
+  expect(['home-standard', 'home-deep', 'office', 'building-staircase', 'furniture-carpet'].map(api.pakshoServiceId))
+    .toEqual(['home_unit_cleaning', 'home_unit_cleaning', 'office_company_cleaning', 'staircase_common_areas', 'sofa_carpet_washing']);
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ quote: { total: 700000 } })));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(Promise.all([
+    api.requestQuote({ serviceId: 'home-standard', quantity: 2 }),
+    api.requestQuote({ serviceId: 'home-deep', quantity: 2 }),
+  ])).resolves.toEqual([{ total: 700000 }, { total: 700000 }]);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ serviceId: 'home_unit_cleaning', quantity: 2 });
+});
+
+it('reads the retry delay from a rate-limited quote', async () => {
+  vi.stubEnv('VITE_PAKSHO_API_BASE', 'https://paksho.example');
+  vi.resetModules();
+  const api = await import('./pakshoApi');
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 429, headers: { 'Retry-After': '90' } })));
+  await expect(api.requestQuote({ serviceId: 'office', quantity: 2 })).rejects.toMatchObject({ status: 429, retryAfter: '90' });
+});
+
 // The module reads its base URL once at import time, so each case re-imports it.
 async function loadWithBase(base: string) {
   vi.resetModules();
