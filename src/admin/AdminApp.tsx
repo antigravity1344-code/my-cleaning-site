@@ -50,7 +50,7 @@ export function AdminApp() {
   return (
     <div className="site-admin">
       <header className="admin-card flex flex-wrap items-center justify-between gap-2 p-4">
-        <h1 className="text-lg font-bold">پنل مدیر پاک‌شو</h1>
+        <h1 className="text-lg font-bold">پنل مدیر سایت پاکشو</h1>
         <button
           type="button"
           onClick={handleLogout}
