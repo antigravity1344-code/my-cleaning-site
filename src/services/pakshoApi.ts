@@ -129,6 +129,8 @@ export function requestQuote(input: QuoteInput): Promise<PakshoQuote> {
 export interface PricingRule {
   serviceId: string;
   model: 'hourly' | 'fixed' | 'count' | 'area';
+  pricingMode?: 'units' | 'mattress_seat' | null;
+  seatSizes?: string[] | null;
 }
 
 let pendingPricingRules: Promise<PricingRule[]> | undefined;

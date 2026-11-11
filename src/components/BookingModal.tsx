@@ -16,10 +16,12 @@ import {
   verifyOtp,
   getSiteFeatures,
   createOrder as createPakshoOrder,
+  pakshoServiceId,
   PakshoApiError,
   type SiteFeatures,
 } from '../services/pakshoApi';
 import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
+import { SOFA_MAX_MATTRESSES, SOFA_PAKSHO_SERVICE_ID, type SofaFormValues, type SofaSeat } from '../services/sofaQuote';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY, ONLINE_PAYMENT_AVAILABLE, CLEANER_ASSIGNMENT_AVAILABLE } from '../config/capabilities';
 import { useDialogA11y } from '../hooks/useDialogA11y';
@@ -65,6 +67,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [serviceId, setServiceId] = useState<ServiceType>(initialServiceId);
   const [cleanerGender, setCleanerGender] = useState<CleanerGender>('no-pref');
   const [hours, setHours] = useState<number>(4);
+  const [sofaMattresses, setSofaMattresses] = useState<number>(1);
+  const [sofaSeat, setSofaSeat] = useState<SofaSeat>('7');
   const [squareMeters, setSquareMeters] = useState<number>(90);
   const [roomsCount, setRoomsCount] = useState<number>(2);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
@@ -195,7 +199,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const detergentAvailable = extrasOn && siteFlags.detergentPackage;
   const detergentOn = detergentAvailable && hasDetergentPackage;
   const quoteDiscount = extrasOn && appliedPromoCode ? appliedPromoCode : undefined;
-  const quoteState = usePakshoQuote(isOpen && pakshoMode && currentStep >= 2, serviceId, hours, detergentOn, quoteDiscount);
+  const isSofa = pakshoServiceId(serviceId) === SOFA_PAKSHO_SERVICE_ID;
+  const sofaForm: SofaFormValues | undefined = isSofa ? { mattresses: sofaMattresses, seatSize: sofaSeat } : undefined;
+  const quoteState = usePakshoQuote(isOpen && pakshoMode && currentStep >= 2, serviceId, hours, detergentOn, quoteDiscount, sofaForm);
   const serverQuote = quoteState.quote;
   const quoteError = quoteState.availabilityMessage || (quoteState.error ? quoteErrorText(quoteState.error) : '');
   const baseServicePrice = pakshoMode ? (serverQuote?.subtotal ?? 0) : pricing.serviceBase;
@@ -310,7 +316,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       customerPhone: phone,
       notes: notes.trim(),
       clientRequestId: clientRequestRef.current,
-      options: detergentOn ? { detergent: true } : {},
+      options: quoteState.options,
       discountCode: quoteDiscount,
     });
 
@@ -496,23 +502,68 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           ))}
         </div>
       </div>
-      <div>
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
-          <span id={`${fieldId}-hours`}>تعداد ساعت کار نیرو:</span>
-          <span aria-hidden="true" className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">{hours} ساعت</span>
+      {isSofa ? (
+        quoteState.pricingMode ? (
+          <div className="space-y-3">
+            <div>
+              <label htmlFor={`${fieldId}-mattresses`} className="block text-xs font-bold text-slate-700 mb-2">
+                {quoteState.pricingMode === 'units' ? 'تعداد واحد (تشک یا قطعهٔ مبل):' : 'تعداد تشک:'}
+              </label>
+              <input
+                id={`${fieldId}-mattresses`}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={SOFA_MAX_MATTRESSES}
+                step={1}
+                value={sofaMattresses}
+                onChange={(e) => setSofaMattresses(Math.min(SOFA_MAX_MATTRESSES, Math.max(1, Math.trunc(Number(e.target.value)) || 1)))}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            {quoteState.pricingMode === 'mattress_seat' && (
+              <div>
+                <span id={`${fieldId}-seat`} className="block text-xs font-bold text-slate-700 mb-2">نوع نشیمن مبل:</span>
+                <div role="radiogroup" aria-labelledby={`${fieldId}-seat`} className="grid grid-cols-2 gap-2">
+                  {([{ id: '7', label: 'نشیمن ۷ نفره' }, { id: '9', label: 'نشیمن ۹ نفره' }] as const).map(seat => (
+                    <ChoiceCard
+                      key={seat.id}
+                      type="radio"
+                      name={`${fieldId}-seat`}
+                      checked={sofaSeat === seat.id}
+                      onChange={() => setSofaSeat(seat.id)}
+                      className={`flex items-center justify-center text-center py-2.5 px-2 text-xs font-bold rounded-xl border transition-all ${
+                        sofaSeat === seat.id ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {seat.label}
+                    </ChoiceCard>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null
+      ) : (
+        <div>
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
+            <span id={`${fieldId}-hours`}>تعداد ساعت کار نیرو:</span>
+            <span aria-hidden="true" className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono text-sm">{hours} ساعت</span>
+          </div>
+          <input
+            type="range"
+            min={currentService.minHours}
+            max={12}
+            step={1}
+            value={hours}
+            onChange={(e) => setHours(Number(e.target.value))}
+            aria-labelledby={`${fieldId}-hours`}
+            aria-valuetext={`${hours} ساعت`}
+            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+          />
         </div>
-        <input
-          type="range"
-          min={currentService.minHours}
-          max={12}
-          step={1}
-          value={hours}
-          onChange={(e) => setHours(Number(e.target.value))}
-          aria-labelledby={`${fieldId}-hours`}
-          aria-valuetext={`${hours} ساعت`}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-        />
-      </div>
+
+      )}
       <div>
         <span id={`${fieldId}-gender`} className="block text-xs font-bold text-slate-700 mb-2">اولویت جنسیت متخصص نظافت:</span>
         <div role="radiogroup" aria-labelledby={`${fieldId}-gender`} className="grid grid-cols-3 gap-2">
@@ -761,7 +812,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
         <div className="space-y-2 text-xs text-slate-700">
           <div className="flex justify-between">
-            <span>{currentService.title} ({hours} ساعت):</span>
+            <span>{isSofa ? `${currentService.title} (${sofaMattresses.toLocaleString('fa-IR')} عدد):` : `${currentService.title} (${hours} ساعت):`}</span>
             <span className="font-mono">{pakshoMode && !serverQuote ? '—' : `${baseServicePrice.toLocaleString('fa-IR')} ت`}</span>
           </div>
 
