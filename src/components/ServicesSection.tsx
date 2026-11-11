@@ -52,7 +52,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto space-y-3 mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 text-xs font-bold">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 text-xs font-bold border border-[rgba(17,118,111,0.28)] shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span>پوشش کامل نیازهای نظافتی شما</span>
           </div>
@@ -105,7 +105,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 </p>
 
                 {/* Included features preview */}
-                <div className="space-y-2 py-3 border-y border-slate-100">
+                <div className="space-y-2 p-4 rounded-xl border border-slate-200 bg-emerald-50">
                   <span className="text-[11px] font-bold text-slate-500 block">
                     برخی از اقلام شامل این خدمت:
                   </span>

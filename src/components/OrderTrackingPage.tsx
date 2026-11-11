@@ -64,8 +64,9 @@ export const OrderTrackingPage: React.FC = () => {
   };
 
   return (
-    <main dir="rtl" style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-      <h1 style={{ fontSize: 20, marginBottom: 16 }}>پیگیری سفارش</h1>
+    <main dir="rtl" className="paksho-public" style={{ minHeight: '100vh' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 20px', boxSizing: 'border-box' }}>
+      <h1 style={{ fontSize: 20, marginBottom: 16, fontWeight: 700 }}>پیگیری سفارش</h1>
 
       {!configured && (
         <p role="status">پیگیری آنلاین در این نسخه فعال نیست.</p>
@@ -84,7 +85,7 @@ export const OrderTrackingPage: React.FC = () => {
             placeholder="ORD-…-xxxxxxxx"
             autoComplete="off"
             dir="ltr"
-            style={{ width: '100%', padding: 10, marginBottom: 12 }}
+            style={{ width: '100%', padding: '12px 16px', marginBottom: 16, boxSizing: 'border-box' }}
           />
           <button type="submit" disabled={pending || code.trim() === ''}>
             {pending ? 'در حال جست‌وجو…' : 'پیگیری'}
@@ -92,11 +93,11 @@ export const OrderTrackingPage: React.FC = () => {
         </form>
       )}
 
-      {error && <p role="alert" style={{ marginTop: 16, color: '#b91c1c' }}>{error}</p>}
+      {error && <p role="alert" style={{ marginTop: 16, color: '#B91C1C', background: '#FDECEC', borderRadius: 12, padding: 16, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04)' }}>{error}</p>}
 
       {result && (
-        <section aria-live="polite" style={{ marginTop: 20 }}>
-          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px' }}>
+        <section aria-live="polite" style={{ marginTop: 24, background: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04)' }}>
+          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px' }}>
             <dt>وضعیت</dt>
             <dd>{trackStatusLabel(result.status)}</dd>
             <dt>خدمت</dt>
@@ -110,6 +111,7 @@ export const OrderTrackingPage: React.FC = () => {
           </dl>
         </section>
       )}
+      </div>
     </main>
   );
 };

@@ -26,7 +26,7 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-[rgba(17,118,111,0.28)] shadow-sm">
               <Users className="w-3.5 h-3.5 text-emerald-600" />
               <span>فهرست نمایشی متخصصین (نمونه)</span>
             </div>

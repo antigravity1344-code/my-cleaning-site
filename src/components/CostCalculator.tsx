@@ -91,7 +91,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Controls Config (8 cols) */}
-          <div className="lg:col-span-7 bg-slate-50/80 rounded-3xl p-6 sm:p-8 border border-slate-200/80 space-y-6">
+          <div className="lg:col-span-7 paksho-calc-panel rounded-3xl p-6 sm:p-8 border space-y-6">
             <DemoInlineNotice text={DEMO_COPY.orderFlowNotice} />
             
             {/* Service Type Selection */}
@@ -109,7 +109,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     onChange={() => setServiceId(s.id)}
                     className={`flex flex-col justify-center p-3 text-right rounded-2xl border transition-all ${
                       serviceId === s.id
-                        ? 'bg-emerald-50 border-emerald-600 shadow-xs'
+                        ? 'bg-white border-emerald-600 shadow-xs'
                         : 'bg-white border-slate-200 hover:bg-slate-100'
                     }`}
                   >
@@ -222,7 +222,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                     onChange={() => setCleanerGender(g.id)}
                     className={`flex items-center justify-center text-center py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
                       cleanerGender === g.id
-                        ? 'bg-emerald-100 border-emerald-600 text-emerald-900'
+                        ? 'bg-white border-emerald-600 text-emerald-900'
                         : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >

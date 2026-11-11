@@ -102,3 +102,237 @@
   font-feature-settings: "ss01";
 }
 
+/*
+ * ظاهر صفحات عمومی، محدود به .paksho-public تا پنل مدیر (src/admin) دست نخورد.
+ * فقط توکن‌های src/theme/customerHome.ts و src/theme/index.ts در اپ.
+ */
+.paksho-public {
+  --color-slate-50: #f6f2e6;
+  --color-slate-100: #f1efe8;
+  --color-slate-200: rgba(31, 42, 40, 0.14);
+  --color-slate-300: #8a9290;
+  --color-slate-400: #8a9290;
+  --color-slate-500: #6b7370;
+  --color-slate-600: #6b7370;
+  --color-slate-700: #4b5552;
+  --color-slate-800: #1f2a28;
+  --color-slate-900: #1f2a28;
+  --color-slate-950: #1f2a28;
+  --color-emerald-50: #e6f3f2;
+  --color-emerald-100: #e6f3f2;
+  --color-emerald-200: #e6f3f2;
+  --color-emerald-300: #11766f;
+  --color-emerald-400: #11766f;
+  --color-emerald-500: #11766f;
+  --color-emerald-600: #11766f;
+  --color-emerald-700: #0e635d;
+  --color-emerald-800: #0e635d;
+  --color-emerald-900: #0e635d;
+  --color-emerald-950: #0e635d;
+  --color-teal-50: #e6f3f2;
+  --color-teal-100: #e6f3f2;
+  --color-teal-200: #e6f3f2;
+  --color-teal-300: #11766f;
+  --color-teal-400: #11766f;
+  --color-teal-500: #11766f;
+  --color-teal-600: #11766f;
+  --color-teal-700: #0e635d;
+  --color-teal-800: #0e635d;
+  --color-teal-900: #0e635d;
+  --color-teal-950: #0e635d;
+  --color-rose-50: #fdecec;
+  --color-rose-100: #fdecec;
+  --color-rose-200: #fdecec;
+  --color-rose-300: #b91c1c;
+  --color-rose-400: #b91c1c;
+  --color-rose-500: #b91c1c;
+  --color-rose-600: #b91c1c;
+  --color-rose-700: #b91c1c;
+  --color-rose-800: #b91c1c;
+  --color-rose-900: #b91c1c;
+  --color-rose-950: #b91c1c;
+  --color-amber-50: #fef3e2;
+  --color-amber-100: #fef3e2;
+  --color-amber-200: #fef3e2;
+  --color-amber-300: #d97706;
+  --color-amber-400: #d97706;
+  --color-amber-500: #d97706;
+  --color-amber-600: #b45309;
+  --color-amber-700: #b45309;
+  --color-amber-800: #b45309;
+  --color-amber-900: #b45309;
+  --color-amber-950: #b45309;
+  --color-blue-50: #e6f3f2;
+  --color-blue-100: #e6f3f2;
+  --color-blue-600: #11766f;
+  --color-blue-700: #0e635d;
+  --color-cyan-600: #11766f;
+  --color-cyan-700: #0e635d;
+  background-color: #f6f2e6;
+  color: #1f2a28;
+  font-family: 'Vazirmatn Variable', Vazirmatn, sans-serif;
+}
+
+.paksho-public .max-w-7xl,
+.paksho-public .max-w-6xl,
+.paksho-public .max-w-5xl,
+.paksho-public .max-w-4xl,
+.paksho-public .max-w-3xl {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.paksho-public header > div:first-child {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.paksho-public header > div:first-child .max-w-7xl {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.paksho-public .text-\[10px\],
+.paksho-public .text-\[11px\] {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.paksho-public .font-black {
+  font-weight: 700;
+}
+
+.paksho-public .rounded-3xl,
+.paksho-public .rounded-2xl {
+  border-radius: 16px;
+}
+
+.paksho-public .rounded-xl,
+.paksho-public .rounded-lg {
+  border-radius: 12px;
+}
+
+.paksho-public .rounded-full {
+  border-radius: 999px;
+}
+
+.paksho-public .shadow-2xl,
+.paksho-public .shadow-xl,
+.paksho-public .shadow-lg,
+.paksho-public .shadow-md,
+.paksho-public .rounded-3xl {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.paksho-public .shadow-sm,
+.paksho-public .shadow-xs,
+.paksho-public header {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.paksho-public .border.rounded-3xl:not(button),
+.paksho-public .border.rounded-2xl:not(button),
+.paksho-public .border.rounded-xl:not(button),
+.paksho-public .border.rounded-lg:not(button),
+.paksho-public .border.rounded-full:not(button),
+.paksho-public .border-2.rounded-2xl:not(button),
+.paksho-public .border-2.rounded-xl:not(button),
+.paksho-public .border-2.rounded-full:not(button),
+.paksho-public input:not([type='range']),
+.paksho-public select,
+.paksho-public textarea,
+.paksho-public [role='alert'] {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+.paksho-public button,
+.paksho-public button.rounded-3xl,
+.paksho-public button.rounded-2xl,
+.paksho-public button.rounded-xl,
+.paksho-public button.rounded-lg {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+}
+
+.paksho-public button.rounded-full {
+  border-radius: 999px;
+}
+
+.paksho-public label:has(input[type='radio']),
+.paksho-public label:has(input[type='checkbox']) {
+  min-height: 44px;
+}
+
+.paksho-public button[class*='bg-emerald'],
+.paksho-public button[class*='bg-teal'] {
+  box-shadow: 0 4px 10px rgba(14, 99, 93, 0.22);
+}
+
+.paksho-public input,
+.paksho-public select,
+.paksho-public textarea {
+  background-color: #ffffff;
+  color: #1f2a28;
+  border-color: rgba(31, 42, 40, 0.14);
+  border-radius: 12px;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.paksho-public .bg-slate-900.text-white,
+.paksho-public .from-slate-900 {
+  background-color: #ffffff;
+  background-image: none;
+  color: #1f2a28;
+  border-color: rgba(31, 42, 40, 0.08);
+}
+
+.paksho-public .bg-slate-900.text-white [class*='text-white']:not(button),
+.paksho-public .from-slate-900 [class*='text-white']:not(button) {
+  color: #1f2a28;
+}
+
+.paksho-public .bg-slate-900.text-white [class*='bg-slate-8'],
+.paksho-public .from-slate-900 [class*='bg-slate-8'] {
+  background-color: #f1efe8;
+  border-color: rgba(31, 42, 40, 0.08);
+  color: #4b5552;
+}
+
+.paksho-public footer {
+  background-color: #ffffff;
+  color: #6b7370;
+  border-top-color: rgba(31, 42, 40, 0.08);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.03);
+}
+
+.paksho-public footer [class*='text-white'] {
+  color: #6b7370;
+}
+
+.paksho-public footer h4,
+.paksho-public footer .font-black {
+  color: #1f2a28 !important;
+}
+
+.paksho-public footer [class*='bg-slate-8'] {
+  background-color: #f6f2e6;
+  border-color: rgba(31, 42, 40, 0.08);
+}
+
+.paksho-public button[class*='bg-slate-800'] {
+  background-color: #11766f;
+  color: #ffffff;
+}
+
+.paksho-public [class*='bg-emerald-5'].text-slate-950,
+.paksho-public [class*='bg-emerald-6'].text-slate-950 {
+  color: #ffffff;
+}
+
+.paksho-public .paksho-calc-panel {
+  background-color: #e6f3f2;
+  border-color: rgba(17, 118, 111, 0.28);
+}
+

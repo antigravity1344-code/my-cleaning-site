@@ -161,7 +161,7 @@ function PakshoAppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
+    <div className="paksho-public min-h-screen flex flex-col antialiased">
 
       {/*
         پس‌زمینه‌ی صفحه: تا وقتی هر پنجره‌ای باز است، inert می‌شود؛ یعنی از درخت
