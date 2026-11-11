@@ -129,6 +129,8 @@ export function requestQuote(input: QuoteInput): Promise<PakshoQuote> {
 export interface PricingRule {
   serviceId: string;
   model: 'hourly' | 'fixed' | 'count' | 'area';
+  pricingMode?: 'units' | 'mattress_seat' | null;
+  seatSizes?: string[] | null;
 }
 
 let pendingPricingRules: Promise<PricingRule[]> | undefined;
@@ -192,7 +194,8 @@ export async function createOrder(token: string, input: PakshoOrderInput): Promi
   const data = await call<{ order: PakshoOrderResult }>('/api/orders', {
     method: 'POST',
     token,
-    body: { ...input, serviceId: pakshoServiceId(input.serviceId), options: input.options ?? {}, price: input.confirmedTotal },
+    body: { ...input, serviceId: pakshoServiceId(input.serviceId), options: input.options ?? {},
+      ...(pakshoServiceId(input.serviceId) === 'sofa_carpet_washing' ? {} : { price: input.confirmedTotal }) },
   });
   return data.order;
 }

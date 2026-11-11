@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react';
 import { getPricingRules, pakshoServiceId, PakshoApiError, requestQuote, type PakshoQuote, type PricingRule } from './pakshoApi';
 
 export const QUOTE_PENDING_TEXT = 'قیمت پس از انتخاب جزئیات نمایش داده می‌شود';
+export const SOFA_DISABLED_TEXT = 'این خدمت در این مجموعه فعال نیست';
+export const SOFA_SITE_ID = 'furniture-carpet';
+export type SofaDetails = { quantity: string; seatSize: string };
+export const EMPTY_SOFA_DETAILS: SofaDetails = { quantity: '', seatSize: '' };
+
+export function sofaPricingFields(rule: PricingRule | undefined) {
+  const mode = rule?.pricingMode === 'units' || rule?.pricingMode === 'mattress_seat' ? rule.pricingMode : null;
+  const seatSizes = mode === 'mattress_seat' ? ['7', '9'].filter(size => rule?.seatSizes?.includes(size)) : [];
+  return { mode, seatSizes };
+}
 
 export function quoteErrorText(error: unknown): string {
   if (error instanceof PakshoApiError) {
@@ -18,10 +28,9 @@ export function quoteErrorText(error: unknown): string {
 
 type Result = { key: string; quote?: PakshoQuote; error?: unknown };
 
-export function usePakshoQuote(enabled: boolean, serviceId: string, hours: number, detergent = false, discountCode?: string) {
+export function usePakshoPricingRules(enabled: boolean) {
   const [rules, setRules] = useState<PricingRule[] | null>(null);
   const [rulesError, setRulesError] = useState<unknown>();
-  const [result, setResult] = useState<Result>();
 
   useEffect(() => {
     if (!enabled || rules) return;
@@ -33,11 +42,24 @@ export function usePakshoQuote(enabled: boolean, serviceId: string, hours: numbe
     );
     return () => { active = false; };
   }, [enabled, rules]);
+  return { rules, rulesError };
+}
 
-  const model = rules?.find(rule => rule.serviceId === pakshoServiceId(serviceId))?.model;
-  const quantity = model === 'fixed' ? 1 : hours;
-  const valid = enabled && (model === 'fixed' || model === 'hourly') && Number.isSafeInteger(quantity) && quantity > 0;
-  const key = valid ? JSON.stringify([serviceId, quantity, detergent, discountCode]) : '';
+export function usePakshoQuote(enabled: boolean, serviceId: string, hours: number, detergent = false,
+  discountCode?: string, sofaDetails: SofaDetails = EMPTY_SOFA_DETAILS, quoteReady = true) {
+  const { rules, rulesError } = usePakshoPricingRules(enabled);
+  const [result, setResult] = useState<Result>();
+  const isSofa = serviceId === SOFA_SITE_ID;
+  const rule = rules?.find(row => row.serviceId === pakshoServiceId(serviceId));
+  const model = rule?.model;
+  const sofa = sofaPricingFields(rule);
+  const quantity = isSofa ? (/^\d+$/.test(sofaDetails.quantity) ? Number(sofaDetails.quantity) : 0)
+    : model === 'fixed' ? 1 : hours;
+  const seatSize = isSofa && sofa.mode === 'mattress_seat' ? sofaDetails.seatSize : undefined;
+  const validModel = isSofa ? sofa.mode === 'units' || (sofa.mode === 'mattress_seat' && sofa.seatSizes.includes(seatSize ?? ''))
+    : model === 'fixed' || model === 'hourly';
+  const canQuote = enabled && validModel && Number.isSafeInteger(quantity) && quantity > 0;
+  const key = canQuote && quoteReady ? JSON.stringify([serviceId, quantity, detergent, discountCode, seatSize]) : '';
 
   useEffect(() => {
     if (!key) {
@@ -46,21 +68,25 @@ export function usePakshoQuote(enabled: boolean, serviceId: string, hours: numbe
     }
     let active = true;
     const timer = window.setTimeout(() => {
-      requestQuote({ serviceId, quantity, options: detergent ? { detergent: true } : {}, discountCode }).then(
+      requestQuote({ serviceId, quantity, options: { ...(detergent ? { detergent: true } : {}), ...(seatSize ? { seatSize } : {}) }, discountCode }).then(
         quote => { if (active) setResult({ key, quote }); },
         (error: unknown) => { if (active) setResult({ key, error }); },
       );
     }, 350);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [key, serviceId, quantity, detergent, discountCode]);
+  }, [key, serviceId, quantity, detergent, discountCode, seatSize]);
 
   const unavailable = enabled && rules && !model;
-  const unsupported = enabled && (model === 'count' || model === 'area');
+  const unsupported = enabled && !isSofa && (model === 'count' || model === 'area');
   return {
     quote: key && result?.key === key ? result.quote : undefined,
     error: enabled ? rulesError ?? (key && result?.key === key ? result.error : undefined) : undefined,
-    availabilityMessage: unsupported ? 'برای این خدمت، فرم فعلی جزئیات لازم برای محاسبهٔ قیمت را ندارد.'
+    availabilityMessage: isSofa && rules && !sofa.mode ? SOFA_DISABLED_TEXT
+      : unsupported ? 'برای این خدمت، فرم فعلی جزئیات لازم برای محاسبهٔ قیمت را ندارد.'
       : unavailable ? 'تعرفهٔ این خدمت در دسترس نیست.' : '',
     quantity,
+    sofa,
+    seatSize,
+    canQuote,
   };
 }

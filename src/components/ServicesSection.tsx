@@ -16,6 +16,8 @@ import {
 import { SERVICES_LIST } from '../data/mockData';
 import { ServiceItem } from '../types';
 import { PageModal } from './PageModal';
+import { isPakshoConfigured, pakshoServiceId } from '../services/pakshoApi';
+import { sofaPricingFields, SOFA_SITE_ID, usePakshoPricingRules } from '../services/usePakshoQuote';
 
 interface ServicesSectionProps {
   onSelectServiceForBooking: (serviceId: string) => void;
@@ -26,6 +28,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 }) => {
   const [selectedServiceDetail, setSelectedServiceDetail] = useState<ServiceItem | null>(null);
   const detailTitleId = useId();
+  const { rules } = usePakshoPricingRules(isPakshoConfigured());
+  const sofaUnavailable = rules !== null && !sofaPricingFields(
+    rules.find(rule => rule.serviceId === pakshoServiceId(SOFA_SITE_ID)),
+  ).mode;
 
   const getServiceIcon = (iconName: string) => {
     switch (iconName) {
@@ -66,7 +72,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {SERVICES_LIST.map((service) => (
+          {SERVICES_LIST.filter(service => service.id !== SOFA_SITE_ID || !sofaUnavailable).map((service) => (
             <div
               key={service.id}
               className="group bg-white rounded-3xl overflow-hidden border border-slate-200/80 hover:border-emerald-500/40 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"

@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ServicesSection } from './components/ServicesSection';
 import { CostCalculator } from './components/CostCalculator';
+import type { SofaDetails } from './services/usePakshoQuote';
 import { CleanersShowcase } from './components/CleanersShowcase';
 import { WhyUs } from './components/WhyUs';
 import { ReviewsSection } from './components/ReviewsSection';
@@ -39,6 +40,7 @@ function PakshoAppContent() {
   // Booking Modal Pre-fill Params
   const [bookingParams, setBookingParams] = useState<{
     serviceId: ServiceType;
+    sofaDetails?: SofaDetails;
     cleanerGender: CleanerGender;
     hours: number;
     squareMeters?: number;
@@ -93,6 +95,7 @@ function PakshoAppContent() {
   // مبنای پرداخت نیست.
   const handleProceedFromCalculator = (calcData: {
     serviceId: ServiceType;
+    sofaDetails?: SofaDetails;
     hours: number;
     squareMeters: number;
     roomsCount: number;
@@ -102,6 +105,7 @@ function PakshoAppContent() {
   }) => {
     setBookingParams({
       serviceId: calcData.serviceId,
+      sofaDetails: calcData.sofaDetails,
       hours: calcData.hours,
       squareMeters: calcData.squareMeters,
       roomsCount: calcData.roomsCount,

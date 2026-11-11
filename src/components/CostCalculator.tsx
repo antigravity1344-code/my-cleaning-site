@@ -10,11 +10,13 @@ import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
 import { DEMO_COPY } from '../config/capabilities';
 import { ChoiceCard } from './ChoiceCard';
 import { isPakshoConfigured } from '../services/pakshoApi';
-import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
+import { EMPTY_SOFA_DETAILS, QUOTE_PENDING_TEXT, quoteErrorText, SOFA_SITE_ID, type SofaDetails, usePakshoQuote } from '../services/usePakshoQuote';
+import { SofaPricingFields } from './SofaPricingFields';
 
 interface CostCalculatorProps {
   onProceedToBooking: (calcData: {
     serviceId: ServiceType;
+    sofaDetails?: SofaDetails;
     hours: number;
     squareMeters: number;
     roomsCount: number;
@@ -28,6 +30,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   onProceedToBooking
 }) => {
   const [serviceId, setServiceId] = useState<ServiceType>('home-standard');
+  const [sofaDetails, setSofaDetails] = useState<SofaDetails>(EMPTY_SOFA_DETAILS);
   const [squareMeters, setSquareMeters] = useState<number>(95);
   const [roomsCount, setRoomsCount] = useState<number>(2);
   const [bathroomsCount, setBathroomsCount] = useState<number>(1);
@@ -48,16 +51,17 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   );
 
   const pakshoMode = isPakshoConfigured();
-  const serverPrice = usePakshoQuote(pakshoMode && hasSelection, serviceId, recommendedHours);
+  const isSofa = serviceId === SOFA_SITE_ID;
+  const serverPrice = usePakshoQuote(pakshoMode && hasSelection, serviceId, recommendedHours, false, undefined, sofaDetails);
   const calculation = useMemo(
-    () => pakshoMode ? null :
+    () => pakshoMode || isSofa ? null :
       calculatePrice({
         serviceId,
         hours: recommendedHours,
         addonIds: selectedAddons,
         hasDetergentPackage,
       }),
-    [pakshoMode, serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
+    [pakshoMode, isSofa, serviceId, recommendedHours, selectedAddons, hasDetergentPackage],
   );
   const total = serverPrice.quote?.total ?? calculation?.total;
 
@@ -66,6 +70,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
     // بازمحاسبه می‌شود تا قیمت نمایش‌داده‌شده و فاکتور از یک منبع واحد بیایند.
     onProceedToBooking({
       serviceId,
+      ...(isSofa ? { sofaDetails } : {}),
       hours: recommendedHours,
       squareMeters,
       roomsCount,
@@ -128,6 +133,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               </div>
             </div>
 
+            {isSofa ? <SofaPricingFields rule={serverPrice.sofa} details={sofaDetails} onChange={setSofaDetails} /> : <>
             {/* Square meters Slider */}
             <div>
               <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
@@ -235,7 +241,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                 ))}
               </div>
             </div>
-
+            </>}
 
           </div>
 
@@ -265,12 +271,12 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   <span className="font-bold text-white">{currentService.title}</span>
                 </div>
                 
-                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                {!isSofa && <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                   <span>مدت زمان تخمینی پیشنهادی:</span>
                   <span className="font-bold font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
                     {recommendedHours} ساعت کاری
                   </span>
-                </div>
+                </div>}
 
                 {calculation && <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                   <span>هزینه پایه زمان ({recommendedHours} ساعت):</span>
@@ -315,6 +321,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               {/* Action Button */}
               <button
                 onClick={handleBook}
+                disabled={isSofa && !serverPrice.canQuote}
                 className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer text-sm sm:text-base active:scale-98"
               >
                 <span>ادامه در فرم آزمایشی رزرو</span>
