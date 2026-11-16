@@ -15,7 +15,7 @@ import {
   DemoSampleBadge,
   DemoInlineNotice,
 } from './DemoNotice';
-import { DEMO_COPY } from '../config/capabilities';
+import { DEMO_COPY, DEMO_MODE } from '../config/capabilities';
 import { LEGACY_DATA_NOTICE } from '../services/pii';
 import { useDialogA11y } from '../hooks/useDialogA11y';
 
@@ -146,7 +146,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
     // این prop داده نمی‌شود، پس این مسیر هرگز اجرا نمی‌شود و رفتار قبلی عیناً باقی می‌ماند.
     if (!onLookupByTrackingCode) {
       setSearchError(
-        'درخواستی با این کد در همین مرورگر یافت نشد. در نسخه آزمایشی هیچ سامانه مرکزی برای رهگیری وجود ندارد.',
+        DEMO_MODE
+          ? 'درخواستی با این کد در همین مرورگر یافت نشد. در نسخه آزمایشی هیچ سامانه مرکزی برای رهگیری وجود ندارد.'
+          : 'سفارشی با این کد در این مرورگر پیدا نشد. کد پیگیری را وارد کنید تا از سرور پاکشو جستجو شود.',
       );
       return;
     }
@@ -172,7 +174,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
   const handleCancelOrder = async () => {
     if (!selectedOrder || isCancelPending) return;
-    if (!confirm('این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟')) return;
+    if (!confirm(DEMO_MODE ? 'این لغو فقط رکورد نمایشی همین مرورگر را علامت می‌زند. ادامه می‌دهید؟' : 'این سفارش لغو شود؟')) return;
 
     const scope = requestScopeRef.current;
     setCancelError('');
@@ -225,10 +227,10 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <DemoBadge />
-              <span className="text-xs font-bold text-slate-500">رهگیری آزمایشی</span>
+              <span className="text-xs font-bold text-slate-500">{DEMO_MODE ? 'رهگیری آزمایشی' : 'رهگیری'}</span>
             </div>
             <h3 id={titleId} className="text-lg sm:text-xl font-black text-slate-900 mt-1">
-              درخواست‌های نمایشی همین مرورگر
+              {DEMO_MODE ? 'درخواست‌های نمایشی همین مرورگر' : 'پیگیری درخواست'}
             </h3>
           </div>
           <button
@@ -258,7 +260,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="کد پیگیری آزمایشی (مثلا DEMO-...)"
+                placeholder={DEMO_MODE ? 'کد پیگیری آزمایشی (مثلا DEMO-...)' : 'کد پیگیری'}
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pr-10 pl-3 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
@@ -285,7 +287,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
           {orders.length > 1 && (
             <div>
               <span className="text-xs font-bold text-slate-500 block mb-2">
-                درخواست‌های آزمایشی این مرورگر:
+                {DEMO_MODE ? 'درخواست‌های آزمایشی این مرورگر:' : 'درخواست‌های این مرورگر:'}
               </span>
               <div className="flex flex-wrap gap-2">
                 {orders.map((ord) => (
@@ -314,7 +316,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
               <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-4 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div>
-                    <span className="text-xs text-white/65 block">کد پیگیری آزمایشی:</span>
+                    <span className="text-xs text-white/65 block">{DEMO_MODE ? 'کد پیگیری آزمایشی:' : 'کد پیگیری:'}</span>
                     <strong className="text-lg font-black font-mono text-emerald-400">
                       {selectedOrder.trackingCode}
                     </strong>
@@ -366,7 +368,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   <span className="block">{selectedOrder.customerName || '—'}</span>
                   <span className="block font-mono" dir="ltr">{selectedOrder.customerPhone || '—'}</span>
                   <span className="block text-white/65">
-                    نشانی دقیق برای حفاظت از حریم خصوصی در نسخه آزمایشی ذخیره نمی‌شود.
+                    {DEMO_MODE
+                      ? 'نشانی دقیق برای حفاظت از حریم خصوصی در نسخه آزمایشی ذخیره نمی‌شود.'
+                      : 'نشانی کامل روی سرور پاکشو ذخیره می‌شود و اینجا نمایش داده نمی‌شود.'}
                   </span>
                 </div>
               </div>
@@ -376,9 +380,11 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-slate-900">وضعیت سفارش</h4>
+                    {DEMO_MODE ? (
                     <span className="text-xs text-amber-800 bg-amber-100 font-bold px-2.5 py-0.5 rounded-full">
                       نمایشی
                     </span>
+                    ) : null}
                   </div>
                   <p className="text-sm font-bold text-slate-800">
                     {REAL_STATUS_LABELS[selectedOrder.status] ?? REAL_STATUS_LABELS.new}
@@ -386,7 +392,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   <div className="p-3 rounded-2xl bg-white border border-amber-200 text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>
-                      این صفحه در نسخهٔ آزمایشی وضعیت عملیاتی واقعی را نشان نمی‌دهد و مشتری نمی‌تواند آن را تغییر دهد.
+                      {DEMO_MODE
+                        ? 'این صفحه در نسخهٔ آزمایشی وضعیت عملیاتی واقعی را نشان نمی‌دهد و مشتری نمی‌تواند آن را تغییر دهد.'
+                        : 'وضعیت سفارش از سرور پاکشو می‌آید. تخصیص متخصص از پنل انجام می‌شود.'}
                     </span>
                   </div>
                 </div>
@@ -394,8 +402,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-800 text-xs">
                   <Ban className="w-5 h-5 text-rose-600 shrink-0" />
                   <span>
-                    این رکورد نمایشی در همین مرورگر لغو شده است. چون هیچ درخواستی به سامانه عملیاتی
-                    ارسال نشده، لغو نیز اثری در عملیات پاک‌شو ندارد.
+                    {DEMO_MODE
+                      ? 'این رکورد نمایشی در همین مرورگر لغو شده است. چون هیچ درخواستی به سامانه عملیاتی ارسال نشده، لغو نیز اثری در عملیات پاک‌شو ندارد.'
+                      : 'این سفارش لغو شده است.'}
                   </span>
                 </div>
               )}
@@ -411,7 +420,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   <p className="text-[11px] text-slate-600 leading-relaxed">{DEMO_COPY.noCleanerAssignment}</p>
                   <div className="pt-2 border-t border-slate-200 flex items-center gap-2 text-[11px] text-slate-500">
                     <PhoneCall className="w-3.5 h-3.5" />
-                    <span>شماره تماس متخصص در نسخه آزمایشی نمایش داده نمی‌شود.</span>
+                    <span>{DEMO_MODE ? 'شماره تماس متخصص در نسخه آزمایشی نمایش داده نمی‌شود.' : 'شماره تماس متخصص از پنل پاکشو هماهنگ می‌شود.'}</span>
                   </div>
                 </div>
               )}
@@ -421,7 +430,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 <div className="p-5 rounded-3xl bg-amber-50/70 border border-amber-200 space-y-3">
                   <h4 className="font-bold text-sm text-amber-950 flex items-center gap-1.5">
                     <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                    بازخورد شما درباره این نسخه آزمایشی
+                    {DEMO_MODE ? 'بازخورد شما درباره این نسخه آزمایشی' : 'بازخورد شما'}
                   </h4>
 
                   {ratingSubmitted || selectedOrder.userRating ? (
@@ -464,7 +473,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
                       <textarea
                         rows={2}
-                        placeholder="نظر شما درباره این نسخه آزمایشی..."
+                        placeholder={DEMO_MODE ? 'نظر شما درباره این نسخه آزمایشی...' : 'نظر شما'}
                         value={userFeedbackText}
                         onChange={(e) => setUserFeedbackText(e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800"
@@ -504,7 +513,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                     className="text-xs text-rose-600 hover:text-rose-800 disabled:opacity-60 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Ban className="w-3.5 h-3.5" />
-                    <span>{isCancelPending ? 'در حال لغو...' : 'لغو رکورد نمایشی'}</span>
+                    <span>{isCancelPending ? 'در حال لغو...' : DEMO_MODE ? 'لغو رکورد نمایشی' : 'لغو سفارش'}</span>
                   </button>
 
                   <span className="text-xs text-slate-600 font-bold">
@@ -517,7 +526,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
           ) : (
             <div className="text-center py-12 text-slate-400 space-y-2">
               <AlertCircle className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-xs">هنوز درخواست آزمایشی در این مرورگر ثبت نشده است.</p>
+              <p className="text-xs">{DEMO_MODE ? 'هنوز درخواست آزمایشی در این مرورگر ثبت نشده است.' : 'کد پیگیری را وارد کنید.'}</p>
             </div>
           )}
 

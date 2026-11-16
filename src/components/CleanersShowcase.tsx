@@ -3,7 +3,7 @@ import { Users, Star, ShieldCheck, CalendarCheck, CheckCircle, Clock } from 'luc
 import { CLEANERS_LIST } from '../data/mockData';
 import { CleanerSpecialist } from '../types';
 import { DemoInlineNotice, DemoSampleBadge } from './DemoNotice';
-import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 interface CleanersShowcaseProps {
   onSelectCleaner: (cleaner: CleanerSpecialist) => void;
@@ -28,17 +28,18 @@ export const CleanersShowcase: React.FC<CleanersShowcaseProps> = ({
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-[rgba(17,118,111,0.28)] shadow-sm">
               <Users className="w-3.5 h-3.5 text-emerald-600" />
-              <span>فهرست نمایشی متخصصین (نمونه)</span>
+              <span>{DEMO_MODE ? 'فهرست نمایشی متخصصین (نمونه)' : 'متخصصین'}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                متخصصین نمونه پاک‌شو
+                {DEMO_MODE ? 'متخصصین نمونه پاک‌شو' : 'متخصصین پاک‌شو'}
               </h2>
               <DemoSampleBadge />
             </div>
             <p className="text-slate-600 text-sm sm:text-base">
-              پروفایل‌های این بخش نمونه هستند و اطلاعات واقعی متخصصین پاک‌شو محسوب نمی‌شوند.
-              مشخصات واقعی متخصصین پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.
+              {DEMO_MODE
+                ? 'پروفایل‌های این بخش نمونه هستند و اطلاعات واقعی متخصصین پاک‌شو محسوب نمی‌شوند. مشخصات واقعی متخصصین پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.'
+                : 'این فهرست معرفی نمونه است. تخصیص متخصص واقعی از پنل پاکشو انجام می‌شود.'}
             </p>
           </div>
 

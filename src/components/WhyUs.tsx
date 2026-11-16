@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, RefreshCw, FileText, Headphones, BadgeCheck, CreditCard, HeartHandshake } from 'lucide-react';
-import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 
 export const WhyUs: React.FC = () => {
   // ادعاهای اعتباری فقط در صورت وجود مستندات معتبر نمایش داده می‌شوند.
@@ -60,7 +60,9 @@ export const WhyUs: React.FC = () => {
     {
       icon: <CreditCard className="w-7 h-7 text-slate-500" />,
       title: 'پرداخت آنلاین',
-      desc: 'اتصال به درگاه بانکی هنوز برقرار نشده است؛ بنابراین هیچ پرداختی از این سایت دریافت نمی‌شود.'
+      desc: DEMO_MODE
+        ? 'اتصال به درگاه بانکی هنوز برقرار نشده است؛ بنابراین هیچ پرداختی از این سایت دریافت نمی‌شود.'
+        : 'پرداخت اینترنتی هنوز فعال نیست. مبلغ پس از انجام کار در محل پرداخت می‌شود.'
     },
     {
       icon: <Headphones className="w-7 h-7 text-slate-500" />,

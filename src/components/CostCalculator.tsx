@@ -7,7 +7,7 @@ import {
   calculateRecommendedHours,
 } from '../pricing/pricingEngine';
 import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
-import { DEMO_COPY } from '../config/capabilities';
+import { DEMO_COPY, DEMO_MODE } from '../config/capabilities';
 import { ChoiceCard } from './ChoiceCard';
 import { isPakshoConfigured } from '../services/pakshoApi';
 import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
@@ -247,7 +247,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="text-right">
                   <h3 className="text-lg font-black text-white">
-                    برآورد هزینه (آزمایشی)
+                    {DEMO_MODE ? 'برآورد هزینه (آزمایشی)' : 'برآورد هزینه'}
                   </h3>
                   <p className="text-xs text-white/65">
                     محاسبه بر اساس پارامترهای انتخابی شما
@@ -308,7 +308,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                   )}
                 </div>
                 <div className="text-left text-[11px] text-amber-200 bg-amber-950/60 border border-amber-800/60 px-2 py-1 rounded-lg">
-                  <span>برآورد آزمایشی</span>
+                  <span>{DEMO_MODE ? 'برآورد آزمایشی' : 'مبلغ از سرور پاکشو'}</span>
                 </div>
               </div>
 
@@ -317,7 +317,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
                 onClick={handleBook}
                 className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer text-sm sm:text-base active:scale-98"
               >
-                <span>ادامه در فرم آزمایشی رزرو</span>
+                <span>{DEMO_MODE ? 'ادامه در فرم آزمایشی رزرو' : 'ادامه و ثبت درخواست'}</span>
                 <ArrowLeft className="w-5 h-5" />
               </button>
 
