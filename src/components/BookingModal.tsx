@@ -437,7 +437,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </p>
         </div>
         <div className="bg-slate-900 text-white p-5 rounded-3xl max-w-md mx-auto space-y-3 shadow-xl">
-          <span className="text-xs text-white/65 block">کد پیگیری آزمایشی:</span>
+          <span className="text-xs text-white/65 block">{pakshoMode ? 'کد پیگیری:' : 'کد پیگیری آزمایشی:'}</span>
           <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700">
             <span className="text-xl font-black font-mono text-emerald-400 tracking-wider">{createdOrder.trackingCode}</span>
             <button
@@ -653,7 +653,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <p id={`${fieldId}-cleaner-note`} className="text-[11px] text-slate-500 mb-2 leading-relaxed">
             {CLEANER_ASSIGNMENT_AVAILABLE
               ? 'انتخاب شما به موتور تخصیص سرور پاک‌شو ارسال می‌شود.'
-              : 'پروفایل‌های زیر نمونه هستند. در نسخه آزمایشی هیچ متخصصی تخصیص داده نمی‌شود؛ انتخاب شما فقط به‌عنوان «درخواست» ثبت می‌شود.'}
+              : DEMO_COPY.noCleanerAssignment}
           </p>
           <div
             role="radiogroup"
@@ -676,7 +676,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
                 <span className="block text-right">
                   <span className="text-xs font-bold text-slate-900 block">بدون اولویت خاص (پیشنهادی)</span>
-                  <span className="text-[11px] text-slate-500">در نسخه آزمایشی هیچ تخصیص یا اعزامی انجام نمی‌شود</span>
+                  <span className="text-[11px] text-slate-500">{DEMO_COPY.noCleanerAssignment}</span>
                 </span>
               </span>
               {selectedCleanerId === 'auto' && <span aria-hidden="true" className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>}
@@ -900,7 +900,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <span aria-hidden="true" className="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center">
                 {paymentMethod === 'cash_on_site' && <span className="w-2 h-2 bg-emerald-600 rounded-full" />}
               </span>
-              <span className="text-xs font-bold text-slate-900">پرداخت در محل (نمایشی)</span>
+              <span className="text-xs font-bold text-slate-900">{pakshoMode ? 'پرداخت در محل' : 'پرداخت در محل (نمایشی)'}</span>
             </span>
             <span className="block text-[11px] text-slate-500 mt-1 mr-6">{DEMO_COPY.paymentCashNotice}</span>
           </ChoiceCard>
@@ -949,7 +949,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="text-right">
             <div className="flex items-center gap-2">
               <DemoBadge />
-              <span className="text-xs font-bold text-emerald-600">فرم آزمایشی رزرو</span>
+              <span className="text-xs font-bold text-emerald-600">{pakshoMode ? 'فرم رزرو' : 'فرم آزمایشی رزرو'}</span>
             </div>
             <h3 id={titleId} className="text-lg sm:text-xl font-black text-slate-900 mt-1">ثبت درخواست خدمات نظافت</h3>
           </div>

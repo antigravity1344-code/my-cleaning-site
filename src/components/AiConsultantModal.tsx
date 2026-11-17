@@ -3,6 +3,7 @@ import { Bot, Sparkles, X, Send, CheckCircle2, ArrowLeft, Lightbulb } from 'luci
 import { ServiceType, CleanerGender } from '../types';
 import { SERVICES_LIST } from '../data/mockData';
 import { useDialogA11y } from '../hooks/useDialogA11y';
+import { DEMO_MODE } from '../config/capabilities';
 
 interface AiConsultantModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
             </div>
             <div>
               <h3 id={titleId} className="text-base sm:text-lg font-black text-white">
-                مشاور تخمین زمان (نسخه آزمایشی)
+                {DEMO_MODE ? 'مشاور تخمین زمان (نسخه آزمایشی)' : 'مشاور تخمین زمان'}
               </h3>
               <p className="text-xs text-white/65">
                 شرح نیاز خود را بنویسید تا تخمین اولیه زمان و خدمت پیشنهاد شود؛
@@ -220,7 +221,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
 
                 <div className="bg-white p-3 rounded-2xl border border-emerald-100 text-center col-span-2 sm:col-span-1">
                   <span className="text-[11px] text-slate-500 block">برچسب قیمت:</span>
-                  <strong className="text-xs font-bold text-slate-900 block mt-0.5">آزمایشی</strong>
+                  <strong className="text-xs font-bold text-slate-900 block mt-0.5">{DEMO_MODE ? 'آزمایشی' : 'برآورد'}</strong>
                 </div>
               </div>
 
@@ -236,7 +237,7 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({
                 }}
                 className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md shadow-emerald-600/30 text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
               >
-                <span>انتقال این مشخصات به فرم آزمایشی رزرو</span>
+                <span>{DEMO_MODE ? 'انتقال این مشخصات به فرم آزمایشی رزرو' : 'انتقال این مشخصات به فرم رزرو'}</span>
                 <ArrowLeft className="w-4 h-4" />
               </button>
             </div>

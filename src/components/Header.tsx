@@ -96,15 +96,17 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="inline-flex items-center justify-center bg-emerald-500/30 px-2 py-0.5 rounded-full text-[11px] font-bold">
               تخفیف ویژه
             </span>
-            ) : (
+            ) : DEMO_MODE ? (
               <span className="inline-flex items-center justify-center bg-amber-400/30 px-2 py-0.5 rounded-full text-[11px] font-bold">
                 حالت آزمایشی
               </span>
-            )}
+            ) : null}
             {VERIFIED_TRUST_CLAIMS_AVAILABLE ? (
               <span>با کد تخفیف <strong className="bg-white/20 px-1.5 py-0.5 rounded font-mono text-amber-200">PAK1403</strong> ۱۰۰ هزار تومان تخفیف بگیرید!</span>
-            ) : (
+            ) : DEMO_MODE ? (
               <span>نسخه آزمایشی — قیمت‌های نمایش‌داده‌شده پیشنهادی هستند و تخفیف‌ها پس از تأیید سیاست تجاری فعال می‌شوند.</span>
+            ) : (
+              <span>درخواست از همین سایت ثبت می‌شود؛ هماهنگی نهایی تلفنی است.</span>
             )}
           </div>
           <div className="flex items-center gap-3 text-xs text-emerald-100">
@@ -113,10 +115,15 @@ export const Header: React.FC<HeaderProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
               بیمه مسئولیت و احراز هویت نیروها
             </span>
-            ) : (
+            ) : DEMO_MODE ? (
               <span className="hidden md:flex items-center gap-1">
                 <FlaskConical className="w-3.5 h-3.5 text-amber-200" />
                 حالت آزمایشی — بدون اعزام واقعی
+              </span>
+            ) : (
+              <span className="hidden md:flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                تخصیص متخصص از پنل پاکشو
               </span>
             )}
             <span className="hidden lg:flex items-center gap-1">
@@ -165,13 +172,13 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => scrollToSection('cleaners')}
                 className="hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                متخصصین (نمونه)
+                {DEMO_MODE ? 'متخصصین (نمونه)' : 'متخصصین'}
               </button>
               <button 
                 onClick={() => scrollToSection('why-us')}
                 className="hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                ضمانت و پوشش (آزمایشی)
+                {DEMO_MODE ? 'ضمانت و پوشش (آزمایشی)' : 'ضمانت و پوشش'}
               </button>
               <button 
                 onClick={() => scrollToSection('reviews')}
@@ -214,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="relative hidden lg:flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
             >
               <Search className="w-4 h-4 text-slate-500" />
-              <span>درخواست‌های آزمایشی{DEMO_MODE ? ' (نمایشی)' : ''}</span>
+              <span>{DEMO_MODE ? 'درخواست‌های آزمایشی (نمایشی)' : 'پیگیری درخواست'}</span>
               {ordersCount > 0 && (
                 <span className="flex items-center justify-center w-5 h-5 text-[11px] font-bold text-white bg-emerald-700 rounded-full">
                   {ordersCount}
@@ -237,7 +244,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenTracker}
               className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
-              aria-label="درخواست‌های آزمایشی"
+              aria-label={DEMO_MODE ? 'درخواست‌های آزمایشی' : 'پیگیری درخواست'}
             >
               <Search className="w-5 h-5" />
             </button>
@@ -299,13 +306,13 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => scrollToSection('cleaners')}
               className="text-right py-2.5 px-3 rounded-lg hover:bg-slate-100"
             >
-              متخصصین نمونه
+              {DEMO_MODE ? 'متخصصین نمونه' : 'متخصصین'}
             </button>
             <button
               onClick={() => scrollToSection('why-us')}
               className="text-right py-2.5 px-3 rounded-lg hover:bg-slate-100"
             >
-              ضمانت و پوشش (آزمایشی)
+              {DEMO_MODE ? 'ضمانت و پوشش (آزمایشی)' : 'ضمانت و پوشش'}
             </button>
             <button
               onClick={() => scrollToSection('reviews')}
@@ -332,7 +339,7 @@ export const Header: React.FC<HeaderProps> = ({
               <PhoneCall className="w-4 h-4 text-emerald-600" />
               راه تماس رسمی هنوز تأیید نشده است
             </span>
-            <span>نسخه آزمایشی</span>
+            {DEMO_MODE ? <span>نسخه آزمایشی</span> : <span>پاک‌شو</span>}
           </div>
         </div>
       )}

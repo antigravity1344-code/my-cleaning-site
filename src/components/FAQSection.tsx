@@ -2,6 +2,22 @@ import React, { useId, useState } from 'react';
 import { HelpCircle, ChevronDown, Search } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 import { DemoInlineNotice } from './DemoNotice';
+import { DEMO_MODE } from '../config/capabilities';
+
+const LIVE_FAQ_ANSWERS: Record<string, string> = {
+  'faq-1':
+    'تخصیص متخصص از پنل پاکشو انجام می‌شود. احراز هویت، استعلام سوابق و پوشش بیمه تا ارائه مستند معتبر در این سایت ادعا نمی‌شود.',
+  'faq-2':
+    'مبلغ را سرور پاکشو حساب می‌کند. پرداخت در محل پس از انجام کار است. هزینهٔ اضافهٔ تأییدشده‌ای اعلام نشده است.',
+  'faq-3':
+    'سیاست رسمی گارانتی رضایت، تعویض نیرو یا جبران خسارت هنوز اعلام نشده است.',
+  'faq-4':
+    'تأمین مواد شوینده و وسایل، پس از ثبت درخواست، در هماهنگی تلفنی مشخص می‌شود.',
+  'faq-5':
+    'برای لغو یا تغییر زمان، کد پیگیری را نگه دارید و پس از ثبت با هماهنگی تلفنی اقدام کنید.',
+  'faq-6':
+    'پرداخت اینترنتی هنوز فعال نیست. مبلغ پس از انجام کار در محل پرداخت می‌شود. کد ورود با پیامک ارسال می‌شود.',
+};
 
 export const FAQSection: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'safety' | 'pricing' | 'booking' | 'services'>('all');
@@ -9,7 +25,12 @@ export const FAQSection: React.FC = () => {
   const [openFaqId, setOpenFaqId] = useState<string | null>('faq-1');
   const faqIdBase = useId();
 
-  const filteredFaqs = FAQ_LIST.filter(item => {
+  const faqs = FAQ_LIST.map((item) => ({
+    ...item,
+    answer: DEMO_MODE ? item.answer : (LIVE_FAQ_ANSWERS[item.id] ?? item.answer),
+  }));
+
+  const filteredFaqs = faqs.filter(item => {
     const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
     const matchesSearch = item.question.includes(searchQuery) || item.answer.includes(searchQuery);
     return matchesCategory && matchesSearch;
@@ -33,7 +54,9 @@ export const FAQSection: React.FC = () => {
             پرسش‌های متداول درباره خدمات نظافت
           </h2>
           <p className="text-slate-600 text-sm sm:text-base">
-            پاسخ به پرسش‌های رایج درباره قیمت‌گذاری، روند رزرو و سیاست‌های پیشنهادی پاک‌شو. موارد مربوط به بیمه، احراز هویت و گارانتی در نسخه آزمایشی قابل اجرا نیستند.
+            {DEMO_MODE
+              ? 'پاسخ به پرسش‌های رایج درباره قیمت‌گذاری، روند رزرو و سیاست‌های پیشنهادی پاک‌شو. موارد مربوط به بیمه، احراز هویت و گارانتی در نسخه آزمایشی قابل اجرا نیستند.'
+              : 'پاسخ به پرسش‌های رایج درباره قیمت‌گذاری، روند رزرو و هماهنگی تلفنی. ادعاهای بیمه و گارانتی تا ارائه مستند نمایش داده نمی‌شوند.'}
           </p>
         </div>
 
@@ -137,7 +160,7 @@ export const FAQSection: React.FC = () => {
               پاسخ سوال خود را پیدا نکردید؟
             </h4>
             <p className="text-xs text-white/65">
-              در نسخه آزمایشی کانال تماس یا ساعات پاسخ‌گویی رسمی هنوز تأیید نشده‌اند.
+              {DEMO_MODE ? 'در نسخه آزمایشی کانال تماس یا ساعات پاسخ‌گویی رسمی هنوز تأیید نشده‌اند.' : 'هماهنگی پس از ثبت درخواست تلفنی انجام می‌شود.'}
             </p>
           </div>
           <div className="flex items-center gap-3">

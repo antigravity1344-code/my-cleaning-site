@@ -3,6 +3,7 @@ import { Star, MessageSquareHeart, CheckCircle, PlusCircle } from 'lucide-react'
 import { CUSTOMER_REVIEWS, SERVICES_LIST } from '../data/mockData';
 import { CustomerReview } from '../types';
 import { DemoInlineNotice, DemoSampleBadge } from './DemoNotice';
+import { DEMO_MODE } from '../config/capabilities';
 import { PageModal } from './PageModal';
 
 export const ReviewsSection: React.FC = () => {
@@ -79,13 +80,15 @@ export const ReviewsSection: React.FC = () => {
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
               <MessageSquareHeart className="w-3.5 h-3.5 text-emerald-600" />
-              <span>نمونه نظرات (نمایشی)</span>
+              <span>{DEMO_MODE ? 'نمونه نظرات (نمایشی)' : 'نظرات'}</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              نظرات (داده‌های نمونه)
+              {DEMO_MODE ? 'نظرات (داده‌های نمونه)' : 'نظرات مشتریان'}
             </h2>
             <p className="text-slate-600 text-sm sm:text-base">
-              نظرات این بخش نمونه هستند و بازخورد واقعی مشتریان پاک‌شو محسوب نمی‌شوند. بازخورد واقعی تنها پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.
+              {DEMO_MODE
+                ? 'نظرات این بخش نمونه هستند و بازخورد واقعی مشتریان پاک‌شو محسوب نمی‌شوند. بازخورد واقعی تنها پس از اتصال سایت به سرور پاک‌شو نمایش داده می‌شود.'
+                : 'این نظرات نمونهٔ معرفی هستند. بازخورد ثبت‌شده از پنل پاکشو هنوز روی سایت نمایش داده نمی‌شود.'}
             </p>
           </div>
 
@@ -180,7 +183,9 @@ export const ReviewsSection: React.FC = () => {
               ثبت نظر و تجربه نظافت
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              در نسخه آزمایشی، نظر شما ارسال نمی‌شود و فقط تا زمان بستن صفحه در همین مرورگر نمایش داده می‌شود.
+              {DEMO_MODE
+                ? 'در نسخه آزمایشی، نظر شما ارسال نمی‌شود و فقط تا زمان بستن صفحه در همین مرورگر نمایش داده می‌شود.'
+                : 'نظر شما فعلاً فقط در همین مرورگر دیده می‌شود و به سرور ارسال نمی‌شود.'}
             </p>
 
             {submittedSuccess ? (
@@ -189,7 +194,7 @@ export const ReviewsSection: React.FC = () => {
                   <CheckCircle className="w-7 h-7" />
                 </div>
                 <h4 className="font-bold text-slate-900 text-base">
-                  نظر آزمایشی شما ثبت شد
+                  {DEMO_MODE ? 'نظر آزمایشی شما ثبت شد' : 'نظر شما ثبت شد'}
                 </h4>
                 <p className="text-xs text-slate-500">
                   از اینکه با ما در اشتراک‌گذاری تجربه خود همراه شدید متشکریم.

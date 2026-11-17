@@ -16,6 +16,7 @@ import {
 import { SERVICES_LIST } from '../data/mockData';
 import { ServiceItem } from '../types';
 import { PageModal } from './PageModal';
+import { DEMO_MODE } from '../config/capabilities';
 
 interface ServicesSectionProps {
   onSelectServiceForBooking: (serviceId: string) => void;
@@ -57,10 +58,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
             <span>پوشش کامل نیازهای نظافتی شما</span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            خدمات و تعرفه‌های پیشنهادی پاک‌شو
+            {DEMO_MODE ? 'خدمات و تعرفه‌های پیشنهادی پاک‌شو' : 'خدمات نظافت پاک‌شو'}
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-            در این نسخه آزمایشی می‌توانید انواع خدمات نظافت و برآوردهای پیشنهادی را مشاهده کنید؛ آموزش نیروها و کیفیت تجهیزات هنوز تأیید نشده است.
+            {DEMO_MODE
+              ? 'در این نسخه آزمایشی می‌توانید انواع خدمات نظافت و برآوردهای پیشنهادی را مشاهده کنید؛ آموزش نیروها و کیفیت تجهیزات هنوز تأیید نشده است.'
+              : 'خدمات را ببینید و درخواست بدهید. مبلغ نهایی را سرور پاکشو حساب می‌کند.'}
           </p>
         </div>
 
@@ -238,7 +241,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 </div>
                 <div className="text-left text-xs text-slate-600">
                   <span className="block">حداقل زمان: {selectedServiceDetail.minHours} ساعت</span>
-                  <span className="text-slate-500 font-bold">برآورد آزمایشی</span>
+                  <span className="text-slate-500 font-bold">{DEMO_MODE ? 'برآورد آزمایشی' : 'قیمت از سرور پاکشو'}</span>
                 </div>
               </div>
             </div>

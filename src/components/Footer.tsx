@@ -6,7 +6,7 @@ import {
   Award,
   ChevronLeft
 } from 'lucide-react';
-import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 import { scrollToSection } from '../utils/scrollToSection';
 
 interface FooterProps {
@@ -31,7 +31,7 @@ export const Footer: React.FC<FooterProps> = ({
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">نسخه آزمایشی — بدون ضمانت قابل اجرا</h4>
+              <h4 className="font-bold text-white text-sm">{DEMO_MODE ? 'نسخه آزمایشی — بدون ضمانت قابل اجرا' : 'هماهنگی تلفنی پس از ثبت'}</h4>
               <p className="text-xs text-white/65 mt-0.5">شرایط جبران خدمت پس از تأیید سیاست رسمی اعلام خواهد شد</p>
             </div>
           </div>
@@ -41,8 +41,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">{VERIFIED_TRUST_CLAIMS_AVAILABLE ? 'متخصصین گزینش شده' : 'فهرست متخصصین نمونه'}</h4>
-              {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-white/65 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-white/65 mt-0.5">این نسخه آزمایشی است و به سرور عملیات متصل نیست</p>}
+              <h4 className="font-bold text-white text-sm">{VERIFIED_TRUST_CLAIMS_AVAILABLE ? 'متخصصین گزینش شده' : DEMO_MODE ? 'فهرست متخصصین نمونه' : 'تخصیص متخصص از پنل'}</h4>
+              {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-xs text-white/65 mt-0.5">احراز هویت کامل، عدم سوءپیشینه و آزمایش سلامت</p> : <p className="text-xs text-white/65 mt-0.5">{DEMO_MODE ? 'این نسخه آزمایشی است و به سرور عملیات متصل نیست' : 'تخصیص متخصص از پنل پاکشو انجام می‌شود'}</p>}
             </div>
           </div>
 
@@ -71,7 +71,9 @@ export const Footer: React.FC<FooterProps> = ({
               </span>
             </div>
             <p className="text-xs text-white/65 leading-relaxed">
-              نسخه آزمایشی سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
+              {DEMO_MODE
+                ? 'نسخه آزمایشی سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.'
+                : 'سامانه آنلاین خدمات نظافت منزل، محل کار، راه‌پله و مبل‌شویی. قیمت از سرور پاکشو محاسبه می‌شود.'}
             </p>
             <p className="text-xs text-amber-300">راه‌های تماس و نشانی رسمی پس از تأیید مالک منتشر می‌شوند.</p>
           </div>
@@ -168,7 +170,7 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Copyright */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-white/60 gap-4">
-          <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد. نسخه فعلی، نسخه آزمایشی و غیرعملیاتی است.</p>
+          <p>© تمامی حقوق مادی و معنوی این سامانه متعلق به شرکت «پاک‌شو» می‌باشد.{DEMO_MODE ? ' نسخه فعلی، نسخه آزمایشی و غیرعملیاتی است.' : ''}</p>
           <p>طراحی شده با React 19، TypeScript و Tailwind CSS</p>
         </div>
 

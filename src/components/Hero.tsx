@@ -11,8 +11,7 @@ import {
 import { SERVICES_LIST, CITIES_DATA } from '../data/mockData';
 import { ServiceType, CleanerGender } from '../types';
 import { DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
-import { DEMO_COPY } from '../config/capabilities';
-import { VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
+import { DEMO_COPY, DEMO_MODE, VERIFIED_TRUST_CLAIMS_AVAILABLE } from '../config/capabilities';
 import { ChoiceCard } from './ChoiceCard';
 
 interface HeroProps {
@@ -63,20 +62,22 @@ export const Hero: React.FC<HeroProps> = ({
             {/* Trust Pill */}
             <div className="inline-flex items-center gap-2 bg-emerald-100/80 border border-emerald-200 px-3.5 py-1.5 rounded-full text-emerald-900 text-xs sm:text-sm font-bold shadow-xs">
               <Sparkles className="w-4 h-4 text-emerald-600 animate-spin" />
-              <span>نسخه آزمایشی سامانه خدمات نظافت منزل و محل کار</span>
+              <span>{DEMO_MODE ? 'نسخه آزمایشی سامانه خدمات نظافت منزل و محل کار' : 'سامانه خدمات نظافت منزل و محل کار'}</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.25] tracking-tight">
               آشنایی با خدمات نظافت،{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700">
-                فرآیند درخواست نظافت را آزمایش کنید
+                {DEMO_MODE ? 'فرآیند درخواست نظافت را آزمایش کنید' : 'از همین‌جا درخواست بدهید'}
               </span>
             </h1>
 
             {/* Sub-headline */}
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl">
-              این نسخه برای نمایش جریان رزرو ساخته شده است؛ هیچ درخواست واقعی ثبت نمی‌شود، متخصصی اعزام نمی‌شود و مبلغی دریافت نمی‌گردد. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.
+              {DEMO_MODE
+                ? 'این نسخه برای نمایش جریان رزرو ساخته شده است؛ هیچ درخواست واقعی ثبت نمی‌شود، متخصصی اعزام نمی‌شود و مبلغی دریافت نمی‌گردد. قیمت‌های نمایش‌داده‌شده پیشنهادی و آزمایشی هستند.'
+                : 'قیمت را سرور پاکشو حساب می‌کند. پس از ثبت، هماهنگی تلفنی است و تخصیص متخصص از پنل پاکشو انجام می‌شود.'}
             </p>
 
             <DemoInlineNotice text={DEMO_COPY.banner} />
@@ -88,7 +89,7 @@ export const Hero: React.FC<HeroProps> = ({
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div className="text-xs">
-                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">احراز هویت کامل</p> : <p className="font-bold text-slate-800">فهرست متخصصین نمونه</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">احراز هویت کامل</p> : <p className="font-bold text-slate-800">{DEMO_MODE ? 'فهرست متخصصین نمونه' : 'تخصیص از پنل پاکشو'}</p>}
                   {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">گواهی عدم سوءپیشینه</p> : <p className="text-slate-500 text-[11px]">مستندات در دست بررسی</p>}
                 </div>
               </div>
@@ -108,8 +109,8 @@ export const Hero: React.FC<HeroProps> = ({
                   <Clock className="w-5 h-5" />
                 </div>
                 <div className="text-xs">
-                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">اعزام فوری و به‌موقع</p> : <p className="font-bold text-slate-800">بدون اعزام در نسخه آزمایشی</p>}
-                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">در کمتر از ۲ ساعت</p> : <p className="text-slate-500 text-[11px]">سرویس اعزام متصل نیست</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="font-bold text-slate-800">اعزام فوری و به‌موقع</p> : <p className="font-bold text-slate-800">{DEMO_MODE ? 'بدون اعزام در نسخه آزمایشی' : 'تخصیص از پنل پاکشو'}</p>}
+                  {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <p className="text-slate-500 text-[11px]">در کمتر از ۲ ساعت</p> : <p className="text-slate-500 text-[11px]">{DEMO_MODE ? 'سرویس اعزام متصل نیست' : 'هماهنگی نهایی تلفنی است'}</p>}
                 </div>
               </div>
             </div>
@@ -265,7 +266,7 @@ export const Hero: React.FC<HeroProps> = ({
                     <span className="text-xs text-white/65 block">قیمت پس از انتخاب جزئیات نمایش داده می‌شود</span>
                   </div>
                   <div className="text-left text-[11px] text-white/80 bg-white/10 px-2.5 py-1.5 rounded-lg">
-                    {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <span>شامل بیمه و گارانتی</span> : <span>برآورد آزمایشی</span>}
+                    {VERIFIED_TRUST_CLAIMS_AVAILABLE ? <span>شامل بیمه و گارانتی</span> : <span>{DEMO_MODE ? 'برآورد آزمایشی' : 'مبلغ از سرور پاکشو'}</span>}
                   </div>
                 </div>
 
@@ -281,7 +282,7 @@ export const Hero: React.FC<HeroProps> = ({
                 </button>
 
                 <p className="text-center text-[11px] text-slate-500">
-                  نسخه آزمایشی — هیچ پرداخت یا اعزام واقعی انجام نمی‌شود
+                  {DEMO_MODE ? 'نسخه آزمایشی — هیچ پرداخت یا اعزام واقعی انجام نمی‌شود' : 'پرداخت در محل پس از انجام کار'}
                 </p>
 
               </form>

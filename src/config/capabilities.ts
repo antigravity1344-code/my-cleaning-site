@@ -1,17 +1,19 @@
 /**
  * قابلیت‌ها و وضعیت تأیید ادعاهای وب‌سایت پاک‌شو.
  *
- * این سایت در حال حاضر به هیچ سروری، درگاه پرداختی و سرویس پیامکی متصل نیست.
- * تا زمان اتصال واقعی:
- *   ۱) هیچ ادعای عملیاتی یا مالی تأییدنشده نباید به کاربر نمایش داده شود.
- *   ۲) هر جریان کاربری باید صریحاً «آزمایشی» علامت‌گذاری شود.
+ * اگر `VITE_PAKSHO_API_BASE` در زمان ساخت تنظیم باشد، سایت به سرور پاکشو وصل است
+ * و حالت نمایشی خاموش می‌شود. بدون آن، رفتار نمایشی محلی باقی می‌ماند.
  *
  * این فایل تنها محل تصمیم‌گیری درباره این قابلیت‌هاست؛ کامپوننت‌ها باید وضعیت را
  * از این‌جا بخوانند تا خاموش/روشن‌کردن آن‌ها در یک نقطه ممکن باشد.
  */
 
-/** سایت در حالت نمایشی/آزمایشی است و به سرور متصل نیست. */
-export const DEMO_MODE = true;
+function pakshoApiConfigured(): boolean {
+  return String(import.meta.env.VITE_PAKSHO_API_BASE ?? '').trim() !== '';
+}
+
+/** سایت در حالت نمایشی است مگر سرور پاکشو در ساخت تنظیم شده باشد. */
+export const DEMO_MODE = !pakshoApiConfigured();
 
 /**
  * ادعاهای اعتباری (بیمه حوادث، بیمه مسئولیت، نماد اعتماد الکترونیکی، عضویت اتحادیه،
@@ -23,23 +25,19 @@ export const VERIFIED_TRUST_CLAIMS_AVAILABLE = false;
 /** اتصال به درگاه پرداخت بانکی هنوز برقرار نشده است. */
 export const ONLINE_PAYMENT_AVAILABLE = false;
 
-/** سرویس ارسال پیامک/ایمیل تأیید سفارش هنوز برقرار نشده است. */
-export const NOTIFICATIONS_AVAILABLE = false;
+/** کد ورود پیامکی از مسیر سرور پاکشو می‌رود؛ وقتی سایت به سرور وصل باشد فعال است. */
+export const NOTIFICATIONS_AVAILABLE = !DEMO_MODE;
 
-/** تخصیص واقعی متخصص (موتور اعزام) هنوز به سرور متصل نیست. */
+/** تخصیص واقعی متخصص روی سایت نیست؛ از پنل و اپ پاکشو انجام می‌شود. */
 export const CLEANER_ASSIGNMENT_AVAILABLE = false;
 
 /** نمایش شماره تماس متخصص فقط با اطلاعات تأییدشده سرور مجاز است. */
 export const CLEANER_CONTACT_AVAILABLE = false;
 
-/** ارائه قیمت به‌عنوان «مبلغ قطعی قابل پرداخت» فقط با اعتبارسنجی سرور مجاز است. */
-export const SERVER_SIDE_PRICING_AVAILABLE = false;
+/** مبلغ سفارش وقتی از سرور پاکشو می‌آید قطعی حساب می‌شود. */
+export const SERVER_SIDE_PRICING_AVAILABLE = !DEMO_MODE;
 
-/* ------------------------------------------------------------------ */
-/* متن‌های مشترک وضعیت آزمایشی                                          */
-/* ------------------------------------------------------------------ */
-
-export const DEMO_COPY = {
+const DEMO_COPY_TEXT = {
   badge: 'نسخه آزمایشی',
 
   banner:
@@ -77,3 +75,35 @@ export const DEMO_COPY = {
     'مبلغ نهایی پس از اتصال به سرور پاک‌شو محاسبه و تأیید می‌شود؛ مبلغ نمایش‌داده‌شده ' +
     'مبنای دریافت وجه نیست.',
 } as const;
+
+const LIVE_COPY_TEXT = {
+  badge: '',
+
+  banner: '',
+
+  orderFlowNotice: '',
+
+  successTitle: 'درخواست شما ثبت شد',
+
+  successDescription:
+    'کد پیگیری را نگه دارید. هماهنگی نهایی تلفنی انجام می‌شود و تخصیص متخصص از پنل پاکشو است.',
+
+  paymentOnlineDisabled: 'پرداخت اینترنتی هنوز فعال نیست.',
+
+  paymentCashNotice: 'مبلغ را پس از انجام کار در محل به متخصص بپردازید.',
+
+  noCleanerAssignment:
+    'تخصیص متخصص از پنل پاکشو انجام می‌شود؛ انتخاب روی سایت فقط درخواست شماست.',
+
+  notificationsNotice: 'کد ورود با پیامک ارسال می‌شود.',
+
+  sampleDataBadge: 'نمونه',
+
+  sampleProfileBadge: 'نمونه',
+
+  provisionalPriceLabel: 'مبلغ',
+
+  provisionalPriceNote: 'این مبلغ را سرور پاکشو حساب می‌کند.',
+} as const;
+
+export const DEMO_COPY = DEMO_MODE ? DEMO_COPY_TEXT : LIVE_COPY_TEXT;
