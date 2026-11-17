@@ -5,7 +5,7 @@
   [build.environment]
     NODE_VERSION = "22"
 
-# صفحهٔ پیگیری /track و هر مسیر دیگر به index.html برگردد (SPA).
+# صفحهٔ پیگیری /track و /track/:trackingCode و هر مسیر دیگر به index.html برگردد (SPA).
 [[redirects]]
   from = "/*"
   to = "/index.html"

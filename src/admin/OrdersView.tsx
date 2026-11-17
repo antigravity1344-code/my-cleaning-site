@@ -8,6 +8,7 @@ import {
   fetchAdminOrderDetail,
   fetchAdminOrders,
 } from './adminApi';
+import { OrderTrackingShare } from './OrderTrackingShare';
 import { ALLOWED_STATUS_TRANSITIONS, STATUS_BADGE_CLASS, STATUS_LABELS } from './statusMap';
 
 interface OrdersViewProps {
@@ -157,10 +158,11 @@ function OrderDetailPanel({ orderId, csrfToken, onStatusChanged }: OrderDetailPa
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-slate-900">{order.customerName}</h3>
-          <p className="font-mono text-xs text-slate-500">{order.trackingCode}</p>
         </div>
         <StatusBadge status={order.status} />
       </div>
+
+      <OrderTrackingShare trackingCode={order.trackingCode} />
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt className="text-slate-500">تلفن</dt>

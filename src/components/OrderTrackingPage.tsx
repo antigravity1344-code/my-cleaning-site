@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { isPakshoConfigured, PakshoApiError, trackOrder, type PublicOrderSummary } from '../services/pakshoApi';
+import {
+  isAcceptedTrackingCode,
+  normalizeTrackingCode,
+  PAKSHO_TRACKING_CODE_PATTERN,
+} from '../services/trackingCodeFormat';
+import { parseTrackPath } from '../services/trackRoute';
+
+export { normalizeTrackingCode, PAKSHO_TRACKING_CODE_PATTERN as TRACKING_CODE_PATTERN };
 
 /** برچسب فارسی وضعیت‌های واقعی پاکشو (همان برچسب‌های سرور). */
 export const TRACK_STATUS_LABELS: Record<string, string> = {
@@ -17,31 +25,29 @@ export function trackStatusLabel(status: string): string {
   return TRACK_STATUS_LABELS[status] ?? 'وضعیت جدید';
 }
 
-/** کد پیگیری فقط از الگوی ORD-…-xxxxxxxx پذیرفته می‌شود (همان الگوی سرور). */
-const CODE_PATTERN = /^ORD-[0-9A-Z]+-[0-9a-f]{8}$/;
+const INVALID_CODE_MESSAGE = 'کد پیگیری معتبر نیست. نمونه: ORD-…-xxxxxxxx';
 
-/** بخش اول کد بزرگ، بخش هگزادسیمال پایانی (سرور: حروف کوچک) کوچک می‌شود. */
-export function normalizeTrackingCode(raw: string): string {
-  const up = raw.trim().toUpperCase().replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
-  const cut = up.lastIndexOf('-');
-  return cut === -1 ? up : up.slice(0, cut + 1) + up.slice(cut + 1).toLowerCase();
-}
+type OrderTrackingPageProps = {
+  /** برای آزمون؛ در اجرا از `window.location.pathname` خوانده می‌شود. */
+  pathname?: string;
+};
 
-export const OrderTrackingPage: React.FC = () => {
+export const OrderTrackingPage: React.FC<OrderTrackingPageProps> = ({ pathname }) => {
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<PublicOrderSummary | null>(null);
+  const autoLookupKey = useRef<string | null>(null);
 
   const configured = isPakshoConfigured();
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const normalized = normalizeTrackingCode(code);
+  const lookup = useCallback(async (raw: string) => {
+    const normalized = normalizeTrackingCode(raw);
+    setCode(normalized);
     setResult(null);
     setError('');
-    if (!CODE_PATTERN.test(normalized)) {
-      setError('کد پیگیری معتبر نیست. نمونه: ORD-…-xxxxxxxx');
+    if (!isAcceptedTrackingCode(normalized)) {
+      setError(INVALID_CODE_MESSAGE);
       return;
     }
     setPending(true);
@@ -61,6 +67,25 @@ export const OrderTrackingPage: React.FC = () => {
     } finally {
       setPending(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!configured) return;
+    const path = pathname ?? window.location.pathname;
+    const parsed = parseTrackPath(path);
+    if (parsed.kind === 'base') return;
+    if (parsed.kind === 'invalid') {
+      setError(INVALID_CODE_MESSAGE);
+      return;
+    }
+    if (autoLookupKey.current === parsed.raw) return;
+    autoLookupKey.current = parsed.raw;
+    void lookup(parsed.raw);
+  }, [configured, pathname, lookup]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await lookup(code);
   };
 
   return (

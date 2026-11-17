@@ -20,6 +20,7 @@ import { DemoModeBanner } from './components/DemoNotice';
 import { OrderTrackingPage } from './components/OrderTrackingPage';
 import { BackgroundInertContext } from './context/BackgroundInertContext';
 import { isPakshoConfigured, trackOrder, type PublicOrderSummary } from './services/pakshoApi';
+import { isPublicTrackPath } from './services/trackRoute';
 
 function PakshoAppContent() {
   const { orders, createOrder, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
@@ -319,8 +320,8 @@ function bookingOrderFromPublicTrack(summary: PublicOrderSummary): BookingOrder 
 }
 
 export default function App() {
-  // صفحهٔ پیگیری عمومی: /track (بدون ورود، بدون نام و تلفن در پاسخ).
-  if (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/track') {
+  // صفحهٔ پیگیری عمومی: /track و /track/:trackingCode (بدون ورود، بدون نام و تلفن در پاسخ).
+  if (typeof window !== 'undefined' && isPublicTrackPath(window.location.pathname)) {
     return <OrderTrackingPage />;
   }
   return (
