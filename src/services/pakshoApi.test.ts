@@ -106,6 +106,89 @@ describe('pakshoApi', () => {
     expect(sent.quoteToken).toBe('tok');
   });
 
+  it('sends operational order fields without changing quote, price, or auth', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {
+      success: true, order: { id: 'ORD-ABC-0a1b2c3d', status: 'PENDING', price: 800000, serviceTitle: 'نظافت عمیق و تخصصی (خانه‌تکانی)', date: '۲۰ مهر', time: 'صبح' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadWithBase('https://paksho.example');
+    const { buildPakshoOperationalFields } = await import('./pakshoOrderPayload');
+    const hourly = buildPakshoOperationalFields({
+      serviceTitle: 'نظافت عمیق و تخصصی (خانه‌تکانی)',
+      pricingModel: 'hourly',
+      isSofa: false,
+      hours: 6,
+      gender: 'male',
+      quoteOptions: { detergent: true },
+      address: { district: 'نیاوران و تجریش', cityName: 'تهران', street: 'خیابان باهنر، پلاک ۸', unit: '۴' },
+    });
+    await api.createOrder('session-1', {
+      serviceId: 'home-deep',
+      quantity: 6,
+      quoteToken: 'tok',
+      confirmedTotal: 800000,
+      date: '۲۰ مهر',
+      time: 'صبح',
+      customerName: 'الف',
+      customerPhone: '09120000001',
+      clientRequestId: 'req-hourly-1',
+      options: { detergent: true },
+      ...hourly,
+    });
+    const hourlySent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer session-1');
+    expect(hourlySent).toMatchObject({
+      serviceId: 'home_unit_cleaning',
+      quantity: 6,
+      quoteToken: 'tok',
+      confirmedTotal: 800000,
+      price: 800000,
+      options: { detergent: true },
+      serviceTitle: 'نظافت عمیق و تخصصی (خانه‌تکانی)',
+      durationHours: 6,
+      genderPreference: 'MALE',
+      serviceOptions: { detergent: true },
+    });
+    expect(hourlySent.address.startsWith('نیاوران و تجریش،')).toBe(true);
+
+    const sofa = buildPakshoOperationalFields({
+      serviceTitle: 'مبل‌شویی و فرش‌شویی در محل',
+      pricingModel: 'count',
+      isSofa: true,
+      hours: 3,
+      gender: 'no-pref',
+      quoteOptions: { seatSize: '7' },
+      sofa: { mattresses: 2, seatSize: '7' },
+      address: { district: 'پونک', cityName: 'تهران', street: 'بلوار همیلا', unit: '' },
+    });
+    await api.createOrder('session-1', {
+      serviceId: 'furniture-carpet',
+      quantity: 2,
+      quoteToken: 'tok-sofa',
+      confirmedTotal: 450000,
+      date: '۲۰ مهر',
+      time: 'صبح',
+      customerName: 'الف',
+      customerPhone: '09120000001',
+      clientRequestId: 'req-sofa-1',
+      options: { seatSize: '7' },
+      ...sofa,
+    });
+    const sofaSent = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(sofaSent).toMatchObject({
+      serviceId: 'sofa_carpet_washing',
+      quantity: 2,
+      quoteToken: 'tok-sofa',
+      confirmedTotal: 450000,
+      price: 450000,
+      options: { seatSize: '7' },
+      serviceTitle: 'مبل‌شویی و فرش‌شویی در محل',
+      genderPreference: 'NO_PREFERENCE',
+      serviceOptions: { seatSize: '7', mattresses: 2, sofaSeats: '۷ نفره' },
+    });
+    expect(sofaSent.durationHours).toBeUndefined();
+  });
+
   it('turns server errors into PakshoApiError with the Persian message', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(409, {
       success: false, code: 'PRICE_CHANGED', message: 'قیمت تغییر کرده است.',

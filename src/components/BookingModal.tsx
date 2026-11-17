@@ -20,6 +20,7 @@ import {
   PakshoApiError,
   type SiteFeatures,
 } from '../services/pakshoApi';
+import { buildPakshoOperationalFields } from '../services/pakshoOrderPayload';
 import { QUOTE_PENDING_TEXT, quoteErrorText, usePakshoQuote } from '../services/usePakshoQuote';
 import { SOFA_MAX_MATTRESSES, SOFA_PAKSHO_SERVICE_ID, type SofaFormValues, type SofaSeat } from '../services/sofaQuote';
 import { DemoBadge, DemoSampleBadge, DemoInlineNotice, ProvisionalPriceNote } from './DemoNotice';
@@ -304,12 +305,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (!serverQuote) throw new Error('قیمت هنوز دریافت نشده است. صبر کنید و دوباره تلاش کنید.');
     if (!clientRequestRef.current) clientRequestRef.current = crypto.randomUUID();
 
+    const operational = buildPakshoOperationalFields({
+      serviceTitle: currentService.title,
+      pricingModel: quoteState.model,
+      isSofa,
+      hours,
+      gender: cleanerGender,
+      quoteOptions: quoteState.options,
+      sofa: sofaForm,
+      address: { district, cityName, street: address.trim(), unit: unit.trim() },
+    });
     const result = await createPakshoOrder(token, {
       serviceId,
       quantity: quoteState.quantity,
       quoteToken: serverQuote.quoteToken,
       confirmedTotal: serverQuote.total,
-      address: [cityName, district, address.trim(), unit.trim()].filter(Boolean).join('، '),
+      address: operational.address,
       date: selectedDate,
       time: selectedTimeSlot,
       customerName: customerName.trim(),
@@ -318,6 +329,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       clientRequestId: clientRequestRef.current,
       options: quoteState.options,
       discountCode: quoteDiscount,
+      serviceTitle: operational.serviceTitle,
+      durationHours: operational.durationHours,
+      genderPreference: operational.genderPreference,
+      serviceOptions: operational.serviceOptions,
     });
 
     // TODO: نوع رکورد عملیاتی در مدل نیست؛ همان قرار httpOrderService فعلاً 'demo' می‌ماند.

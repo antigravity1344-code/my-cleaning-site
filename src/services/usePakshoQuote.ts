@@ -91,6 +91,7 @@ export function usePakshoQuote(
       : unavailable ? 'تعرفهٔ این خدمت در دسترس نیست.' : '',
     quantity,
     options,
+    model,
     pricingMode: isSofa ? pricingMode : null,
   };
 }

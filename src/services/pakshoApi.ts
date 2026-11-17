@@ -179,6 +179,10 @@ export interface PakshoOrderInput {
   notes?: string;
   clientRequestId: string;
   discountCode?: string;
+  serviceTitle?: string;
+  durationHours?: number;
+  genderPreference?: 'FEMALE' | 'MALE' | 'NO_PREFERENCE';
+  serviceOptions?: Record<string, string | number | boolean>;
 }
 
 export interface PakshoOrderResult {
