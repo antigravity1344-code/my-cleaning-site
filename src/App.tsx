@@ -19,6 +19,7 @@ import { Bot } from 'lucide-react';
 import { DemoModeBanner } from './components/DemoNotice';
 import { OrderTrackingPage } from './components/OrderTrackingPage';
 import { BackgroundInertContext } from './context/BackgroundInertContext';
+import { isPakshoConfigured, trackOrder, type PublicOrderSummary } from './services/pakshoApi';
 
 function PakshoAppContent() {
   const { orders, createOrder, submitOrderRating, cancelOrder, hasLegacyStoredData } = useOrders();
@@ -160,6 +161,13 @@ function PakshoAppContent() {
     await cancelOrder(orderId);
   };
 
+  /** پیگیری واقعی از سرور پاکشو وقتی VITE_PAKSHO_API_BASE در ساخت تنظیم شده باشد. */
+  const handleLookupByTrackingCode = useCallback(async (code: string): Promise<BookingOrder | null> => {
+    if (!isPakshoConfigured()) return null;
+    const summary = await trackOrder(code);
+    return summary ? bookingOrderFromPublicTrack(summary) : null;
+  }, []);
+
   return (
     <div className="paksho-public min-h-screen flex flex-col antialiased">
 
@@ -265,6 +273,7 @@ function PakshoAppContent() {
         onSubmitOrderRating={handleSubmitOrderRating}
         onCancelOrder={handleCancelOrder}
         hasLegacyStoredData={hasLegacyStoredData}
+        onLookupByTrackingCode={isPakshoConfigured() ? handleLookupByTrackingCode : undefined}
       />
 
       {/* AI Consultant Modal */}
@@ -276,6 +285,37 @@ function PakshoAppContent() {
 
     </div>
   );
+}
+
+/** نگاشت خلاصهٔ عمومی سرور به مدل نمایشی مودال پیگیری (بدون دادهٔ شخصی/مالی). */
+function bookingOrderFromPublicTrack(summary: PublicOrderSummary): BookingOrder {
+  const code = summary.trackingCode;
+  return {
+    id: code,
+    trackingCode: code,
+    createdAt: summary.createdAt || new Date().toISOString(),
+    status: summary.status as BookingOrder['status'],
+    isPublicSummary: true,
+    recordType: 'demo',
+    paymentStatus: 'unpaid',
+    serviceId: 'home-standard',
+    serviceTitle: summary.serviceTitle || '',
+    cleanerGender: 'no-pref',
+    hours: 0,
+    selectedAddons: [],
+    hasDetergentPackage: false,
+    date: summary.date || '',
+    timeSlot: summary.time || '',
+    cityName: summary.area || '',
+    district: '',
+    address: '',
+    unit: '',
+    customerName: '',
+    customerPhone: '',
+    totalPrice: 0,
+    discountApplied: 0,
+    paymentMethod: 'cash_on_site',
+  };
 }
 
 export default function App() {

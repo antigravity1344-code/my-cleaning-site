@@ -21,7 +21,7 @@ export function trackStatusLabel(status: string): string {
 const CODE_PATTERN = /^ORD-[0-9A-Z]+-[0-9a-f]{8}$/;
 
 /** بخش اول کد بزرگ، بخش هگزادسیمال پایانی (سرور: حروف کوچک) کوچک می‌شود. */
-function normalizeCode(raw: string): string {
+export function normalizeTrackingCode(raw: string): string {
   const up = raw.trim().toUpperCase().replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
   const cut = up.lastIndexOf('-');
   return cut === -1 ? up : up.slice(0, cut + 1) + up.slice(cut + 1).toLowerCase();
@@ -37,7 +37,7 @@ export const OrderTrackingPage: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const normalized = normalizeCode(code);
+    const normalized = normalizeTrackingCode(code);
     setResult(null);
     setError('');
     if (!CODE_PATTERN.test(normalized)) {

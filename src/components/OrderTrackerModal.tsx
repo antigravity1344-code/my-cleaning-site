@@ -18,6 +18,7 @@ import {
 import { DEMO_COPY, DEMO_MODE } from '../config/capabilities';
 import { LEGACY_DATA_NOTICE } from '../services/pii';
 import { useDialogA11y } from '../hooks/useDialogA11y';
+import { normalizeTrackingCode, trackStatusLabel, TRACK_STATUS_LABELS } from './OrderTrackingPage';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
@@ -124,14 +125,14 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchCode.trim().toUpperCase();
+    const query = normalizeTrackingCode(searchCode);
     if (!query) return;
 
     // اول در فهرست محلی همین نشست (سفارش‌هایی که همین مرورگر همین الان دید).
     const found = orders.find(
       (order) =>
-        order.trackingCode.toUpperCase() === query ||
-        order.id.toUpperCase() === query
+        normalizeTrackingCode(order.trackingCode) === query ||
+        normalizeTrackingCode(order.id) === query
     );
 
     if (found) {
@@ -140,10 +141,8 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
       return;
     }
 
-    // اگر سرویس سفارش واقعی سوار باشد (onLookupByTrackingCode)، جست‌وجوی محلی که
-    // شکست خورد به سرور می‌رود — همان راهی که مشتری بعد از بستن مرورگر/جلسهٔ
-    // قبلی، سفارشش را با کد پیگیری پیدا می‌کند (بخش ۷). در نسخهٔ آزمایشی فعلی
-    // این prop داده نمی‌شود، پس این مسیر هرگز اجرا نمی‌شود و رفتار قبلی عیناً باقی می‌ماند.
+    // اگر onLookupByTrackingCode سوار باشد، جست‌وجوی محلی ناموفق به سرور می‌رود
+    // (GET /api/track/:code — بخش ۷). بدون آن، همان پیام نسخهٔ آزمایشی/محلی می‌ماند.
     if (!onLookupByTrackingCode) {
       setSearchError(
         DEMO_MODE
@@ -547,8 +546,12 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
  * اعزام یا در حال نظافت تولید نمی‌کند.
  */
 function PublicOrderSummary({ order }: { order: BookingOrder }) {
-  const statusLabel = REAL_STATUS_LABELS[order.status] ?? order.status;
-  const isCancelled = order.status === 'cancelled';
+  const rawStatus = String(order.status);
+  const statusLabel =
+    TRACK_STATUS_LABELS[rawStatus] ??
+    REAL_STATUS_LABELS[order.status] ??
+    trackStatusLabel(rawStatus);
+  const isCancelled = order.status === 'cancelled' || rawStatus.toUpperCase() === 'CANCELLED';
 
   return (
     <div className="space-y-4">

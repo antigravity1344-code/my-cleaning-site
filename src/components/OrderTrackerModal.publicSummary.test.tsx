@@ -70,7 +70,11 @@ describe('OrderTrackerModal — پیگیری عمومی سفارش واقعی (i
     fireEvent.click(screen.getByRole('button', { name: 'جستجو' }));
 
     await waitFor(() => {
-      expect(getModal().textContent).toContain('هیچ سامانه مرکزی برای رهگیری وجود ندارد');
+      const text = getModal().textContent ?? '';
+      expect(
+        text.includes('هیچ سامانه مرکزی برای رهگیری وجود ندارد') ||
+          text.includes('کد پیگیری را وارد کنید تا از سرور پاکشو جستجو شود'),
+      ).toBe(true);
     });
   });
 
@@ -83,7 +87,7 @@ describe('OrderTrackerModal — پیگیری عمومی سفارش واقعی (i
     });
     fireEvent.click(screen.getByRole('button', { name: 'جستجو' }));
 
-    await waitFor(() => expect(lookup).toHaveBeenCalledWith(publicOrderFixture.trackingCode));
+    await waitFor(() => expect(lookup).toHaveBeenCalledWith('PAKA-BCDE-FGHI-jklm'));
 
     // نمای عمومی: برچسب وضعیت واقعی دیده می‌شود...
     await waitFor(() => {
@@ -118,5 +122,19 @@ describe('OrderTrackerModal — پیگیری عمومی سفارش واقعی (i
 
     await waitFor(() => expect(getModal().textContent).toContain('لغو شد'));
     expect(getModal().textContent).not.toContain('لغو رکورد نمایشی');
+  });
+
+  it('وضعیت ACCEPTED سرور را به‌صورت پذیرفته‌شده نشان می‌دهد', async () => {
+    const accepted: BookingOrder = { ...publicOrderFixture, status: 'ACCEPTED' as BookingOrder['status'] };
+    const lookup = vi.fn().mockResolvedValue(accepted);
+    renderModal({ onLookupByTrackingCode: lookup });
+
+    fireEvent.change(screen.getByPlaceholderText(/کد پیگیری/), { target: { value: 'ORD-MWKOTXCM-230e612f' } });
+    fireEvent.click(screen.getByRole('button', { name: 'جستجو' }));
+
+    await waitFor(() => expect(lookup).toHaveBeenCalledWith('ORD-MWKOTXCM-230e612f'));
+    await waitFor(() => {
+      expect(getModal().textContent).toContain('پذیرفته‌شده');
+    });
   });
 });

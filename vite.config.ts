@@ -13,8 +13,10 @@ export default defineConfig({
     // پراکسی می‌شوند — بدون این، کوکی نشست پنل مدیر به‌خاطر CORS/مبدأ متفاوت کار نمی‌کرد.
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.SITE_SERVER_PORT ?? 4000}`,
-        changeOrigin: false,
+        // در توسعه محلی می‌توان PAKSHO_DEV_API_PROXY را به https://pakshu.ir گذاشت.
+        target: process.env.PAKSHO_DEV_API_PROXY || `http://localhost:${process.env.SITE_SERVER_PORT ?? 4000}`,
+        changeOrigin: true,
+        secure: true,
       },
     },
   },
