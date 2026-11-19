@@ -9,7 +9,7 @@ import { CreateOrderDTO } from '../services/orderService.types';
 import { calculatePrice, validatePromoCode } from '../pricing/pricingEngine';
 import { buildDemoOrderPayload } from '../services/demoOrder';
 import { toLatinDigits } from '../services/pii';
-import { validateOrderContact } from '../validation/orderContactValidation';
+import { validateOrderContact, normalizeIranMobile } from '../validation/orderContactValidation';
 import {
   isPakshoConfigured,
   sendOtp,
@@ -289,7 +289,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // ثبت سفارش در سرور پاکشو: مرحلهٔ اول کد پیامکی می‌فرستد، مرحلهٔ دوم کد را تأیید و سفارش را ثبت می‌کند.
   const submitToPaksho = async (orderPayload: CreateOrderDTO): Promise<BookingOrder> => {
-    const phone = toLatinDigits(customerPhone.trim());
+    // شماره تا اینجا توسط validateStep3/validateOrderContact معتبر شمرده شده، پس normalize باید موفق باشد؛
+    // fallback فقط برای ایمنی در برابر تغییر مسیر غیرمنتظره است.
+    const phone = normalizeIranMobile(customerPhone) ?? toLatinDigits(customerPhone.trim());
     let token = customerToken;
     if (!token) {
       if (!otpSent) {
