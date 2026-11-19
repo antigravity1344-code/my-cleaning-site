@@ -93,5 +93,7 @@ export function usePakshoQuote(
     options,
     model,
     pricingMode: isSofa ? pricingMode : null,
+    // فقط بعد از دریافت قوانین تعرفه مشخص می‌شود؛ تا آن زمان false است تا افزودنی زودتر از موعد نشان داده نشود.
+    detergentAvailable: rule?.detergentAvailable === true,
   };
 }

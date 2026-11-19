@@ -131,6 +131,8 @@ export interface PricingRule {
   model: 'hourly' | 'fixed' | 'count' | 'area';
   pricingMode?: 'units' | 'mattress_seat' | null;
   seatSizes?: string[] | null;
+  /** آیا مدیر برای همین خدمت قیمت افزودنی پکیج مواد شوینده ثبت کرده است (بدون افشای مبلغ). */
+  detergentAvailable?: boolean;
 }
 
 let pendingPricingRules: Promise<PricingRule[]> | undefined;

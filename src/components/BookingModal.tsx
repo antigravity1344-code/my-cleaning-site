@@ -197,12 +197,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const pakshoMode = isPakshoConfigured();
   const extrasOn = pakshoMode && siteFlags.siteExtras;
-  const detergentAvailable = extrasOn && siteFlags.detergentPackage;
-  const detergentOn = detergentAvailable && hasDetergentPackage;
+  // کلید سراسری سایت؛ فقط یعنی قابلیت پکیج شوینده روشن است، نه اینکه خدمت فعلی قیمت دارد.
+  const detergentFeatureOn = extrasOn && siteFlags.detergentPackage;
+  const detergentOn = detergentFeatureOn && hasDetergentPackage;
   const quoteDiscount = extrasOn && appliedPromoCode ? appliedPromoCode : undefined;
   const isSofa = pakshoServiceId(serviceId) === SOFA_PAKSHO_SERVICE_ID;
   const sofaForm: SofaFormValues | undefined = isSofa ? { mattresses: sofaMattresses, seatSize: sofaSeat } : undefined;
   const quoteState = usePakshoQuote(isOpen && pakshoMode, serviceId, hours, detergentOn, quoteDiscount, sofaForm, isOpen && pakshoMode && currentStep >= 2);
+  // چک‌باکس فقط وقتی نشان داده می‌شود که هم کلید سراسری روشن باشد و هم مدیر برای همین خدمت قیمتی ثبت کرده باشد.
+  const detergentAvailable = detergentFeatureOn && quoteState.detergentAvailable;
   const serverQuote = quoteState.quote;
   const quoteError = quoteState.availabilityMessage || (quoteState.error ? quoteErrorText(quoteState.error) : '');
   const baseServicePrice = pakshoMode ? (serverQuote?.subtotal ?? 0) : pricing.serviceBase;
